@@ -658,3 +658,36 @@ a.setrow, a.row, a.btn, .tab, .campaign-bar, a.prow { text-decoration: none; }
 .tab::before { z-index: -1; }
 .btn-row > .btn.sm { gap: 4px; padding: 4px 4px; font-size: .84rem; }
 .btn-row > .btn.sm .icon { width: 15px; height: 15px; }
+
+/* v2.4: compact header, menu drawer */
+.topbar { padding: 6px 8px 2px 18px; min-height: 48px; gap: 4px; }
+.topbar.sub-page { padding-left: 4px; }
+.topbar h1 { font-size: 1.5rem; display: flex; align-items: baseline; gap: 10px; }
+.topbar.sub-page h1 { font-size: 1.15rem; }
+.topbar .sub { display: inline; margin: 0; font-size: .8rem; }
+.topbar .iconbtn { width: 44px; height: 44px; }
+.view { padding-top: 4px; }
+.drawer { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.4); display: flex; justify-content: flex-end; }
+.drawer-panel { width: min(320px, 86vw); height: 100%; overflow-y: auto; background: var(--bg); padding: 8px 12px calc(16px + env(safe-area-inset-bottom)); animation: drawer-in .18s ease-out; }
+@keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 8px; }
+.drawer-head h2 { font-family: var(--font-dot); font-size: 1.5rem; }
+.drawer-item { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 14px; border-radius: 14px; color: var(--fg); text-decoration: none; font-size: 1rem; font-weight: 500; }
+.drawer-item:active { background: var(--surface2); }
+.no-scroll { overflow: hidden; }
+.sticky-filters { top: 49px; padding: 6px 0 6px; margin: -6px 0 2px; }
+.sticky-filters input[type=search] { min-height: 44px; padding-left: 40px; }
+.searchbox .icon { top: 50%; margin-top: -9px; }
+.sticky-filters .chip { min-height: 34px; padding: 4px 13px; font-size: .88rem; }
+.sticky-filters select { min-height: 40px; padding: 6px 12px; font-size: .9rem; }
+.sticky-filters .nhbtn, .sticky-filters .iconbtn { min-height: 40px; height: 40px; }
+.row { padding: 10px 10px 10px 16px; min-height: 0; }
+.row .name { font-size: 1rem; }
+.row .line2 { font-size: .86rem; margin-top: 0; }
+.row .line3 { margin-top: 4px; gap: 2px 10px; font-size: .8rem; flex-wrap: wrap; align-items: center; }
+.row .badge { font-size: .8rem; }
+.row .badge.flag-overdue, .row .badge.flag-soon { padding: 1px 8px; }
+.nhbtn { min-width: 46px; height: 42px; }
+.list .group-head, .list > .group-head { padding: 10px 16px 4px; }
+.group-head { margin: 12px 4px 4px; font-size: .8rem; }
+.list .group-head { margin: 0; padding: 10px 16px 4px; }

@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.3.0';
+  RV.VERSION = '2.4.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -55,11 +55,29 @@
 
   function renderTabs() {
     const overdue = ST.items().filter((i) => i.att.state === 'overdue').length;
-    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', UI.lbl('rvs')], ['insights', '#/insights', 'chart', 'Insights'], ['settings', '#/settings', 'sliders', 'Settings']];
+    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', UI.lbl('rvs')], ['insights', '#/insights', 'chart', 'Insights']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
         icon(ic, 22), label, id === 'today' && overdue ? h('span', { class: 'dot', 'aria-label': overdue + ' overdue' }, overdue > 99 ? '99+' : String(overdue)) : null)));
+  }
+
+
+  // ---------- menu (settings) ----------
+  function openMenu() {
+    if (document.querySelector('.drawer')) return;
+    const K = RV.defaults.LIB_KINDS, lbl = UI.lbl;
+    const items = [
+      ['display', 'Display', 'sliders'], ['home', 'Home screen', 'home'], ['lib/topic', lbl('topics'), 'note'], ['campaigns', lbl('campaign') + 's', 'calendar'],
+      ['stages', 'Lead stages', 'shuffle'], ['reasons', 'Archive reasons', 'archive'], ['fields', 'Lists and custom fields', 'users'], ['labels', 'Labels', 'edit'],
+      ['attention', 'Needs attention', 'clock'], ['security', 'Security', 'lock'], ['data', 'Data and backup', 'download'], ['about', 'About', 'alert']];
+    const close = () => { scrim.remove(); document.body.classList.remove('no-scroll'); };
+    const scrim = h('div', { class: 'drawer', onclick: (e) => { if (e.target === scrim) close(); } },
+      h('nav', { class: 'drawer-panel', 'aria-label': 'Settings menu' },
+        h('div', { class: 'drawer-head' }, h('h2', null, 'Settings'), h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('x'))),
+        ...items.map(([path, label, ic]) => h('a', { class: 'drawer-item', href: '#/settings/' + path, onclick: close }, icon(ic, 20), label))));
+    document.body.appendChild(scrim);
+    document.body.classList.add('no-scroll');
   }
 
   function renderStatus() {
@@ -97,6 +115,7 @@
     }
     topbar.appendChild(h('h1', null, screen.title, screen.sub ? h('span', { class: 'sub' }, screen.sub) : null));
     (screen.actions || []).forEach((a) => topbar.appendChild(a));
+    if (!screen.back) topbar.appendChild(h('button', { class: 'iconbtn menubtn', type: 'button', 'aria-label': 'Menu', onclick: openMenu }, icon('menu', 24)));
     view.replaceChildren(screen.el);
     fab.hidden = !screen.fab;
     document.body.classList.toggle('has-fab', !!screen.fab);

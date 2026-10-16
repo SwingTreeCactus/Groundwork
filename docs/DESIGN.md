@@ -219,3 +219,10 @@ Why: the Nothing-style skin felt clunky (outlines everywhere, mono caps labels, 
 - Stage: five pips show where a record is in the funnel (filled = current position) instead of an outlined badge. Overdue stays a small red pill.
 - Record detail: Discuss next time and last visit are soft grey blocks; on a study record the Studying block is the solid black one.
 - Navigation: sentence-case labels with a soft pill behind the active icon. Rows and buttons are at least 48 px tall.
+
+## 18. v2.4.0 hamburger menu and compact layout
+
+- Settings tab removed from the bottom bar (Home, Today, RVs, Insights). A hamburger button at the right of every top-level header opens a slide-in drawer listing the settings sections. The `#/settings` index page still exists as the back target for settings sub-pages.
+- Header is one slim row (about 48 px); the Home date sits inline beside the title.
+- RVs filters (search, stage chips, selects) and list rows are tighter; stage, overdue flag and last-visit text share a wrapping line.
+- sw.js cache rvapp-v9.
