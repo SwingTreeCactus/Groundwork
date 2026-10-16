@@ -366,8 +366,8 @@
       const bytes = await RV.smile.gunzipIfNeeded(file.buffer);
       const pairs = RV.smile.decode(bytes, { pairs: true });
       const closed = S.settings.stages.find((s) => s.closed);
-      parsed = (stageId, skipDup) => {
-        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other' });
+      parsed = (stageId, skipDup, bestFromLast) => {
+        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', partOf: L.partOf, bestFromLast });
         res.rvs = res.rvs.map((r) => ST.blankRv(r));
         let dups = 0;
         const seen = [];
@@ -384,16 +384,17 @@
         });
         return { res, keep, dups };
       };
-      parsed(S.settings.stages[0].id, false);
+      parsed(S.settings.stages[0].id, false, false);
     } catch (e) {
       toast('Could not read that file as a Ministry Assistant backup.');
       return;
     }
     const defStage = F.select(F.stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
     const skipDup = h('input', { type: 'checkbox', checked: true });
+    const bestDay = h('input', { type: 'checkbox', checked: true });
     const summary = h('div', { class: 'banner info' });
     const refresh = () => {
-      const { res, keep, dups } = parsed(defStage.value, skipDup.checked);
+      const { res, keep, dups } = parsed(defStage.value, skipDup.checked, bestDay.checked);
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
         keep.length + ' ' + lbl('rvs') + ' and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
         (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
@@ -402,16 +403,18 @@
     sheet('Import from Ministry Assistant', (close) => {
       defStage.addEventListener('change', refresh);
       skipDup.addEventListener('change', refresh);
+      bestDay.addEventListener('change', refresh);
       const form = h('div', null,
         field('Stage for imported people', defStage),
         h('label', { class: 'check' }, skipDup, 'Skip people who match an existing address'),
+        h('label', { class: 'check' }, bestDay, 'Set best day and time from their last visit'),
         summary,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', {
             class: 'btn primary', type: 'button',
             onclick: () => {
-              const { res, keep } = parsed(defStage.value, skipDup.checked);
+              const { res, keep } = parsed(defStage.value, skipDup.checked, bestDay.checked);
               const ids = new Set(keep.map((r) => r.id));
               ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
               close();

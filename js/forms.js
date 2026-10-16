@@ -157,6 +157,17 @@
         field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this ' + lbl('rv')),
+        isNew ? null : h('button', {
+          class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
+          onclick: async () => {
+            const ok = await UI.confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
+            if (!ok) return;
+            close();
+            ST.deleteRv(rv.id);
+            location.hash = '#/rvs';
+            toast('Deleted ' + rv.name);
+          },
+        }, icon('trash', 18), 'Delete this ' + lbl('rv')),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save')));
