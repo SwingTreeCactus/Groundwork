@@ -302,7 +302,7 @@
             at: d ? d.toISOString() : undefined,
           });
           close();
-          toast(study ? 'Study saved' : 'Visit saved', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
+          toast(study ? 'Study saved' : 'Visit saved', { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
         },
       },
         tagList, pubList,
@@ -340,7 +340,7 @@
     if (choice === undefined || choice === rv.stage) return;
     if (closedStage && choice === closedStage.id) return archiveFlow(rvId);
     const res = ST.setStage(rvId, choice);
-    if (res) toast('Moved to ' + L.stageOf(S.settings, choice).name, { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
+    if (res) toast('Moved to ' + L.stageOf(S.settings, choice).name, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
   async function archiveFlow(rvId) {
@@ -360,7 +360,7 @@
       if (!ok) return;
     }
     const res = ST.setStage(rvId, closedStage.id, { reason });
-    if (res) toast('Archived: ' + (r ? r.name : ''), { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
+    if (res) toast('Archived: ' + (r ? r.name : ''), { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
   async function restoreFlow(rvId) {
@@ -372,7 +372,7 @@
     const choice = await pick('Restore to which stage?', stageOptions(), def);
     if (!choice) return;
     const res = ST.setStage(rvId, choice, { text: 'Restored' });
-    if (res) toast('Restored to ' + L.stageOf(S.settings, choice).name, { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
+    if (res) toast('Restored to ' + L.stageOf(S.settings, choice).name, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
   function snoozeSheet(rvId) {
@@ -381,7 +381,7 @@
     const date = h('input', { type: 'date', value: rv.snoozedUntil || '' });
     const apply = (val) => {
       const res = ST.snooze(rvId, val);
-      toast(val ? 'Snoozed until ' + U.fmtDate(val) : 'Snooze cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 6 });
+      toast(val ? 'Snoozed until ' + U.fmtDate(val) : 'Snooze cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
     };
     sheet('Snooze needs-attention', (close) =>
       h('div', null,

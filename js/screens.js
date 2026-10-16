@@ -446,7 +446,7 @@
         lastVisit
           ? h('div', { class: 'snap-row' },
             h('div', { class: 'snap-k' }, 'Last visit · ' + U.fmtDateTime(lastVisit.at)),
-            h('div', { class: 'snap-v clamp' }, lastVisit.text))
+            h('div', { class: 'snap-v' }, lastVisit.text))
           : null)
       : null;
     const head = h('section', { class: 'card' },
@@ -462,7 +462,7 @@
             h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
           study ? null : h('div', { class: 'quicklog' },
             h('span', { class: 'ql-label' }, 'One-tap log'),
-            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'btn sm ql', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] }); } }, icon('plus', 16), t))),
+            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'btn sm ql', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] }); } }, icon('plus', 16), t))),
           h('div', { class: 'btn-row' },
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openTel(rv.phone) }, icon('phone', 16), 'Call') : null,
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openSms(rv.phone) }, icon('message', 16), 'Text') : null,

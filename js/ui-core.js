@@ -103,7 +103,7 @@
   function toast(msg, o) {
     o = o || {};
     if (!toastBox) { toastBox = h('div', { class: 'toasts', 'aria-live': 'polite' }); document.body.appendChild(toastBox); }
-    const el = h('div', { class: 'toast', role: 'status' }, h('div', { class: 'msg' }, msg));
+    const el = h('div', { class: 'toast', role: 'status' }, h('div', { class: 'msg', onclick: () => dismiss() }, msg));
     const dismiss = () => { clearTimeout(t); el.remove(); };
     (o.actions || []).forEach((a) =>
       el.appendChild(h('button', { type: 'button', onclick: () => { dismiss(); a.fn(); } }, a.label)));

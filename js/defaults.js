@@ -34,9 +34,9 @@
       },
       stages: [
         { id: 'yet', name: 'Yet to Contact', days: null, closed: false },
-        { id: 'initial', name: 'Initial Call', days: 7, closed: false },
-        { id: 'cultivating', name: 'Cultivating Interest', days: 7, closed: false },
-        { id: 'return', name: 'Return Visit', days: 14, closed: false },
+        { id: 'initial', name: 'Initial Call', days: 30, closed: false },
+        { id: 'cultivating', name: 'Cultivating Interest', days: 30, closed: false },
+        { id: 'return', name: 'Return Visit', days: 30, closed: false },
         { id: 'study', name: 'Bible Study', days: 30, closed: false, study: true },
         { id: 'archived', name: 'Archived', days: 0, closed: true },
       ],
@@ -47,7 +47,8 @@
         { id: 'dup', name: 'Duplicate record', restorable: false, hidden: true, dnc: false },
         { id: 'other', name: 'Other', restorable: true, hidden: true, dnc: false },
       ],
-      defaultStaleDays: 14,
+      defaultStaleDays: 30,
+      overdue30: true,
       comingUpDays: 7,
       soonDays: 2,
       // An RV with a best-day tag is not flagged overdue on other days until it is this many times past its threshold.
@@ -90,6 +91,13 @@
     out.version = d.version;
     if (!Array.isArray(out.stages) || !out.stages.length) out.stages = d.stages;
     if (!out.stages.some((s) => s.closed)) out.stages.push(d.stages[d.stages.length - 1]);
+    // 2.7.2: overdue after 30 days by default. Move old untouched defaults (7, 7, 14, 14) once; values set by hand stay.
+    if (!saved.overdue30) {
+      const old = { initial: 7, cultivating: 7, return: 14 };
+      out.stages = out.stages.map((st) => (old[st.id] != null && st.days === old[st.id] ? Object.assign({}, st, { days: 30 }) : st));
+      if (out.defaultStaleDays === 14) out.defaultStaleDays = 30;
+      out.overdue30 = true;
+    }
     if (!Array.isArray(out.archiveReasons) || !out.archiveReasons.length) out.archiveReasons = d.archiveReasons;
     return out;
   }

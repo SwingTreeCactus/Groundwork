@@ -757,3 +757,11 @@ details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
 .note-field .show-fields { background: none; border: 0; cursor: pointer; text-decoration: underline; font: inherit; }
 .ql-label { flex-basis: 100%; margin-bottom: -2px; }
 .quicklog .btn.ql { flex: 1; justify-content: center; }
+/* notes show in full on the record screen, keeping line breaks */
+.snap-v, .tl .txt, .household { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* v2.7.2: small toasts, bottom-left, clear of the + button */
+.toasts, .has-fab .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); align-items: flex-start; padding: 0 84px 0 12px; }
+.toast { width: auto; max-width: 100%; min-height: 0; padding: 4px 4px 4px 14px; border-radius: 999px; gap: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+.toast .msg { font-size: .84rem; cursor: pointer; }
+.toast button { min-height: 32px; padding: 4px 10px; font-size: .84rem; }
