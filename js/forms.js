@@ -249,6 +249,11 @@
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
     const study = L.isStudyStage(S.settings, rv.stage);
     const text = h('textarea', study ? { placeholder: 'Note (optional)', style: { minHeight: '64px' } } : { placeholder: 'What did you discuss?', 'data-autofocus': true, style: { minHeight: '120px' } });
+    // Tapping or typing in the note opens a full-screen writing view; "Show other fields" returns.
+    const grow = () => { if (text.closest('.writing')) { text.style.height = ''; return; } text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight + 4, Math.round(window.innerHeight * 0.5)) + 'px'; };
+    const writing = () => { const sh = text.closest('.sheet'); if (sh && !study) { sh.classList.add('writing'); text.style.height = ''; } };
+    text.addEventListener('pointerdown', writing);
+    text.addEventListener('input', () => { writing(); grow(); });
     const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-v', autocomplete: 'off', placeholder: 'Publication' });
     const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: rv.progress ? 'Last: ' + rv.progress : 'Lesson, paragraph, page' });
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
@@ -303,7 +308,8 @@
         tagList, pubList,
         study ? field('Publication', pub) : null,
         study ? field('Where you stopped', prog) : null,
-        study ? null : h('div', { class: 'field' }, text),
+        study ? null : h('div', { class: 'field note-field' }, text,
+          h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')),
         !study && topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
           h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
         field('Discuss next time', whatsNext),

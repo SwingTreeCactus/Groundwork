@@ -36,6 +36,8 @@
             : stageBadge(rv.stage),
           dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null,
           attBadge(it.att),
+          o.best !== false && L.dayTagsOf(rv).length ? h('span', { class: 'besttag' }, icon('clock', 13), L.tagsShort(rv)) : null,
+          o.noBestHint && !L.dayTagsOf(rv).length ? h('span', { class: 'besttag none' }, 'No best day') : null,
           o.why ? h('span', { class: 'muted' }, o.why) : h('span', { class: 'muted' }, UI.lastText(it)))),
       (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, navBtn, nhBtn) : null);
   }
@@ -185,23 +187,44 @@
     const fc = L.forecast(items, now, 7);
     const els = [];
     const count = (n) => h('span', { class: 'count' }, String(n));
-    if (plan.overdue.length) els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue'), count(plan.overdue.length)), listOf(plan.overdue)));
+    const partName = (p) => (p ? p[0].toUpperCase() + p.slice(1) : 'Any time');
+    // overdue and a good day to find them: grouped by part of day, the current part marked Now
+    if (plan.goodToday.length) {
+      const box = h('div');
+      let last = null, list = null;
+      plan.goodToday.forEach((g) => {
+        if (g.part !== last) {
+          box.appendChild(h('div', { class: 'subhead' }, partName(g.part), g.part === plan.nowPart ? h('span', { class: 'now-pill' }, 'Now') : null));
+          list = h('div', { class: 'list', style: { marginBottom: '10px' } });
+          box.appendChild(list);
+          last = g.part;
+        }
+        list.appendChild(rvRow(g.item, { why: g.why, best: false }));
+      });
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue: good day today'), count(plan.goodToday.length)), box));
+    }
     if (plan.scheduled.length) els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Scheduled today'), count(plan.scheduled.length)), listOf(plan.scheduled)));
     if (plan.tagged.length) {
       const box = h('div');
       let last = null;
       plan.tagged.forEach((t) => {
         const part = t.tag.part || '';
-        if (part !== last) { box.appendChild(h('div', { class: 'subhead' }, part ? part[0].toUpperCase() + part.slice(1) : 'Any time')); last = part; }
+        if (part !== last) { box.appendChild(h('div', { class: 'subhead' }, partName(part), part === plan.nowPart ? h('span', { class: 'now-pill' }, 'Now') : null)); last = part; }
         box.appendChild(h('div', { class: 'list', style: { marginBottom: '8px' } }, rvRow(t.item, {
+          best: false,
           why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
         })));
       });
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Tagged for today'), count(plan.tagged.length)), box));
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Also good today'), count(plan.tagged.length)), box));
+    }
+    if (plan.otherDays.length) {
+      els.push(h('details', { class: 'sec fold-sec' },
+        h('summary', { class: 'sec-head' }, h('h2', null, 'Overdue: other days'), count(plan.otherDays.length), icon('down', 18)),
+        listOf(plan.otherDays, { noBestHint: true })));
     }
     if (!els.length) {
       els.push(UI.emptyState('check', 'Nothing on your list today.',
-        h('div', { class: 'small', style: { marginTop: '6px' } }, 'RVs show up here when they are overdue, scheduled for today, or tagged with today\'s day of the week.')));
+        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue, scheduled for today, or their best day is today.')));
     }
     // 7-day forecast
     const fbox = h('div');
@@ -211,7 +234,7 @@
       let shown = 5;
       const list = h('div', { class: 'list' });
       const paint = () => {
-        list.replaceChildren(...rows.slice(0, shown).map((r) => rvRow(r.it, { nh: false, why: r.why })));
+        list.replaceChildren(...rows.slice(0, shown).map((r) => rvRow(r.it, { nh: false, best: false, why: r.why })));
         if (rows.length > shown) list.appendChild(h('button', { class: 'btn ghost sm', type: 'button', onclick: () => { shown = rows.length; paint(); } }, 'Show ' + (rows.length - shown) + ' more'));
       };
       paint();
@@ -229,10 +252,10 @@
   function loadListState() {
     let st = {};
     try { st = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch (e) { st = {}; }
-    return { stages: Array.isArray(st.stages) ? st.stages : null, sort: L.SORTS[st.sort] ? st.sort : 'attention', neighborhood: st.neighborhood || '', q: '' };
+    return { stages: Array.isArray(st.stages) ? st.stages : null, sort: L.SORTS[st.sort] ? st.sort : 'attention', neighborhood: st.neighborhood || '', bestDay: st.bestDay || '', q: '' };
   }
   function saveListState(st) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ stages: st.stages, sort: st.sort, neighborhood: st.neighborhood })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ stages: st.stages, sort: st.sort, neighborhood: st.neighborhood, bestDay: st.bestDay })); } catch (e) { /* ignore */ }
   }
 
   function list() {
@@ -253,6 +276,9 @@
       ST.neighborhoods().forEach((n) => nbSel.appendChild(h('option', { value: n, selected: n === st.neighborhood }, n)));
     };
     nbSel.addEventListener('change', () => { st.neighborhood = nbSel.value; saveListState(st); refresh(); });
+    const daySel = F.select([{ value: '', label: 'Any day' }, { value: 'today', label: 'Good today' }]
+      .concat(U.DAYS.map((d, i) => ({ value: String(i), label: d }))).concat([{ value: 'none', label: 'No best day' }]), st.bestDay, { 'aria-label': 'Best day' });
+    daySel.addEventListener('change', () => { st.bestDay = daySel.value; saveListState(st); shown = 100; refresh(); });
     const viewsBtn = h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Saved views', onclick: () => viewsSheet() }, icon('bookmark'));
     const countEl = h('div', { class: 'muted small', style: { margin: '2px 2px 8px' } });
     const listBox = h('div');
@@ -308,14 +334,14 @@
       if (st.neighborhood && !ST.neighborhoods().includes(st.neighborhood)) st.neighborhood = '';
       rebuildNb();
       sortSel.value = st.sort;
-      const rows = L.filterItems(all, { stages: sel, neighborhood: st.neighborhood, q: st.q }, S.settings).sort(L.SORTS[st.sort]);
+      const rows = L.filterItems(all, { stages: sel, neighborhood: st.neighborhood, bestDay: st.bestDay, q: st.q }, S.settings).sort(L.SORTS[st.sort]);
       countEl.textContent = rows.length + ' ' + (rows.length === 1 ? lbl('rv') : lbl('rvs'));
       listBox.replaceChildren();
       if (!rows.length) {
         const none = !S.rvs.some((r) => !r.deletedAt);
         listBox.appendChild(UI.emptyState('users', none ? 'No ' + lbl('rvs') + ' yet.' : 'No matches for these filters.',
           none ? h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, 'Add ' + lbl('rv'))
-            : h('button', { class: 'btn', type: 'button', onclick: () => { st.stages = null; st.neighborhood = ''; st.q = ''; search.value = ''; saveListState(st); refresh(); } }, 'Reset filters')));
+            : h('button', { class: 'btn', type: 'button', onclick: () => { st.stages = null; st.neighborhood = ''; st.bestDay = ''; daySel.value = ''; st.q = ''; search.value = ''; saveListState(st); refresh(); } }, 'Reset filters')));
         return;
       }
       let lastGroup = null;
@@ -337,7 +363,7 @@
         h('div', { class: 'searchbox', style: { marginBottom: '8px' } }, icon('search', 18), search),
         chipsBox,
         h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' } },
-          h('div', { style: { flex: 1, minWidth: 0 } }, sortSel), h('div', { style: { flex: 1, minWidth: 0 } }, nbSel), viewsBtn)),
+          h('div', { style: { flex: 1, minWidth: 0 } }, sortSel), h('div', { style: { flex: 1, minWidth: 0 } }, daySel), h('div', { style: { flex: 1, minWidth: 0 } }, nbSel), viewsBtn)),
       countEl, listBox);
     refresh();
     return { title: lbl('rvs'), el, fab: true, update: refresh };
@@ -432,10 +458,11 @@
       !closed
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
+            h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), 'Record ' + lbl('notHomeShort')),
             h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
-          study ? null : h('div', { class: 'chips quicklog' },
-            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'chip', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] }); } }, '+ ' + t))),
+          study ? null : h('div', { class: 'quicklog' },
+            h('span', { class: 'ql-label' }, 'One-tap log'),
+            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'btn sm ql', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] }); } }, icon('plus', 16), t))),
           h('div', { class: 'btn-row' },
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openTel(rv.phone) }, icon('phone', 16), 'Call') : null,
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openSms(rv.phone) }, icon('message', 16), 'Text') : null,

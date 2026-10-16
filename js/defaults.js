@@ -23,7 +23,7 @@
       labels: {
         rv: 'RV', rvs: 'RVs',
         notHome: 'Not Home', notHomeShort: 'NH',
-        recordVisit: 'Record visit', logStudy: 'Log study',
+        recordVisit: 'Record a visit', logStudy: 'Log study',
         campaign: 'Campaign',
         scriptures: 'Scriptures',
         topics: 'Topics',
@@ -83,6 +83,7 @@
     if (!saved || typeof saved !== 'object') return d;
     const out = Object.assign({}, d, saved);
     for (const k of ['labels', 'notHomeBanner', 'lists', 'lock', 'points']) out[k] = Object.assign({}, d[k], saved[k] || {});
+    if (out.labels.recordVisit === 'Record visit') out.labels.recordVisit = d.labels.recordVisit; // old default, renamed in 2.7
     const cards = Array.isArray(saved.homeCards) ? saved.homeCards.filter((c) => HOME_CARD_NAMES[c.id]) : d.homeCards;
     for (const c of d.homeCards) if (!cards.some((x) => x.id === c.id)) cards.push(c);
     out.homeCards = cards;

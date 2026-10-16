@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.6.3';
+  RV.VERSION = '2.7.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -180,6 +180,12 @@
   });
 
   RV.app = { render, applyDisplay, verifyPin, lockNow: showLock };
+
+  // keyboard-aware height for full-screen writing views
+  const vv = root.visualViewport;
+  const setVV = () => { const de = document.documentElement; de.style.setProperty('--vvh', (vv ? vv.height : root.innerHeight) + 'px'); de.style.setProperty('--vvt', (vv ? vv.offsetTop : 0) + 'px'); };
+  setVV();
+  if (vv) { vv.addEventListener('resize', setVV); vv.addEventListener('scroll', setVV); } else root.addEventListener('resize', setVV);
 
   // ---------- start ----------
   async function start() {

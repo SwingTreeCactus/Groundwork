@@ -249,3 +249,11 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - v2.6.1: optional checkbox "Set best day and time from their last visit" (on by default). The newest imported note that is not a not-home (text like "NH", "Not home", "No answer") sets `dayPrimary` to that visit's weekday and part of day (morning/afternoon/evening/night, local time). Not verified against a full real backup: how Ministry Assistant records not-home attempts is unknown (the first sample only held conversation notes), so attempts stored without a note are simply not imported.
 - v2.6.2: the Edit form has a red "Delete this RV" button at the bottom (existing records only), with the same confirmation as the ... menu. Cache rvapp-v13.
 - v2.6.3: re-importing a Ministry Assistant backup with the best-day box ticked fills dayPrimary on people already in the app who have none (matched by address); a best day already set is never changed, and no duplicates are added. The summary says how many will be updated. Cache rvapp-v14.
+
+## 21. v2.7.0 who to see today, roomier screens, clearer buttons
+
+- Today: "Overdue: good day today" comes first: overdue people whose best day is today, or who are usually home at this time (from visit history, `likelyHomeNow`), grouped by part of day with the current part marked Now. Then Scheduled today, "Also good today" (tagged today, not overdue), and "Overdue: other days" folded shut with a "No best day" hint. `L.todayPlan` returns goodToday, otherDays, nowPart.
+- Rows show the best day as a short label ("Thu eve", `L.tagsShort`). RVs list has a best-day filter (Any day, Good today, a weekday, No best day), remembered with the other list filters.
+- Visit sheet: typing or tapping in the note opens a full-screen writing view sized to the visible screen above the keyboard (visualViewport -> --vvh/--vvt); "Show other fields" returns. Note box auto-grows otherwise. No character limit.
+- Detail: buttons read "Record NH" and "Record a visit" (old default label migrated, custom labels kept); one-tap log has a label and button styling. Note blocks sit on the card with dividers instead of nested boxes. Page margins 12px, card padding 14px, inputs 44px; list row side buttons 40px.
+- VERSION 2.7.0, cache rvapp-v15.

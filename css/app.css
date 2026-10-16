@@ -706,3 +706,54 @@ details.fold summary h2 { font-size: 1.1rem; font-weight: 600; }
 details.fold[open] summary .icon { transform: rotate(180deg); }
 .btn-row > .btn.sm { padding: 4px 10px; flex: 1 1 auto; justify-content: center; }
 .btn-row:has(.btn.sm) { flex-wrap: wrap; gap: 8px; }
+
+/* v2.7: more room, best day on rows, Today split, full-screen note */
+.view { padding-left: 12px; padding-right: 12px; }
+.card { padding: 14px; }
+.topbar { padding-left: 14px; }
+input[type=text], input[type=search], input[type=tel], input[type=date], input[type=time], input[type=number], input[type=password], input[type=url], input[type=datetime-local], select { min-height: 44px; }
+.field { margin-bottom: 12px; }
+.sheet { padding-left: 14px; padding-right: 14px; }
+
+/* record detail: note blocks sit on the card with dividers, not in boxes inside it */
+.card .snap { gap: 0; margin-top: 10px; }
+.card .snap-row, .card .snap-row.next { background: transparent; border-radius: 0; padding: 10px 0; border-top: 1px solid var(--line); }
+.card .snap-row.study { background: var(--fg); border-radius: 16px; padding: 12px 14px; border-top: 0; margin-bottom: 4px; }
+.card .snap-row.next:active { background: var(--surface2); }
+
+/* list rows: smaller side buttons, best day label */
+.navbtn { width: 40px; height: 40px; }
+.row-acts .nhbtn { height: 40px; min-width: 44px; }
+.row-acts { gap: 4px; }
+.row { padding-right: 8px; }
+.besttag { display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; font-weight: 500; color: var(--fg); }
+.besttag .icon { color: var(--muted); }
+.besttag.none { color: var(--muted); font-weight: 400; }
+
+/* Today */
+.now-pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--red); color: #fff; font-size: .72rem; font-weight: 600; vertical-align: 1px; }
+details.fold-sec > summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; }
+details.fold-sec > summary::-webkit-details-marker { display: none; }
+details.fold-sec > summary h2 { flex: 0 1 auto; }
+details.fold-sec > summary .icon { margin-left: auto; color: var(--muted); }
+details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
+
+/* detail: one-tap log reads as buttons, with a label */
+.quicklog { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ql-label { font-size: .8rem; color: var(--muted); font-weight: 500; }
+.quicklog .btn.ql { min-height: 38px; padding: 4px 12px; gap: 4px; font-size: .9rem; background: var(--surface2); }
+
+/* visit note: full-screen writing view */
+.note-field .show-fields { display: none; }
+.overlay:has(.sheet.writing) { align-items: flex-start; }
+.sheet.writing { position: fixed; left: 0; right: 0; margin: 0 auto; top: var(--vvt, 0); height: var(--vvh, 100dvh); max-height: none; border-radius: 0; display: flex; flex-direction: column; overflow: hidden; animation: none; padding-top: 8px; }
+.sheet.writing::before { display: none; }
+.sheet.writing > form { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.sheet.writing > form > *:not(.note-field):not(.actions) { display: none !important; }
+.sheet.writing .note-field { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 0; }
+.sheet.writing .note-field textarea { flex: 1; min-height: 0; height: auto; resize: none; font-size: 1.05rem; line-height: 1.5; }
+.sheet.writing .note-field .show-fields { display: block; align-self: flex-start; padding: 10px 2px 4px; color: var(--muted); font-size: .9rem; }
+.sheet.writing .actions { position: static; margin-top: 4px; }
+.note-field .show-fields { background: none; border: 0; cursor: pointer; text-decoration: underline; font: inherit; }
+.ql-label { flex-basis: 100%; margin-bottom: -2px; }
+.quicklog .btn.ql { flex: 1; justify-content: center; }

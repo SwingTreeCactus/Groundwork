@@ -37,6 +37,9 @@
   const dayTagsOf = (rv) => [rv.dayPrimary, rv.daySecondary].filter(validTag);
   const partRank = (p) => { const i = PARTS.indexOf(p); return i < 0 ? PARTS.length : i; };
   const tagLabel = (g) => (validTag(g) ? U.DAYS[g.day] + (g.part ? ' ' + g.part : '') : '');
+  const PART_SHORT = { morning: 'morn', afternoon: 'aft', evening: 'eve', night: 'night' };
+  const tagShort = (g) => (validTag(g) ? U.DAYS3[g.day] + (g.part ? ' ' + PART_SHORT[g.part] : '') : '');
+  const tagsShort = (rv) => dayTagsOf(rv).map(tagShort).join(' / ');
   const tagsLabel = (rv) => dayTagsOf(rv).map(tagLabel).join(' or ');
   // the tag that matches this weekday (primary first), or null
   const tagForDay = (rv, dow) => dayTagsOf(rv).find((g) => g.day === dow) || null;
@@ -147,6 +150,14 @@
         if (!(closed && tokens.length && reason && !reason.hidden)) return false;
       }
       if (f.neighborhood && (it.rv.neighborhood || '') !== f.neighborhood) return false;
+      if (f.bestDay != null && f.bestDay !== '') {
+        const tags = dayTagsOf(it.rv);
+        if (f.bestDay === 'none') { if (tags.length) return false; }
+        else {
+          const dow = f.bestDay === 'today' ? (f.now || new Date()).getDay() : Number(f.bestDay);
+          if (!tags.some((g) => g.day === dow)) return false;
+        }
+      }
       if (tokens.length) {
         const h = haystack(it);
         for (const t of tokens) if (!h.includes(t)) return false;
@@ -291,7 +302,19 @@
       tagged.push({ item: it, tag, nhToday: it.entries.some((e) => e.type === 'nh' && sameDay(e.at, now)) });
     }
     tagged.sort((a, b) => partRank(a.tag.part) - partRank(b.tag.part) || byName(a.item, b.item));
-    return { overdue, scheduled, tagged };
+    // overdue people split by whether today is a good day to find them: their best day is today,
+    // or they are usually home at this time (from visit history). Grouped by part of day.
+    const nowPart = partOf(now), dow = now.getDay();
+    const likely = new Map(likelyHomeNow(overdue, now).map((x) => [x.item.rv.id, x.why]));
+    const goodToday = [], otherDays = [];
+    for (const it of overdue) {
+      const tag = tagForDay(it.rv, dow);
+      if (tag) goodToday.push({ item: it, part: tag.part || '', why: 'Best: ' + tagShort(tag) });
+      else if (likely.has(it.rv.id)) goodToday.push({ item: it, part: nowPart, why: likely.get(it.rv.id) });
+      else otherDays.push(it);
+    }
+    goodToday.sort((a, b) => partRank(a.part) - partRank(b.part) || SORTS.attention(a.item, b.item));
+    return { overdue, scheduled, tagged, goodToday, otherDays, nowPart };
   }
 
   // The next `days` days (starting tomorrow): planned visit dates, plus RVs tagged for that weekday.
@@ -579,7 +602,7 @@
     isStudyStage, stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
-    PARTS, validTag, dayTagsOf, partRank, tagLabel, tagsLabel, tagForDay, todayPlan, forecast,
+    PARTS, validTag, dayTagsOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, forecast,
     campaignStatus, activeCampaign, campaignOverlap, nextCampaign, quickAddFallback,
     funnel, effortEvents, effortSummary, reconsider, stuckInStage,
     IMPORT_FIELDS, guessMapping, parseLooseDate, importRows,
