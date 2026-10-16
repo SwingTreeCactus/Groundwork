@@ -373,16 +373,25 @@
         const seen = [];
         // imported addresses carry city and zip, so also match on the bare street of records saved without one
         const streetKey = (a) => U.normAddress(String(a || '').split(',')[0]);
-        const isDup = (r, pool) => L.duplicateMatches(r, pool).length > 0 ||
-          (streetKey(r.address) && pool.some((x) => !x.deletedAt && x.address && x.address.indexOf(',') < 0 && U.normAddress(x.address) === streetKey(r.address)));
+        const matchesOf = (r, pool) => {
+          const hit = L.duplicateMatches(r, pool);
+          if (hit.length) return hit;
+          const k = streetKey(r.address);
+          return k ? pool.filter((x) => !x.deletedAt && x.address && x.address.indexOf(',') < 0 && U.normAddress(x.address) === k) : [];
+        };
+        const updates = []; // existing people who have no best day yet get one from the backup
         const keep = res.rvs.filter((r) => {
-          const d = isDup(r, S.rvs.concat(seen));
-          if (d) dups++;
-          const drop = skipDup && d;
+          const hit = matchesOf(r, S.rvs.concat(seen));
+          if (hit.length) dups++;
+          const drop = skipDup && hit.length;
+          if (drop && bestFromLast && r.dayPrimary) {
+            const ex = hit.find((x) => S.rvs.includes(x) && !x.dayPrimary);
+            if (ex && !updates.some((u) => u.id === ex.id)) updates.push({ id: ex.id, dayPrimary: r.dayPrimary });
+          }
           if (!drop) seen.push(r);
           return !drop;
         });
-        return { res, keep, dups };
+        return { res, keep, dups, updates };
       };
       parsed(S.settings.stages[0].id, false, false);
     } catch (e) {
@@ -394,9 +403,10 @@
     const bestDay = h('input', { type: 'checkbox', checked: true });
     const summary = h('div', { class: 'banner info' });
     const refresh = () => {
-      const { res, keep, dups } = parsed(defStage.value, skipDup.checked, bestDay.checked);
+      const { res, keep, dups, updates } = parsed(defStage.value, skipDup.checked, bestDay.checked);
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
         keep.length + ' ' + lbl('rvs') + ' and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
+        (updates.length ? ' ' + updates.length + ' already here will get a best day and time.' : '') +
         (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
         (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
     };
@@ -414,11 +424,12 @@
           h('button', {
             class: 'btn primary', type: 'button',
             onclick: () => {
-              const { res, keep } = parsed(defStage.value, skipDup.checked, bestDay.checked);
+              const { res, keep, updates } = parsed(defStage.value, skipDup.checked, bestDay.checked);
               const ids = new Set(keep.map((r) => r.id));
               ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
+              updates.forEach((u) => ST.updateRv(u.id, { dayPrimary: u.dayPrimary }));
               close();
-              toast('Imported ' + keep.length + ' ' + lbl('rvs'));
+              toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl('rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
               location.hash = '#/rvs';
             },
           }, 'Import')));
