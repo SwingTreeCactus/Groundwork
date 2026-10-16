@@ -18,7 +18,7 @@
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.doNotHome(rv.id); },
       }, lbl('notHomeShort'))
       : null;
-    const sub = UI.subtitle(rv);
+    const sub = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.progress) ? [rv.publication, rv.progress].filter(Boolean).join(' · ') : UI.subtitle(rv);
     return h('a', { class: 'row', href: '#/rv/' + rv.id },
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
@@ -343,7 +343,7 @@
 
   function entryLabel(e) {
     if (e.type === 'nh') return lbl('notHome');
-    if (e.type === 'visit') return 'Visit';
+    if (e.type === 'visit') return e.progress ? 'Study' : 'Visit';
     if (e.type === 'note') return 'Note';
     if (e.type === 'stage') {
       const to = L.stageOf(S.settings, e.to), from = L.stageOf(S.settings, e.from);
@@ -388,13 +388,21 @@
     }
 
     // header card: who they are and what to bring up, then the actions
-    const lastVisit = it.entries.find((e) => e.type === 'visit' && e.text);
+    const study = !closed && L.isStudyStage(S.settings, rv.stage);
+    const lastStudy = it.entries.find((e) => e.type === 'visit' && e.progress);
+    const lastVisit = study ? null : it.entries.find((e) => e.type === 'visit' && e.text);
     const editNext = async () => {
       const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
     };
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
+        study
+          ? h('button', { class: 'snap-row study', type: 'button', onclick: () => F.studyEdit(rv.id) },
+            h('div', { class: 'snap-k' }, 'Studying'),
+            h('div', { class: 'snap-v study-pub' + (rv.publication ? '' : ' empty') }, rv.publication || 'Choose a publication'),
+            h('div', { class: 'snap-v' + (rv.progress ? '' : ' empty') }, rv.progress ? 'Stopped at ' + rv.progress + (lastStudy ? ' · ' + U.fmtDate(lastStudy.at) : '') : 'Add where you are'))
+          : null,
         !closed || rv.whatsNext
           ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
             h('div', { class: 'snap-k' }, 'Discuss next time'),
@@ -416,7 +424,7 @@
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
-            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), lbl('recordVisit'))),
+            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
           h('div', { class: 'btn-row' },
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openTel(rv.phone) }, icon('phone', 16), 'Call') : null,
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openSms(rv.phone) }, icon('message', 16), 'Text') : null,
@@ -456,6 +464,7 @@
         ul.appendChild(h('li', { class: e.type },
           h('div', { class: 'what' }, entryLabel(e)),
           h('div', { class: 'when' }, U.fmtDateTime(e.at)),
+          e.progress ? h('div', { class: 'txt', style: { fontWeight: 500 } }, (e.publication ? e.publication + ' · ' : '') + e.progress) : null,
           e.text ? h('div', { class: 'txt' }, e.text) : null,
           (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
           UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null,

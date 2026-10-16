@@ -372,4 +372,15 @@ test('merge keeps saved values and adds new defaults', () => {
   assert.equal(m.homeCards.length, D.defaultSettings().homeCards.length);
 });
 
+test('study stage is recognised, also on older saved settings', () => {
+  const st = D.defaultSettings();
+  assert.equal(L.isStudyStage(st, 'study'), true);
+  assert.equal(L.isStudyStage(st, 'return'), false);
+  assert.equal(L.isStudyStage(st, 'archived'), false);
+  const old = D.defaultSettings(); old.stages = old.stages.map((x) => { const y = Object.assign({}, x); delete y.study; return y; });
+  assert.equal(L.isStudyStage(old, 'study'), true);
+  const csv = L.rvsToCsv([], st);
+  assert.ok(csv.includes('Publication') && csv.includes('Where we are'));
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

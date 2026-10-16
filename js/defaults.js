@@ -23,7 +23,7 @@
       labels: {
         rv: 'RV', rvs: 'RVs',
         notHome: 'Not Home', notHomeShort: 'NH',
-        recordVisit: 'Record visit',
+        recordVisit: 'Record visit', logStudy: 'Log study',
         campaign: 'Campaign',
         scriptures: 'Scriptures',
         topics: 'Topics',
@@ -37,7 +37,7 @@
         { id: 'initial', name: 'Initial Call', days: 7, closed: false },
         { id: 'cultivating', name: 'Cultivating Interest', days: 7, closed: false },
         { id: 'return', name: 'Return Visit', days: 14, closed: false },
-        { id: 'study', name: 'Bible Study', days: 30, closed: false },
+        { id: 'study', name: 'Bible Study', days: 30, closed: false, study: true },
         { id: 'archived', name: 'Archived', days: 0, closed: true },
       ],
       archiveReasons: [

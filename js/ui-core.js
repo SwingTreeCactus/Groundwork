@@ -38,7 +38,7 @@
     openCount++;
     document.addEventListener('keydown', onKey);
     if (!opts.noFocus) {
-      const first = box.querySelector('[data-autofocus], textarea, input[type=text], input[type=search], input[type=tel], input[type=number], input[type=password]');
+      const first = box.querySelector('[data-autofocus]') || box.querySelector('textarea, input[type=text], input[type=search], input[type=tel], input[type=number], input[type=password]');
       // Focus the first field, unless the person has already tapped into the sheet.
       if (first) setTimeout(() => { if (box.contains(document.activeElement)) return; try { first.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }, 30);
     }
@@ -177,6 +177,7 @@
     const text = h('textarea', { value: e.text || '', placeholder: 'What happened?', 'data-autofocus': true });
     const when = h('input', { type: 'datetime-local', value: dateTimeLocal(e.at) });
     const typeName = { nh: lbl('notHome'), visit: 'Visit', note: 'Note', stage: 'Stage change' }[e.type] || e.type;
+    const prog = e.progress !== undefined ? h('input', { type: 'text', value: e.progress || '', autocomplete: 'off' }) : null;
     const camp = e.campaignId ? S.lib.find((x) => x.id === e.campaignId) : null;
     const campOn = h('input', { type: 'checkbox', checked: true });
     sheet('Edit ' + typeName.toLowerCase(), (close) =>
@@ -185,12 +186,14 @@
           ev.preventDefault();
           const d = parseLocalDT(when.value);
           const patch = { text: text.value.trim() };
+          if (prog) patch.progress = prog.value.trim();
           if (d) patch.at = d.toISOString();
           if (camp && !campOn.checked) patch.campaignId = null;
           ST.updateEntry(e.id, patch);
           close();
         },
       },
+        prog ? field('Where you stopped', prog) : null,
         field('Notes', text),
         isStage ? null : field('When', when),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,

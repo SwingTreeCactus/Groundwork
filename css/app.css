@@ -480,3 +480,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, .row:focus-visi
 .btn-row > .btn.sm { padding: 4px 6px; gap: 5px; font-size: .84rem; white-space: nowrap; }
 .btn-row > .btn.sm .icon { width: 16px; height: 16px; }
 a.setrow, a.row, a.btn, .tab, .campaign-bar, a.prow { text-decoration: none; }
+
+/* study stage */
+.snap-row.study { background: var(--surface); border: 1px solid var(--fg); }
+.snap-row.study .snap-k { color: var(--fg); }
+.snap-v.study-pub { font-weight: 700; font-size: 1.1rem; }

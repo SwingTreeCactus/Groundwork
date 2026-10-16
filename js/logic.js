@@ -129,7 +129,7 @@
   function haystack(item) {
     if (item._hay) return item._hay;
     const r = item.rv;
-    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.whatsNext, r.interests, r.bestNote, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
+    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.whatsNext, r.interests, r.bestNote, r.publication, r.progress, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
     for (const f of Object.keys(r.custom || {})) parts.push(r.custom[f]);
     for (const e of item.entries) parts.push(e.text, (e.scriptures || []).join(' '));
     item._hay = parts.filter(Boolean).join(' ').toLowerCase() + ' ' + U.digits(r.phone);
@@ -463,9 +463,10 @@
   }
 
   // ---------- CSV export ----------
+  const isStudyStage = (settings, stageId) => { const st = (settings.stages || []).find((s) => s.id === stageId); return !!(st && !st.closed && (st.study === true || st.id === 'study')); };
   function rvsToCsv(items, settings) {
     const custom = settings.customFields || [];
-    const head = ['Name', 'Address', 'Neighborhood', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Best days', 'Household notes', 'Discuss next time', 'Interests', 'Scriptures', 'Tags', 'Created']
+    const head = ['Name', 'Address', 'Neighborhood', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Best days', 'Household notes', 'Discuss next time', 'Interests', 'Scriptures', 'Tags', 'Publication', 'Where we are', 'Created']
       .concat(custom.map((c) => c.name));
     const rows = [head];
     for (const it of items) {
@@ -473,7 +474,7 @@
       rows.push([
         r.name, r.address, r.neighborhood, r.phone, r.howMet, stageOf(settings, r.stage).name,
         (reasonOf(settings, r.archiveReason) || {}).name || '', r.nextVisit || '', U.toDateStr(it.last),
-        describeWindows(r.bestTimes), r.bestNote, tagsLabel(r), r.notes, r.whatsNext || '', r.interests, (r.scriptures || []).join('; '), (r.tags || []).join('; '),
+        describeWindows(r.bestTimes), r.bestNote, tagsLabel(r), r.notes, r.whatsNext || '', r.interests, (r.scriptures || []).join('; '), (r.tags || []).join('; '), r.publication || '', r.progress || '',
         U.toDateStr(new Date(r.createdAt)),
       ].concat(custom.map((c) => (r.custom || {})[c.id] || '')));
     }
@@ -575,7 +576,7 @@
   }
 
   RV.logic = {
-    stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
+    isStudyStage, stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
     PARTS, validTag, dayTagsOf, partRank, tagLabel, tagsLabel, tagForDay, todayPlan, forecast,

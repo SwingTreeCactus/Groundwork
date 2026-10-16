@@ -78,6 +78,8 @@
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), rv.howMet || ''),
       stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
       nextVisit: h('input', { type: 'date', value: rv.nextVisit || '' }),
+      publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
+      progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'Lesson, paragraph, page' }),
       bestNote: h('input', { type: 'text', value: rv.bestNote || '', placeholder: 'e.g. works nights, text first' }),
       notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
       whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
@@ -87,6 +89,11 @@
       nhOff: h('input', { type: 'checkbox', checked: !!rv.nhBannerOff }),
     };
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
+    const pubList = h('datalist', { id: 'pub-list' }, ST.publications().map((n) => h('option', { value: n })));
+    const studyBox = h('div', null, field('Publication', f.publication), field('Where you are', f.progress));
+    const syncStudy = () => { studyBox.hidden = !L.isStudyStage(S.settings, isClosed ? rv.stage : f.stage.value); };
+    f.stage.addEventListener('change', syncStudy);
+    syncStudy();
     const wins = windowsEditor(rv.bestTimes);
     const dayP = dayTagEditor('Best day (primary)', rv.dayPrimary);
     const dayS = dayTagEditor('Best day (secondary)', rv.daySecondary);
@@ -102,6 +109,7 @@
             name, address: f.address.value.trim(), neighborhood: f.neighborhood.value.trim(), phone: f.phone.value.trim(),
             howMet: f.howMet.value, nextVisit: f.nextVisit.value || null, bestTimes: wins.get(), bestNote: f.bestNote.value.trim(),
             dayPrimary: dayP.get(), daySecondary: dayS.get(), whatsNext: f.whatsNext.value.trim(),
+            publication: f.publication.value.trim(), progress: f.progress.value.trim(),
             notes: f.notes.value.trim(), interests: f.interests.value.trim(), scriptures: U.splitList(f.scriptures.value), tags: U.splitList(f.tags.value),
             nhBannerOff: f.nhOff.checked,
             custom: Object.assign({}, rv.custom || {}),
@@ -132,13 +140,14 @@
           if (opts.onSaved) opts.onSaved(saved);
         },
       },
-        nbList, tagList,
+        nbList, tagList, pubList,
         field('Name', f.name),
         field('Address', f.address),
         field(lbl('neighborhood'), f.neighborhood),
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         field('Next visit date', f.nextVisit),
+        studyBox,
         field('Discuss next time', f.whatsNext),
         field('Household notes', f.notes),
         dayP.el, dayS.el,
@@ -227,7 +236,11 @@
     const rv = ST.rvById(rvId);
     if (!rv) return;
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
-    const text = h('textarea', { placeholder: 'What did you discuss?', 'data-autofocus': true, style: { minHeight: '120px' } });
+    const study = L.isStudyStage(S.settings, rv.stage);
+    const text = h('textarea', study ? { placeholder: 'Note (optional)', style: { minHeight: '64px' } } : { placeholder: 'What did you discuss?', 'data-autofocus': true, style: { minHeight: '120px' } });
+    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-v', autocomplete: 'off', placeholder: 'Publication' });
+    const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: rv.progress ? 'Last: ' + rv.progress : 'Lesson, paragraph, page' });
+    const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
     const autoStage = rv.stage === 'yet' && S.settings.stages.some((s) => s.id === 'initial') ? 'initial' : rv.stage;
     const stage = select(stageOptions(), autoStage);
@@ -255,7 +268,7 @@
     stage.addEventListener('change', updateNote);
     updateNote();
 
-    sheet(lbl('recordVisit') + ': ' + rv.name, (close) =>
+    sheet((study ? lbl('logStudy') : lbl('recordVisit')) + ': ' + rv.name, (close) =>
       h('form', {
         onsubmit: (e) => {
           e.preventDefault();
@@ -264,22 +277,27 @@
             text: text.value,
             scriptures: U.splitList(extra.value),
             whatsNext: whatsNext.value,
-            campaignId: camp && campOn.checked ? camp.id : null,
+            campaignId: !study && camp && campOn.checked ? camp.id : null,
+            publication: study ? pub.value : undefined,
+            progress: study ? prog.value : undefined,
             stage: stage.value,
             nextVisit: next.value || null,
             tags: U.splitList(tags.value),
             at: d ? d.toISOString() : undefined,
           });
           close();
-          toast('Visit saved', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
+          toast(study ? 'Study saved' : 'Visit saved', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
         },
       },
-        tagList,
-        h('div', { class: 'field' }, text),
-        topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
+        tagList, pubList,
+        study ? field('Publication', pub) : null,
+        study ? field('Where you stopped', prog) : null,
+        study ? null : h('div', { class: 'field' }, text),
+        !study && topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
           h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
         field('Discuss next time', whatsNext),
-        camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
+        study ? field('Note', text) : null,
+        !study && camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         stageNote,
         h('details', { class: 'more', style: { marginTop: '12px' } },
           h('summary', null, icon('down', 18), 'More details'),
@@ -291,7 +309,7 @@
           field('Tags', tags)),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, 'Save visit'))));
+          h('button', { class: 'btn primary', type: 'submit' }, study ? 'Save study' : 'Save visit'))));
   }
 
   // ---------- stage, archive, restore, snooze, schedule ----------
@@ -370,5 +388,20 @@
           h('button', { class: 'btn primary', type: 'button', onclick: () => { ST.updateRv(rvId, { nextVisit: date.value || null }); close(); } }, 'Save'))));
   }
 
-  RV.forms = { rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, nextVisitSheet, select, stageOptions };
+  // quick edit of what they are studying and where they are
+  function studyEdit(rvId) {
+    const rv = ST.rvById(rvId);
+    if (!rv) return;
+    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-e', autocomplete: 'off', placeholder: 'Publication', 'data-autofocus': true });
+    const prog = h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'Lesson, paragraph, page' });
+    sheet('Studying', (close) =>
+      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), progress: prog.value.trim() }); close(); } },
+        h('datalist', { id: 'pub-list-e' }, ST.publications().map((n) => h('option', { value: n }))),
+        field('Publication', pub), field('Where you are', prog),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+  }
+
+  RV.forms = { studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, nextVisitSheet, select, stageOptions };
 })(window);

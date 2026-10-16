@@ -216,7 +216,7 @@ with sync_playwright() as p:
 
     print('v2: RV page leads with household notes, next time, last visit')
     ben = ev('RV.store.S.rvs.find(r=>r.name=="Ben Carter").id')
-    ev('(id) => RV.store.updateRv(id, {notes: "Works nights, has a dog", whatsNext: "Bring the brochure"})', ben)
+    ev('(id) => RV.store.updateRv(id, {stage: "return", notes: "Works nights, has a dog", whatsNext: "Bring the brochure"})', ben)  # normal layout; study layout has its own tests
     page.goto(URL + '#/rv/' + ben); page.wait_for_selector('text=Timeline')
     check(page.locator('.household:has-text("Works nights")').count() == 1, 'household notes sit under the name and address')
     check(page.locator('.snap-row.next:has-text("Bring the brochure")').count() == 1, 'Discuss next time is pinned at the top')
@@ -249,6 +249,7 @@ with sync_playwright() as p:
     page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
     follow = ev('RV.store.itemFor("%s").entries.find(e=>e.text=="Short follow up")' % ben)
     check(follow and follow['campaignId'] is None, 'campaign toggle off leaves the visit untagged')
+    ev('(id) => RV.store.updateRv(id, {stage: "study"})', ben)
 
     print('v2: day-tag overdue rule in the browser')
     res = ev('''() => { const ST = RV.store, dow = new Date().getDay(); const d = n => new Date(Date.now() - n*864e5).toISOString();
@@ -332,6 +333,36 @@ with sync_playwright() as p:
     on = page.locator('.chip[aria-pressed="true"]').all_inner_texts()
     check(len(on) == 1 and on[0].startswith('Bible Study'), 'tapping a funnel stage opens the list filtered to it: %s' % on)
     ev('() => { const ST = RV.store; ST.S.rvs.filter(r => ["Neverhome","Stuckguy"].includes(r.name)).forEach(r => ST.deleteRv(r.id)); localStorage.removeItem("rvapp.list"); }')
+
+    print('study stage: publication, where you are, log study')
+    sid = ev("() => RV.store.addRv({ name: 'Study Person', address: '1 Study Way', stage: 'study', whatsNext: 'Review paragraph 3' }).id")
+    page.goto(URL + '#/rv/' + sid); page.wait_for_selector('.snap')
+    check(page.locator('.snap-row.study').count() == 1 and 'Choose a publication' in page.locator('.snap-row.study').inner_text(), 'study RV leads with a Studying block')
+    check(page.locator('.snap-row:has-text("Last visit")').count() == 0, 'study RV does not lead with the last visit note')
+    check(page.locator('button.btn.big:has-text("Log study")').count() == 1, 'primary button says Log study')
+    check('Review paragraph 3' in page.locator('.snap-row.next').inner_text(), 'discuss next time still shows')
+    page.click('.snap-row.study'); page.wait_for_selector('.sheet input')
+    page.fill('.sheet input[placeholder="Publication"]', 'Enjoy Life Forever')
+    page.fill('.sheet input[placeholder="Lesson, paragraph, page"]', 'Lesson 5, paragraph 12')
+    page.click('.sheet button:has-text("Save")'); page.wait_for_selector('.sheet', state='detached')
+    check('Enjoy Life Forever' in page.locator('.snap-row.study').inner_text() and 'Lesson 5, paragraph 12' in page.locator('.snap-row.study').inner_text(), 'publication and place can be set from the detail screen')
+    page.click('button.btn.big:has-text("Log study")'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet input[placeholder="Publication"]').input_value() == 'Enjoy Life Forever', 'Log study form is pre-filled with the publication')
+    check(page.locator('.sheet .chips:has-text("Hope for the future")').count() == 0, 'Log study form has no topic chips')
+    page.fill('.sheet input[placeholder="Last: Lesson 5, paragraph 12"]', 'Lesson 6, paragraph 3')
+    page.fill('.sheet textarea[placeholder="Discuss next time"]', 'Ask about the picture on page 48')
+    page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached')
+    check('Lesson 6, paragraph 3' in page.locator('.snap-row.study').inner_text(), 'saving a study updates where you are')
+    check('Ask about the picture' in page.locator('.snap-row.next').inner_text(), 'discuss next time is updated')
+    check(page.locator('.tl li:has-text("Study")').count() == 1 and page.locator('.tl:has-text("Enjoy Life Forever")').count() == 1, 'timeline shows the study with its publication and place')
+    check(ev("RV.store.S.entries.filter(e => e.rvId === '%s' && e.type === 'visit')[0].progress" % sid) == 'Lesson 6, paragraph 3', 'the study entry keeps its own progress')
+    page.goto(URL + '#/rvs'); page.wait_for_selector('.row')
+    check('Enjoy Life Forever · Lesson 6, paragraph 3' in page.locator('.row:has-text("Study Person")').inner_text(), 'list row shows publication and place')
+    page.goto(URL + '#/rv/' + sid); page.wait_for_selector('.snap')
+    ev("() => RV.store.setStage('%s', 'return')" % sid)
+    page.wait_for_selector('button.btn.big:has-text("Record visit")')
+    check(page.locator('.snap-row.study').count() == 0, 'leaving the study stage returns to the normal layout')
+    ev("() => RV.store.setStage('%s', 'study')" % sid)
 
     print('settings pages open without errors')
     for sec in ['', 'display', 'home', 'lib/topic', 'lib/campaign', 'campaigns', 'stages', 'reasons', 'fields', 'labels', 'attention', 'security', 'data', 'about']:

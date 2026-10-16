@@ -78,7 +78,7 @@
     const first = S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages.find((s) => !s.closed);
     return Object.assign({
       id: U.uuid(), name: '', address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
-      dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null,
+      dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, publication: '', progress: '',
       notes: '', interests: '', scriptures: [], tags: [], custom: {},
       stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nhBannerOff: false,
       createdAt: now, stageChangedAt: now, updatedAt: now, deletedAt: null,
@@ -182,12 +182,14 @@
     const rv = rvById(rvId);
     if (!rv) return null;
     const snap = clone(rv);
-    const entry = mkEntry(rvId, 'visit', { text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.at);
+    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress ? { progress: o.progress.trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
     rv.snoozedUntil = o.snoozedUntil || null;
     if (typeof o.whatsNext === 'string') rv.whatsNext = o.whatsNext.trim();
+    if (typeof o.publication === 'string') rv.publication = o.publication.trim();
+    if (typeof o.progress === 'string' && o.progress.trim()) rv.progress = o.progress.trim();
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
     if (o.scriptures && o.scriptures.length) rv.scriptures = U.uniq((rv.scriptures || []).concat(o.scriptures));
     touch(rv);
@@ -284,13 +286,14 @@
   // neighborhoods offered in forms: saved list plus whatever is already used
   const neighborhoods = () =>
     U.uniq(S.settings.lists.neighborhoods.concat(S.rvs.filter((r) => !r.deletedAt).map((r) => r.neighborhood).filter(Boolean))).sort(U.cmp);
+  const publications = () => U.uniq(S.rvs.filter((r) => !r.deletedAt).map((r) => r.publication).filter(Boolean)).sort(U.cmp);
   const allTags = () => U.uniq([].concat(...S.rvs.filter((r) => !r.deletedAt).map((r) => r.tags || []))).sort(U.cmp);
 
   RV.store = {
     S, subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
     load, items, itemFor, rvById, saveSettings, addRv, updateRv, deleteRv, restoreRvSnapshot,
     addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze,
-    libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags,
+    libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags, publications,
     flush: () => pending, clearError: () => { S.error = ''; emit(); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);
