@@ -215,6 +215,12 @@
     },
     openTel: (p) => { location.href = 'tel:' + String(p).replace(/[^\d+]/g, ''); },
     openSms: (p) => { location.href = 'sms:' + String(p).replace(/[^\d+]/g, ''); },
+    openNav: (a) => {
+      const q = encodeURIComponent(a);
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const url = ios ? 'https://maps.apple.com/?dirflg=d&daddr=' + q : 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + q;
+      window.open(url, '_blank', 'noopener');
+    },
     openMap: (a) => { window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a), '_blank', 'noopener'); },
   };
 })(window);

@@ -691,3 +691,18 @@ a.setrow, a.row, a.btn, .tab, .campaign-bar, a.prow { text-decoration: none; }
 .list .group-head, .list > .group-head { padding: 10px 16px 4px; }
 .group-head { margin: 12px 4px 4px; font-size: .8rem; }
 .list .group-head { margin: 0; padding: 10px 16px 4px; }
+
+/* v2.5: row actions, quick log, folded details */
+.row-acts { display: flex; gap: 6px; flex: none; align-items: center; }
+.navbtn { width: 44px; height: 44px; border: 0; border-radius: 999px; background: var(--surface2); color: var(--fg); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.navbtn:active { background: var(--line); }
+.stagebtn { display: inline-flex; padding: 6px 0; cursor: pointer; }
+.quicklog { gap: 8px; }
+.quicklog .chip { min-height: 38px; font-size: .9rem; }
+details.fold { padding: 14px 18px; }
+details.fold summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; min-height: 28px; }
+details.fold summary::-webkit-details-marker { display: none; }
+details.fold summary h2 { font-size: 1.1rem; font-weight: 600; }
+details.fold[open] summary .icon { transform: rotate(180deg); }
+.btn-row > .btn.sm { padding: 4px 10px; flex: 1 1 auto; justify-content: center; }
+.btn-row:has(.btn.sm) { flex-wrap: wrap; gap: 8px; }

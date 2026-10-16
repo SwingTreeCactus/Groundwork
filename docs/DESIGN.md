@@ -226,3 +226,14 @@ Why: the Nothing-style skin felt clunky (outlines everywhere, mono caps labels, 
 - Header is one slim row (about 48 px); the Home date sits inline beside the title.
 - RVs filters (search, stage chips, selects) and list rows are tighter; stage, overdue flag and last-visit text share a wrapping line.
 - sw.js cache rvapp-v9.
+
+## 19. v2.5.0 navigation and faster logging
+
+Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoying CRM): the phone is the main tool, the next action is one tap away, and unused detail is hidden.
+
+- Directions button (arrow icon) on every list row and in the record detail. `UI.openNav(address)` opens Apple Maps on iOS and Google Maps driving directions elsewhere; the phone's maps app handles the rest.
+- Tap a row's stage to change it without opening the record (`F.stageFlow`).
+- Quick-log chips on the record detail ("Brief chat", "Left literature") log a visit in one tap with Undo. Hidden for study-stage records.
+- Details card is folded by default. Header and list spacing tightened in v2.4.0.
+- Not built yet: map view of all records (needs internet for tiles), configurable quick-log outcomes.
+- VERSION 2.5.0, cache rvapp-v10.

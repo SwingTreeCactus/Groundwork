@@ -18,17 +18,26 @@
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.doNotHome(rv.id); },
       }, lbl('notHomeShort'))
       : null;
+    const addr = [rv.address, rv.neighborhood].filter(Boolean).join(', ');
+    const navBtn = o.nh !== false && rv.address && it.att.state !== 'closed'
+      ? h('button', {
+        class: 'navbtn', type: 'button', 'aria-label': 'Directions to ' + rv.name,
+        onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(addr); },
+      }, icon('navigation', 20))
+      : null;
     const sub = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.progress) ? [rv.publication, rv.progress].filter(Boolean).join(' · ') : UI.subtitle(rv);
     return h('a', { class: 'row', href: '#/rv/' + rv.id },
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
         sub ? h('div', { class: 'line2' }, sub) : null,
         h('div', { class: 'line3' },
-          stageBadge(rv.stage),
+          it.att.state !== 'closed'
+            ? h('span', { class: 'stagebtn', role: 'button', tabindex: '0', 'aria-label': 'Change stage for ' + rv.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); F.stageFlow(rv.id); } }, stageBadge(rv.stage))
+            : stageBadge(rv.stage),
           dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null,
           attBadge(it.att),
           o.why ? h('span', { class: 'muted' }, o.why) : h('span', { class: 'muted' }, UI.lastText(it)))),
-      nhBtn);
+      (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, navBtn, nhBtn) : null);
   }
   function listOf(items, o) {
     return h('div', { class: 'list' }, items.map((it) => rvRow(it, o)));
@@ -425,10 +434,12 @@
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
             h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
+          study ? null : h('div', { class: 'chips quicklog' },
+            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'chip', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] }); } }, '+ ' + t))),
           h('div', { class: 'btn-row' },
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openTel(rv.phone) }, icon('phone', 16), 'Call') : null,
             rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openSms(rv.phone) }, icon('message', 16), 'Text') : null,
-            rv.address ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openMap([rv.address, rv.neighborhood].filter(Boolean).join(', ')) }, icon('navigation', 16), 'Directions') : null,
+            rv.address ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openNav([rv.address, rv.neighborhood].filter(Boolean).join(', ')) }, icon('navigation', 16), 'Directions') : null,
             h('button', { class: 'btn sm', type: 'button', onclick: () => F.stageFlow(rv.id) }, icon('shuffle', 16), 'Stage')))
         : null);
     els.push(head);
@@ -449,8 +460,9 @@
       ['Added', U.fmtDate(new Date(rv.createdAt))],
     ]);
     const tagsEl = (rv.tags || []).length ? h('div', { style: { marginTop: '10px' } }, rv.tags.map((t) => h('span', { class: 'tag' }, t))) : null;
-    els.push(h('section', { class: 'card' },
-      h('div', { class: 'card-head' }, h('h2', null, 'Details'), h('button', { class: 'btn sm', type: 'button', onclick: () => F.rvForm(rv) }, icon('edit', 16), 'Edit')),
+    els.push(h('details', { class: 'card fold' },
+      h('summary', null, h('h2', null, 'Details'), icon('down', 18)),
+      h('div', { style: { margin: '10px 0' } }, h('button', { class: 'btn sm', type: 'button', onclick: () => F.rvForm(rv) }, icon('edit', 16), 'Edit')),
       kvList(rows), tagsEl));
 
     // timeline
