@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.0.0';
+  RV.VERSION = '2.1.1';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -26,7 +26,7 @@
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       const dark = S.settings.theme === 'dark' || (S.settings.theme === 'system' && root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches);
-      meta.setAttribute('content', dark ? '#0e1117' : '#f4f6f9');
+      meta.setAttribute('content', dark ? '#000000' : '#f2f2ef');
     }
   }
 
@@ -71,6 +71,11 @@
       statusBar.appendChild(h('div', { class: 'banner danger', role: 'alert' }, icon('alert'),
         h('div', { class: 'body' }, 'This browser is blocking storage. Records will be lost when you close the app.')));
     }
+    const ds = RV.drive.status();
+    if (ds.connected && ds.configured && !ds.tokenOk && ds.dirty) {
+      statusBar.appendChild(h('div', { class: 'banner info' }, icon('upload'),
+        h('div', { class: 'body' }, 'Drive backup paused', h('div', null, h('button', { class: 'link', type: 'button', onclick: () => RV.drive.connect() }, 'Reconnect')))));
+    }
     statusBar.hidden = !statusBar.firstChild;
   }
 
@@ -104,6 +109,7 @@
   root.addEventListener('scroll', () => { if (lastHash) scrollPos[lastHash] = root.scrollY; }, { passive: true });
   root.addEventListener('hashchange', () => { if (!location.hash) location.replace('#/home'); render(); });
 
+  RV.drive.onChange(() => { if (S.ready) renderStatus(); });
   ST.subscribe(() => {
     if (!S.ready) return;
     applyDisplay();
@@ -162,10 +168,19 @@
     fab.hidden = true;
     await ST.load();
     applyDisplay();
+    const signIn = RV.drive.handleRedirect();
     if (!location.hash) history.replaceState(null, '', '#/home');
     render();
     showLock();
     registerSW();
+    RV.drive.start();
+    if (signIn && signIn.ok) {
+      UI.toast('Google Drive connected');
+      RV.drive.backupNow().then((ok) => { if (ok) UI.toast('Saved to Google Drive'); });
+    } else if (signIn) {
+      UI.toast(RV.drive.status().error || 'Google sign-in did not finish.');
+      RV.drive.clearError();
+    }
   }
 
   function registerSW() {

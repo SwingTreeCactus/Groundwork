@@ -195,3 +195,11 @@ Changes bundled in v2 (version 2.0.0, service worker cache rvapp-v3):
 
 ### Future (not built)
 Google Drive sync, Ministry Assistant import (needs a sample export), AI note cleanup.
+
+## 14. v2.0.1: less on-screen explanation
+Removed explanatory hints and helper text across the app (settings page intros, field help lines, long placeholders, empty-state coaching, Insights section notes, sheet intros). Kept: destructive confirmations, the PIN-loss warning, and the stage "days before flagged" line.
+Planned next: Google Drive auto backup (one visible backup file in the user's own Drive, drive.file scope, redirect sign-in for iPhone, needs a Google Cloud OAuth client ID).
+
+## 15. v2.1.0: Nothing-style skin and Google Drive backup
+Look: black/white (off-white and pure black in dark), one red accent, dot-matrix display type (Doto) for titles and numbers, Space Mono for small caps labels, Space Grotesk for body. Fonts are bundled in /fonts (SIL Open Font License) so the app still opens offline. Funnel and level bars are dot rows. Pill buttons, large rounded cards, no shadows. Stage badges are outlined mono; red is kept for overdue, live, and the active tab dot.
+Drive backup (js/drive.js, js/config.js): one visible file "JW-CRM backup.json" in the user's own Drive, drive.file permission only (the app sees only files it made). Sign-in is a full-page redirect (implicit grant) so it works in an installed iPhone app; redirect URI = the app's own address. Saves ~15 s after a change, when the app is left, and on "Back up now". Before saving, if another device saved since, its records are merged in first (newest updatedAt wins). The sign-in lasts about an hour with no server; when it lapses and changes are waiting, a "Drive backup paused / Reconnect" banner shows. Restore reads the file back through the normal merge/replace choice. Disconnect revokes the token and leaves the file. Needs googleClientId in js/config.js.

@@ -45,12 +45,10 @@
     const delta = eff.last7 - eff.prev7;
     const effortBox = h('div', { class: 'effort' },
       h('div', { class: 'big' }, h('span', { class: 'num' }, String(eff.last7)), h('span', { class: 'unit' }, ' points in the last 7 days')),
-      h('div', { class: 'muted small' }, eff.prev7 || eff.last7 ? (delta > 0 ? delta + ' more' : delta < 0 ? Math.abs(delta) + ' fewer' : 'The same') + ' than the 7 days before' : 'Log a visit or a ' + lbl('notHome').toLowerCase() + ' to get started'),
+      h('div', { class: 'muted small' }, eff.prev7 || eff.last7 ? (delta > 0 ? delta + ' more' : delta < 0 ? Math.abs(delta) + ' fewer' : 'The same') + ' than the 7 days before' : ''),
       h('div', { class: 'level' },
         h('div', { class: 'lvl-row' }, h('strong', null, 'Level ' + eff.level), h('span', { class: 'muted small' }, eff.lifetime + ' / ' + eff.levelNext + ' points')),
         h('div', { class: 'bar' }, h('i', { style: { width: eff.levelPct + '%' } }))));
-    const pts = S.settings.points;
-    const effortNote = lbl('notHome') + ' = ' + pts.nh + ', visit = ' + pts.visit + ', moving someone forward a stage = ' + pts.advance + ', new ' + lbl('rv') + ' = ' + pts.newRv + '. Every try counts, so a run of ' + lbl('notHome').toLowerCase() + 's still moves you forward.';
 
     // 60 days
     const c = eff.counts60;
@@ -66,19 +64,19 @@
 
     const reconBox = recon.length
       ? h('div', { class: 'list' }, recon.slice(0, 8).map((r) => rowFor(r.item, lbl('notHome') + ' ' + r.nh + ' times on ' + r.label, r.suggest)))
-      : h('div', { class: 'muted small' }, 'Nothing stands out. This fills in when someone is repeatedly out at the same time.');
+      : h('div', { class: 'muted small' }, 'Nothing right now');
     const stuckBox = stuck.length
       ? h('div', { class: 'list' }, stuck.slice(0, 8).map((x) => rowFor(x.item, x.days + ' days in ' + x.stage.name)))
-      : h('div', { class: 'muted small' }, 'Nobody has been in one stage unusually long.');
+      : h('div', { class: 'muted small' }, 'Nobody right now');
 
     return {
       title: 'Insights',
       el: h('div', null,
-        sec('Funnel', funnelBox, 'Tap a stage to see who is in it.'),
-        sec('Effort', effortBox, effortNote, true),
+        sec('Funnel', funnelBox),
+        sec('Effort', effortBox),
         sec('Last 60 days', tiles),
-        sec('Worth reconsidering', reconBox, 'Repeated ' + lbl('notHome').toLowerCase() + 's at the same day and time, with no visit then. Not already on Today.'),
-        sec('Stuck in stage', stuckBox, 'Records that have sat in a stage much longer than its usual timing. Not already on Today.')),
+        sec('Worth reconsidering', reconBox),
+        sec('Stuck in stage', stuckBox)),
     };
   }
 

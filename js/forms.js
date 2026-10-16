@@ -79,16 +79,16 @@
       stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
       nextVisit: h('input', { type: 'date', value: rv.nextVisit || '' }),
       bestNote: h('input', { type: 'text', value: rv.bestNote || '', placeholder: 'e.g. works nights, text first' }),
-      notes: h('textarea', { value: rv.notes || '', placeholder: 'Who they are: family, work, pets, how they like to be approached' }),
-      whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'e.g. Bring the brochure on marriage. Ask about her daughter.', style: { minHeight: '64px' } }),
-      interests: h('textarea', { value: rv.interests || '', placeholder: 'Questions or interests they mentioned' }),
+      notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
+      whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
+      interests: h('textarea', { value: rv.interests || '', placeholder: 'Interests, questions' }),
       scriptures: h('input', { type: 'text', value: (rv.scriptures || []).join(', '), placeholder: 'Separate with commas' }),
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
       nhOff: h('input', { type: 'checkbox', checked: !!rv.nhBannerOff }),
     };
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
     const wins = windowsEditor(rv.bestTimes);
-    const dayP = dayTagEditor('Best day (primary)', rv.dayPrimary, isNew ? 'Optional. Quick add sets this for you from the day and time you meet someone.' : null);
+    const dayP = dayTagEditor('Best day (primary)', rv.dayPrimary);
     const dayS = dayTagEditor('Best day (secondary)', rv.daySecondary);
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
@@ -138,9 +138,9 @@
         field(lbl('neighborhood'), f.neighborhood),
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
-        field('Next visit date', f.nextVisit, 'Optional. When set, it replaces the automatic overdue timing.'),
-        field('Discuss next time', f.whatsNext, 'Shows at the top of their record.'),
-        field('Household notes', f.notes, 'Durable facts about them, kept apart from visit notes.'),
+        field('Next visit date', f.nextVisit),
+        field('Discuss next time', f.whatsNext),
+        field('Household notes', f.notes),
         dayP.el, dayS.el,
         h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best times to find them home'), wins.el, f.bestNote),
         field('Interests and questions', f.interests),
@@ -164,7 +164,7 @@
     const address = h('input', { type: 'text', autocomplete: 'off', placeholder: 'Optional' });
     const nbList = h('datalist', { id: 'nb-list-q' }, ST.neighborhoods().map((n) => h('option', { value: n })));
     const nb = h('input', { type: 'text', list: 'nb-list-q', autocomplete: 'off', placeholder: 'Optional' });
-    const note = h('textarea', { placeholder: 'What did you talk about? (optional)', style: { minHeight: '80px' } });
+    const note = h('textarea', { placeholder: 'Note (optional)', style: { minHeight: '80px' } });
     const stage = select(stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id);
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
@@ -227,15 +227,15 @@
     const rv = ST.rvById(rvId);
     if (!rv) return;
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
-    const text = h('textarea', { placeholder: 'What did you discuss? Use your keyboard microphone to dictate.', 'data-autofocus': true, style: { minHeight: '120px' } });
+    const text = h('textarea', { placeholder: 'What did you discuss?', 'data-autofocus': true, style: { minHeight: '120px' } });
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
     const autoStage = rv.stage === 'yet' && S.settings.stages.some((s) => s.id === 'initial') ? 'initial' : rv.stage;
     const stage = select(stageOptions(), autoStage);
     const next = h('input', { type: 'date', value: '' });
-    const tags = h('input', { type: 'text', placeholder: 'Add tags, separated by commas', list: 'tag-list-v' });
+    const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
-    const extra = h('input', { type: 'text', placeholder: 'Scriptures, separated by commas' });
-    const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'What to bring up next time (optional)', style: { minHeight: '60px' } });
+    const extra = h('input', { type: 'text', placeholder: 'Scriptures' });
+    const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
     const topics = ST.featuredTopics();
@@ -286,7 +286,7 @@
           field('When', when),
           field('Stage', stage),
           h('div', { class: 'field' }, h('label', null, 'Next visit date'), next, presetDates(next),
-            h('div', { class: 'hint' }, 'Leave blank to clear any older date. A date here replaces the automatic overdue timing.')),
+            null),
           field(lbl('scriptures') + ' discussed', extra),
           field('Tags', tags)),
         h('div', { class: 'actions' },
@@ -350,7 +350,6 @@
     };
     sheet('Snooze needs-attention', (close) =>
       h('div', null,
-        h('p', { class: 'muted', style: { marginTop: 0 } }, 'Hide the overdue flag for ' + rv.name + ' until a date, without recording a visit.'),
         [['3 days', 3], ['1 week', 7], ['2 weeks', 14], ['1 month', 30]].map(([t, n]) =>
           h('button', { class: 'opt', type: 'button', onclick: () => { apply(U.toDateStr(U.addDays(new Date(), n))); close(); } }, t)),
         field('Or pick a date', date),
@@ -365,7 +364,6 @@
     const date = h('input', { type: 'date', value: rv.nextVisit || '', 'data-autofocus': true });
     sheet('Next visit date', (close) =>
       h('div', null,
-        h('p', { class: 'muted', style: { marginTop: 0 } }, 'When set, this replaces the automatic overdue timing for ' + rv.name + '.'),
         field('Date', date), presetDates(date),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),

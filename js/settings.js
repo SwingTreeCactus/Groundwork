@@ -10,7 +10,7 @@
 
   const page = (title, children, o) =>
     Object.assign({ title, back: '#/settings', el: h('div', null, children) }, o || {});
-  const hint = (t) => h('p', { class: 'muted small', style: { margin: '0 0 12px' } }, t);
+  const hint = () => null;
   const save = (fn) => ST.saveSettings(fn);
   const num = (v) => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? null : n; };
 
@@ -28,16 +28,16 @@
       title: 'Settings',
       el: h('div', null,
         row('#/settings/display', 'Display', 'Theme and text size', 'sliders'),
-        row('#/settings/home', 'Home screen', 'Choose and order the sections', 'home'),
-        row('#/settings/lib/topic', lbl('topics'), cnt('topic') + ' saved · scriptures, openers and talking points', 'note'),
-        row('#/settings/campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved · dates, topic, publications', 'calendar'),
+        row('#/settings/home', 'Home screen', null, 'home'),
+        row('#/settings/lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'),
+        row('#/settings/campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar'),
         row('#/settings/stages', 'Lead stages', S.settings.stages.filter((s) => !s.closed).map((s) => s.name).join(' › '), 'shuffle'),
         row('#/settings/reasons', 'Archive reasons', S.settings.archiveReasons.map((r) => r.name).join(', '), 'archive'),
-        row('#/settings/fields', 'Lists and custom fields', lbl('neighborhood') + 's, how we met, extra fields', 'users'),
-        row('#/settings/labels', 'Labels', 'Rename RV, Not Home and other words', 'edit'),
-        row('#/settings/attention', 'Needs attention', 'Timing and the not-home banner', 'clock'),
+        row('#/settings/fields', 'Lists and custom fields', null, 'users'),
+        row('#/settings/labels', 'Labels', null, 'edit'),
+        row('#/settings/attention', 'Needs attention', null, 'clock'),
         row('#/settings/security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock'),
-        row('#/settings/data', 'Data and backup', 'Backup, restore, CSV import and export', 'download'),
+        row('#/settings/data', 'Data and backup', null, 'download'),
         row('#/settings/about', 'About', 'Version ' + RV.VERSION, 'alert')),
     };
   }
@@ -59,7 +59,7 @@
       h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Text size'),
         seg([{ value: 0.9, label: 'Small' }, { value: 1, label: 'Default' }, { value: 1.15, label: 'Large' }, { value: 1.3, label: 'Extra large' }], S.settings.textScale,
           (v) => { save((s) => { s.textScale = v; }); RV.app.applyDisplay(); })),
-      h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Show ' + lbl('notHomeShort') + ' button on list rows'), h('div', { class: 'muted small' }, 'One tap from the list. You can undo right after.')),
+      h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Show ' + lbl('notHomeShort') + ' button on list rows')),
         UI.toggle(S.settings.nhRowButton, (v) => save((s) => { s.nhRowButton = v; }), 'Show Not Home button on list rows')),
     ], { noRerender: true });
   }
@@ -78,7 +78,7 @@
       });
     }
     render();
-    return page('Home screen', [hint('Home always shows the current campaign when one is running. Choose and order the sections below it.'), box], { noRerender: true });
+    return page('Home screen', [box], { noRerender: true });
   }
 
   // ---------- topics ----------
@@ -101,10 +101,10 @@
   const campRange = (c) => (c.start && c.end ? U.fmtDate(c.start) + ' to ' + U.fmtDate(c.end) : 'No dates yet');
   function campaignForm(c) {
     const title = h('input', { type: 'text', value: c ? c.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Fall invitation' });
-    const topic = h('input', { type: 'text', value: c ? c.topic || '' : '', autocomplete: 'off', placeholder: 'The general theme, e.g. Hope for the future' });
+    const topic = h('input', { type: 'text', value: c ? c.topic || '' : '', autocomplete: 'off', placeholder: 'Topic' });
     const start = h('input', { type: 'date', value: c ? c.start || '' : U.toDateStr(new Date()) });
     const end = h('input', { type: 'date', value: c ? c.end || '' : '' });
-    const text = h('textarea', { value: c ? c.text || '' : '', placeholder: 'A few basic details about the campaign', style: { minHeight: '84px' } });
+    const text = h('textarea', { value: c ? c.text || '' : '', placeholder: 'Details', style: { minHeight: '84px' } });
     const pubs = h('textarea', { value: c ? c.publications || '' : '', placeholder: 'One per line', style: { minHeight: '70px' } });
     const err = h('div', { class: 'small', role: 'alert', style: { color: 'var(--danger)', minHeight: '1.3em', marginBottom: '6px' } });
     sheet(c ? 'Edit ' + lbl('campaign').toLowerCase() : 'New ' + lbl('campaign').toLowerCase(), (close) =>
@@ -179,7 +179,7 @@
             !st.closed ? h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Move up', disabled: ai === 0, onclick: () => { save((s) => { const a = s.stages.findIndex((x) => x.id === st.id); const t = s.stages[a - 1]; s.stages[a - 1] = s.stages[a]; s.stages[a] = t; }); render(); } }, icon('up')) : null,
             !st.closed ? h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Move down', disabled: ai === acts.length - 1, onclick: () => { save((s) => { const a = s.stages.findIndex((x) => x.id === st.id); const t = s.stages[a + 1]; s.stages[a + 1] = s.stages[a]; s.stages[a] = t; }); render(); } }, icon('down')) : null),
           st.closed
-            ? h('div', { class: 'muted small' }, 'Closed stage. Records here are never flagged and need an archive reason.')
+            ? h('div', { class: 'muted small' }, 'Closed stage')
             : h('div', null,
               h('div', { class: 'field', style: { marginBottom: '6px' } }, h('label', null, 'Days before flagged'), days),
               h('div', { class: 'btn-row' }, h('button', {
@@ -195,7 +195,7 @@
     }
     render();
     return page('Lead stages', [
-      hint('Order is the funnel from first contact to study. "Days before flagged" is how long an ' + lbl('rv') + ' can go without a logged visit before it shows as needing attention. Leave blank to use the default (' + S.settings.defaultStaleDays + ' days). Enter 0 to never flag.'),
+      h('p', { class: 'muted small', style: { margin: '0 0 12px' } }, 'Days before flagged. Blank = default (' + S.settings.defaultStaleDays + '), 0 = never.'),
       box,
       saveBtn('Add stage', () => { save((s) => { s.stages.push({ id: 'st-' + U.uuid().slice(0, 8), name: 'New stage', days: null, closed: false }); closedLast(s); }); box.replaceChildren(); RV.app.render(); }, 'primary block'),
     ], { noRerender: true });
@@ -214,8 +214,8 @@
         box.appendChild(h('div', { class: 'card' },
           h('div', { class: 'field', style: { marginBottom: '4px' } }, name),
           sw('Can be restored', 'restorable'),
-          sw('Hidden from normal lists', 'hidden', 'Off means it still appears in search results'),
-          sw('Do not call', 'dnc', 'Blocks visits and warns about duplicates'),
+          sw('Hidden from normal lists', 'hidden', null),
+          sw('Do not call', 'dnc', null),
           h('div', { class: 'btn-row', style: { marginTop: '6px' } }, h('button', {
             class: 'btn sm danger', type: 'button',
             onclick: async () => {
@@ -288,9 +288,9 @@
       mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A ' + lbl('rv') + ' with a best day is only flagged overdue on that day. After this many times its usual timing, it is flagged on any day so nothing gets buried.', 1, 10),
       mk('stuckFactor', 'Stuck in stage (times the usual timing)', 'Insights lists ' + lbl('rvs') + ' that have stayed in one stage this many times the stage\'s timing.', 2, 20),
       h('div', { class: 'card' },
-        h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner'), h('div', { class: 'muted small' }, 'On a record, warn when it is a day and time you have mostly found them out. Hidden inside their best times.')),
+        h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner')),
           UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
-        field('Tries needed before it shows', minTries, 'Counts ' + lbl('notHome').toLowerCase() + ' entries in the same weekday and part of day with no recorded visit.')),
+        field('Tries needed before it shows', minTries)),
     ], { noRerender: true });
   }
 
@@ -330,7 +330,7 @@
       const on = S.settings.lock.on;
       box.appendChild(h('div', { class: 'card stack' },
         h('div', null, h('div', { style: { fontWeight: 600 } }, on ? 'PIN lock is on' : 'PIN lock is off'),
-          h('div', { class: 'muted small' }, 'The lock screen keeps casual snoopers out if your phone is picked up. Your records are not encrypted on the device.')),
+          h('div', { class: 'muted small' }, 'Records are not encrypted.')),
         on
           ? h('div', { class: 'btn-row' },
             h('button', { class: 'btn', type: 'button', onclick: () => askPin('Change PIN', () => pinSheet('New PIN', setPin)) }, 'Change PIN'),
@@ -340,7 +340,7 @@
           F.select([{ value: 0, label: 'Right away' }, { value: 1, label: '1 minute' }, { value: 5, label: '5 minutes' }, { value: 15, label: '15 minutes' }], S.settings.lock.timeoutMin,
             { onchange: (e) => save((s) => { s.lock.timeoutMin = parseInt(e.target.value, 10); }) })) : null,
         on ? h('button', { class: 'btn', type: 'button', onclick: () => RV.app.lockNow() }, icon('lock', 18), 'Lock now') : null),
-        h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' }, 'If you forget the PIN, the only way back in is to clear this app\'s data, which erases your records. Keep a backup (Settings > Data and backup).')));
+        h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' }, 'Forget the PIN and the only way in is erasing app data. Keep a backup.')));
     }
     render();
     return page('Security', [box], { noRerender: true });
@@ -393,7 +393,7 @@
     };
     sheet('Import CSV', (close) => {
       const form = h('div', null,
-        h('p', { class: 'muted small', style: { marginTop: 0 } }, file.name + ': ' + body.length + ' rows. Match your columns to the fields below.'));
+        h('p', { class: 'muted small', style: { marginTop: 0 } }, file.name + ': ' + body.length + ' rows'));
       L.IMPORT_FIELDS.forEach((f) => {
         const sel = h('select');
         sel.appendChild(h('option', { value: '-1' }, '(skip)'));
@@ -431,7 +431,10 @@
     if (!file) return;
     let data;
     try { data = JSON.parse(file.text); } catch (e) { toast('Could not read that file.'); return; }
-    if (!data || data.app !== 'rv-app') { toast('This is not an RV app backup.'); return; }
+    await restoreData(data);
+  }
+  async function restoreData(data) {
+    if (!data || data.app !== 'rv-app' || !Array.isArray(data.rvs)) { toast('This is not an RV app backup.'); return; }
     const live = data.rvs.filter((r) => !r.deletedAt).length;
     const choice = await UI.pick('Restore backup (' + live + ' ' + lbl('rvs') + ')', [
       { value: 'merge', label: 'Merge', sub: 'Keep what is here, add and update from the backup' },
@@ -442,24 +445,59 @@
     try { await ST.restore(data, choice); toast('Backup restored'); RV.app.applyDisplay(); } catch (e) { toast(e.message || 'Restore failed.'); }
   }
 
+  // Google Drive panel: refreshes itself while it is on screen
+  function drivePanel() {
+    const D = RV.drive;
+    const box = h('div', { style: { marginBottom: '12px' } });
+    const row = (ic, label, sub, fn, cls) => h('button', { class: 'setrow' + (cls ? ' ' + cls : ''), type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
+    function paint() {
+      const s = D.status();
+      const kids = [];
+      if (!s.configured) {
+        kids.push(h('div', { class: 'card muted small' }, 'Google Drive backup is not set up in this copy of the app.'));
+      } else if (!s.connected) {
+        kids.push(row('upload', 'Connect Google Drive', 'Backs up to your own Drive', () => D.connect()));
+      } else {
+        const when = s.lastSaved ? 'Saved ' + U.fmtDateTime(s.lastSaved) : 'Not saved yet';
+        const state = s.busy ? 'Saving…' : s.error ? s.error : !s.tokenOk && s.dirty ? 'Paused. Reconnect to save.' : s.dirty ? 'Changes waiting' : when;
+        kids.push(h('div', { class: 'card stack' },
+          h('div', null, h('div', { style: { fontWeight: 500 } }, 'Google Drive'), h('div', { class: 'muted small' }, state)),
+          h('div', { class: 'btn-row' },
+            s.tokenOk ? h('button', { class: 'btn primary', type: 'button', disabled: s.busy, onclick: async () => { if (await D.backupNow()) toast('Saved to Google Drive'); } }, 'Back up now')
+              : h('button', { class: 'btn primary', type: 'button', onclick: () => D.connect() }, 'Reconnect'),
+            h('button', { class: 'btn', type: 'button', disabled: s.busy || !s.tokenOk, onclick: async () => {
+              try { const data = await D.fetchBackup(); if (!data) { toast('No backup found in Drive.'); return; } await restoreData(data); } catch (e) { toast(e.message || 'Could not read Drive.'); }
+            } }, 'Restore')),
+          h('button', { class: 'link-quiet', type: 'button', style: { alignSelf: 'flex-start', background: 'none', border: 0, cursor: 'pointer' }, onclick: async () => {
+            if (await confirmDialog({ title: 'Disconnect Google Drive?', message: 'The backup file stays in your Drive.', confirmText: 'Disconnect' })) D.disconnect();
+          } }, 'Disconnect')));
+      }
+      box.replaceChildren(...kids);
+    }
+    paint();
+    const off = D.onChange(() => { if (!box.isConnected) { off(); return; } paint(); });
+    return box;
+  }
+
   function data() {
     const last = (() => { try { return localStorage.getItem('rvapp.lastBackup'); } catch (e) { return null; } })();
     const live = S.rvs.filter((r) => !r.deletedAt).length;
     const btn = (ic, label, sub, fn) => h('button', { class: 'setrow', type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
     return page('Data and backup', [
+      drivePanel(),
       h('div', { class: 'banner ' + (S.persistent ? 'info' : 'danger') }, icon(S.persistent ? 'lock' : 'alert'), h('div', { class: 'body' },
-        S.persistent ? live + ' ' + lbl('rvs') + ' stored on this device. ' + (last ? 'Last backup: ' + U.fmtDate(last) + '.' : 'No backup yet.') : 'This browser is blocking storage, so nothing will be kept after you close the app.')),
-      btn('download', 'Download backup', 'Everything, as one file. Keep a copy somewhere safe.', () => {
+        S.persistent ? live + ' ' + lbl('rvs') + ' on this device. ' + (last ? 'Last backup: ' + U.fmtDate(last) + '.' : 'No backup yet.') : 'This browser is blocking storage. Nothing will be kept.')),
+      btn('download', 'Download backup', null, () => {
         UI.download('rv-backup-' + stamp() + '.json', JSON.stringify(ST.exportAll(), null, 1), 'application/json');
         try { localStorage.setItem('rvapp.lastBackup', U.toDateStr(new Date())); } catch (e) { /* ignore */ }
         toast('Backup downloaded');
       }),
-      btn('upload', 'Restore from backup', 'Merge or replace from a backup file', restoreFlow),
-      btn('download', 'Export ' + lbl('rvs') + ' as CSV', 'For spreadsheets', () => UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv')),
-      btn('download', 'Export visit log as CSV', 'Every visit, not-home and note', () => UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv')),
-      btn('upload', 'Import from CSV', 'Match your columns to ' + lbl('rv') + ' fields', importWizard),
+      btn('upload', 'Restore from backup', null, restoreFlow),
+      btn('download', 'Export ' + lbl('rvs') + ' as CSV', null, () => UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv')),
+      btn('download', 'Export visit log as CSV', null, () => UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv')),
+      btn('upload', 'Import from CSV', null, importWizard),
       h('div', { style: { height: '12px' } }),
-      btn('trash', 'Erase all data', 'Removes everything on this device', async () => {
+      btn('trash', 'Erase all data', null, async () => {
         if (!(await confirmDialog({ title: 'Erase everything?', message: 'All ' + lbl('rvs') + ', visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
         await ST.eraseAll();
         RV.app.applyDisplay();
@@ -473,8 +511,8 @@
     return page('About', [
       h('div', { class: 'card stack' },
         h('div', { style: { fontWeight: 600 } }, 'JW-CRM (working name) · version ' + RV.VERSION),
-        h('div', { class: 'muted small' }, 'A private follow-up tracker. Records stay on this device. Nothing is sent anywhere.'),
-        h('div', { class: 'muted small' }, 'To install on Android: Chrome menu > Install app. On iPhone: Safari Share > Add to Home Screen. Once installed it opens without a signal.')),
+        h('div', { class: 'muted small' }, 'Android: Chrome menu > Install app. iPhone: Safari Share > Add to Home Screen.'),
+        h('a', { class: 'muted small', href: 'privacy.html', target: '_blank', rel: 'noopener' }, 'Privacy policy')),
     ], { noRerender: true });
   }
 

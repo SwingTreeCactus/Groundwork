@@ -383,7 +383,7 @@ with sync_playwright() as p:
     with page.expect_file_chooser() as fc:
         page.click('.setrow:has-text("Import from CSV")')
     fc.value.set_files(csv_path)
-    page.wait_for_selector('.sheet:has-text("Match your columns")')
+    page.wait_for_selector('.sheet:has-text("rows")')
     shot('12-import')
     summary = page.locator('.sheet .banner').inner_text()
     check('1 RV' in summary or '1 RVs' in summary, 'import summary: ' + summary.replace('\n', ' '))
@@ -407,6 +407,98 @@ with sync_playwright() as p:
     page.wait_for_selector('.lock', state='detached', timeout=3000)
     check(True, 'correct PIN unlocks')
     ev('RV.store.saveSettings(s => { s.lock.on = false; })')
+
+    print('Google Drive backup (fake Google)')
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('.view')
+    check('not set up' in page.locator('.view').inner_text(), 'no client ID: Drive says it is not set up')
+    check(ev("RV.drive._pure.parseAuthHash('#/home')") is None and ev("RV.drive._pure.parseAuthHash('#access_token=a&expires_in=10&state=s').token") == 'a', 'sign-in reply parsing ignores app routes')
+
+    from urllib.parse import urlparse, parse_qs
+    import datetime
+    fake = {'file': None, 'mod': None, 'writes': 0, 'revoked': 0, 'deny': False}
+    def iso(offset=0):
+        return (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=offset)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    def google_auth(route):
+        q = parse_qs(urlparse(route.request.url).query)
+        ru, state = q['redirect_uri'][0], q['state'][0]
+        frag = 'error=access_denied&state=' + state if fake['deny'] else 'access_token=tok123&token_type=Bearer&expires_in=3599&scope=x&state=' + state
+        route.fulfill(status=302, headers={'location': ru + '#' + frag}, body='')
+    def google_api(route):
+        req = route.request; u = urlparse(req.url); q = parse_qs(u.query); m = req.method
+        jr = lambda obj, st=200: route.fulfill(status=st, content_type='application/json', body=json.dumps(obj))
+        if u.hostname == 'oauth2.googleapis.com': fake['revoked'] += 1; return route.fulfill(status=200, body='{}')
+        if req.headers.get('authorization') != 'Bearer tok123': return jr({'error': 'auth'}, 401)
+        if u.path == '/drive/v3/files' and m == 'GET':
+            return jr({'files': [{'id': 'F1', 'modifiedTime': fake['mod']}] if fake['file'] else []})
+        if u.path == '/drive/v3/files/F1' and m == 'GET':
+            if not fake['file']: return jr({}, 404)
+            return route.fulfill(status=200, content_type='application/json', body=fake['file']) if q.get('alt') == ['media'] else jr({'id': 'F1', 'modifiedTime': fake['mod']})
+        if u.path == '/upload/drive/v3/files' and m == 'POST':
+            body = req.post_data or ''
+            fake['file'] = body.split('Content-Type: application/json\r\n\r\n')[-1].rsplit('\r\n--', 1)[0]
+            fake['mod'] = iso(); fake['writes'] += 1
+            return jr({'id': 'F1', 'modifiedTime': fake['mod']})
+        if u.path == '/upload/drive/v3/files/F1' and m == 'PATCH':
+            fake['file'] = req.post_data; fake['mod'] = iso(); fake['writes'] += 1
+            return jr({'id': 'F1', 'modifiedTime': fake['mod']})
+        return jr({'error': 'unexpected ' + m + ' ' + u.path}, 500)
+    ctx.route('https://accounts.google.com/**', google_auth)
+    ctx.route('https://www.googleapis.com/**', google_api)
+    ctx.route('https://oauth2.googleapis.com/**', google_api)
+    ctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'")
+    wait_for = lambda fn, t=6: next((True for _ in range(int(t * 10)) if fn() or page.wait_for_timeout(100)), False)
+    drive_rvs = lambda: json.loads(fake['file'])['rvs'] if fake['file'] else []
+
+    page.goto(URL + '#/settings/data'); page.reload(); page.wait_for_selector('.view'); page.wait_for_selector('.setrow')
+    check(page.locator('button:has-text("Connect Google Drive")').count() == 1, 'with a client ID, Connect is offered')
+
+    fake['deny'] = True
+    page.click('button:has-text("Connect Google Drive")'); page.wait_for_selector('.toast')
+    check('cancelled' in page.locator('.toast').first.inner_text(), 'cancelling sign-in shows a short message')
+    check(ev('RV.drive.status().connected') is False, 'cancelled sign-in stays disconnected')
+    fake['deny'] = False
+
+    n_local = len([r for r in ev('RV.store.S.rvs') if not r.get('deletedAt')])
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Connect Google Drive")')
+    page.click('button:has-text("Connect Google Drive")')
+    check(wait_for(lambda: fake['file'] is not None), 'connecting saves a backup file to Drive')
+    page.wait_for_selector('button:has-text("Back up now")')
+    check(page.evaluate('location.hash') == '#/settings/data' and 'access_token' not in page.url, 'the token is removed from the address bar')
+    check(len([r for r in drive_rvs() if not r.get('deletedAt')]) == n_local, 'Drive file holds the same records as the device')
+    check(ev('RV.drive.status().connected') is True and 'Saved' in page.locator('.view').inner_text(), 'Data page shows connected and when it last saved')
+
+    writes = fake['writes']
+    ev("() => RV.store.addRv({ name: 'Drive Test Person', stage: 'initial' })")
+    ev("() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }")
+    check(wait_for(lambda: any(r['name'] == 'Drive Test Person' for r in drive_rvs())), 'a change is saved to Drive when the app is left')
+    ev("() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); }")
+    check(fake['writes'] > writes, 'the existing Drive file is updated, not duplicated')
+
+    # another device saved something in the meantime: it is merged in, not overwritten
+    other = json.loads(fake['file'])
+    other['rvs'].append({'id': 'from-other-device', 'name': 'Other Device Person', 'stage': 'initial', 'createdAt': iso(), 'updatedAt': iso()})
+    fake['file'] = json.dumps(other); fake['mod'] = iso(60)
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Back up now")')
+    page.click('button:has-text("Back up now")')
+    check(wait_for(lambda: ev("RV.store.S.rvs.some(r => r.id === 'from-other-device')")), 'records saved by another device are merged in')
+    check(wait_for(lambda: any(r['id'] == 'from-other-device' for r in drive_rvs()) and any(r['name'] == 'Drive Test Person' for r in drive_rvs())), 'the merged result is what ends up in Drive')
+
+    back = ev('async () => { const d = await RV.drive.fetchBackup(); return d && d.app; }')
+    check(back == 'rv-app', 'Restore can read the backup back from Drive')
+
+    # sign-in expired: changes wait, and the app says so
+    ev("() => { const o = JSON.parse(localStorage.getItem('rvapp.drive')); o.expires = 0; o.dirty = false; localStorage.setItem('rvapp.drive', JSON.stringify(o)); }")
+    page.goto(URL + '#/home'); page.reload(); page.wait_for_selector('.tabbar .tab')
+    ev("() => RV.store.addRv({ name: 'Offline Of Drive', stage: 'yet' })")
+    page.wait_for_selector('.banner:has-text("Drive backup paused")', timeout=4000)
+    check(True, 'expired sign-in with unsaved changes shows a reconnect banner')
+    page.click('.banner button:has-text("Reconnect")')
+    check(wait_for(lambda: any(r['name'] == 'Offline Of Drive' for r in drive_rvs()), 8), 'reconnecting saves the waiting changes')
+
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Disconnect")')
+    page.click('button:has-text("Disconnect")'); page.click('.sheet button:has-text("Disconnect")')
+    check(wait_for(lambda: ev('RV.drive.status().connected') is False) and fake['revoked'] == 1, 'Disconnect signs out and revokes the token')
+    check(fake['file'] is not None, 'disconnecting leaves the backup file in Drive')
 
     print('offline')
     page.goto(URL); page.wait_for_selector('.tabbar .tab')

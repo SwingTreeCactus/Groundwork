@@ -41,7 +41,7 @@
   function libSheet(kind, item) {
     // kind is always 'topic' now; scriptures and conversation starters live inside topics
     const title = h('input', { type: 'text', value: item ? item.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Hope for the future' });
-    const text = h('textarea', { value: item ? item.text : '', placeholder: 'Scriptures, questions to ask, key points', style: { minHeight: '120px' } });
+    const text = h('textarea', { value: item ? item.text : '', placeholder: 'Scriptures, questions, key points', style: { minHeight: '120px' } });
     const tags = h('input', { type: 'text', value: item ? (item.tags || []).join(', ') : '', placeholder: 'Optional, separated by commas' });
     const on = h('input', { type: 'checkbox', checked: item ? item.showOnHome : true });
     sheet(item ? 'Edit topic' : 'New topic', (close) =>
@@ -125,7 +125,7 @@
             h('button', { class: 'prow', type: 'button', onclick: () => topicView(x) },
               h('div', { class: 'pt' }, x.title),
               x.text ? h('div', { class: 'pd' }, x.text) : null)))
-          : h('div', { class: 'muted small' }, 'No featured topics yet. Add the ones you want in front of you before heading out.');
+          : h('div', { class: 'muted small' }, 'No featured topics yet.');
         return section(lbl('topics'), body, h('span', { class: 'sec-actions' },
           h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Add topic', onclick: () => libSheet('topic') }, icon('plus', 18)),
           h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, all.length > shown.length ? 'All ' + all.length : 'Manage')));
@@ -137,13 +137,13 @@
       },
       recent() {
         const top = L.recentlyAdded(items, now).slice(0, 5);
-        return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'Nobody added in the last two weeks.'));
+        return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'None'));
       },
       likelyHome() {
         const out = L.likelyHomeNow(items, now).slice(0, 8);
         return section('Likely home right now', out.length
           ? h('div', { class: 'list' }, out.map((o) => rvRow(o.item, { why: o.why })))
-          : h('div', { class: 'muted small' }, 'Nobody stands out for this day and time yet. It improves as you log visits and best times.'));
+          : h('div', { class: 'muted small' }, 'Nobody stands out yet.'));
       },
     };
     return S.settings.homeCards.filter((c) => c.on && builders[c.id]).map((c) => builders[c.id]());
@@ -153,7 +153,7 @@
     const items = ST.items();
     const welcome = !S.rvs.some((r) => !r.deletedAt)
       ? card('Welcome', h('div', { class: 'stack' },
-        h('div', { class: 'muted' }, 'Add your first ' + lbl('rv') + ', or bring records in from a spreadsheet. Everything stays on this device.'),
+        h('div', { class: 'muted' }, 'Add your first ' + lbl('rv') + ', or import a spreadsheet.'),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add ' + lbl('rv')),
           h('a', { class: 'btn', href: '#/settings/data' }, 'Import CSV'))))
@@ -196,7 +196,7 @@
     }
     // 7-day forecast
     const fbox = h('div');
-    if (!fc.length) fbox.appendChild(h('div', { class: 'muted small' }, 'Nothing planned or tagged for the next 7 days.'));
+    if (!fc.length) fbox.appendChild(h('div', { class: 'muted small' }, 'Nothing coming up.'));
     fc.forEach((day, i) => {
       const rows = day.scheduled.map((it) => ({ it, why: 'Planned visit' })).concat(day.tagged.map((t) => ({ it: t.item, why: L.tagLabel(t.tag) })));
       let shown = 5;
@@ -390,7 +390,7 @@
     // header card: who they are and what to bring up, then the actions
     const lastVisit = it.entries.find((e) => e.type === 'visit' && e.text);
     const editNext = async () => {
-      const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'e.g. Bring the brochure on marriage. Ask about her daughter.' });
+      const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
     };
     const snapshot = !closed || rv.whatsNext || lastVisit
@@ -450,7 +450,7 @@
     const tlBox = h('div');
     const renderTl = () => {
       tlBox.replaceChildren();
-      if (!it.entries.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'No activity yet. Tap ' + lbl('notHome') + ' or ' + lbl('recordVisit') + ' above.')); return; }
+      if (!it.entries.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'No activity yet.')); return; }
       const ul = h('ul', { class: 'tl' });
       it.entries.slice(0, tlShown).forEach((e) => {
         ul.appendChild(h('li', { class: e.type },
