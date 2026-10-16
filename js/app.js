@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.2.0';
+  RV.VERSION = '2.3.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -91,6 +91,7 @@
     }
     current = screen;
     topbar.replaceChildren();
+    topbar.classList.toggle('sub-page', !!screen.back);
     if (screen.back) {
       topbar.appendChild(h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Back', onclick: () => { if (history.length > 1) history.back(); else location.hash = screen.back; } }, icon('left')));
     }

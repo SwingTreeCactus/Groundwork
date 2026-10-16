@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v7';
+const CACHE = 'rvapp-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,6 @@ const ASSETS = [
   './fonts/space-grotesk-latin-400-normal.woff2',
   './fonts/space-grotesk-latin-500-normal.woff2',
   './fonts/space-grotesk-latin-700-normal.woff2',
-  './fonts/space-mono-latin-400-normal.woff2',
   './js/util.js',
   './js/defaults.js',
   './js/db.js',

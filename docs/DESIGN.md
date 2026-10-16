@@ -211,3 +211,11 @@ Stages flagged study (the default Bible Study stage; older saved settings are ma
 - Each study saves progress and publication on its own timeline entry (shown as "Study"); the record keeps the latest. Tapping the Studying block edits both. The full edit form shows the two fields only while the stage is a study stage.
 - List and Today rows show "Publication · place" instead of the usual subtitle. Both fields are searchable and included in the CSV export.
 Interpretation: progress is free text (lesson, paragraph, page), not a structured count. A study logged with an earlier date than the newest one still becomes the record's current place.
+
+## 17. v2.3.0: comfort pass
+Why: the Nothing-style skin felt clunky (outlines everywhere, mono caps labels, dot-matrix on names, nested outlined boxes).
+- Type: Space Grotesk for everything, sentence-case labels at 13-14 px or larger. Doto (dot-matrix) only for the five tab titles and big numbers; record names and sub-screen titles use the plain face. Space Mono removed.
+- Surfaces: no outlines. Lists are one white grouped surface with hairline dividers; cards, inputs, chips and secondary buttons are filled (soft grey inside white cards and sheets, white on the page). Black is kept for the one main action per screen.
+- Stage: five pips show where a record is in the funnel (filled = current position) instead of an outlined badge. Overdue stays a small red pill.
+- Record detail: Discuss next time and last visit are soft grey blocks; on a study record the Studying block is the solid black one.
+- Navigation: sentence-case labels with a soft pill behind the active icon. Rows and buttons are at least 48 px tall.

@@ -118,7 +118,7 @@
     const st = L.stageOf(S.settings, stageId);
     const actives = S.settings.stages.filter((s) => !s.closed);
     const i = actives.findIndex((s) => s.id === st.id);
-    return h('span', { class: 'badge', 'data-s': st.closed ? '0' : String((i % 5) + 1) }, st.name);
+    return h('span', { class: 'badge', 'data-s': st.closed ? '0' : String((i % 5) + 1) }, st.closed ? null : h('i', { class: 'pips', 'aria-hidden': 'true', style: '--n:' + (i + 1) + ';--t:' + actives.length }), st.name);
   }
   function attBadge(att) {
     if (att.state === 'overdue') return h('span', { class: 'badge flag-overdue' }, L.attentionText(att));
