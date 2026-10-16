@@ -237,3 +237,12 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - Details card is folded by default. Header and list spacing tightened in v2.4.0.
 - Not built yet: map view of all records (needs internet for tiles), configurable quick-log outcomes.
 - VERSION 2.5.0, cache rvapp-v10.
+
+## 20. v2.6.0 Ministry Assistant import
+
+- Settings > Data and backup > "Import from Ministry Assistant" reads a `.mabackup` file. The file is gzip-compressed Smile (binary JSON) data.
+- `js/smile.js`: small Smile decoder (shared key names, short/long strings, ints, floats, nested objects/arrays). `{pairs: true}` keeps repeated keys, which the backup relies on (every person sits under a repeated "Pe" key).
+- `js/ma.js`: pure converter. Person fields used: N name, Add street, City (or the backup's single city), Zip, Hidden (archived), Inf > PI entries (I note, Sc scriptures, D date) become timeline visits; earliest timestamp becomes the created date.
+- Unknown from the single small sample: the meaning of Type/TpI/PtI, Age, Prio, VTm, Pinned, Territories, Suburbs. Phone and suburb keys are guessed (Ph/Phone/Tel, Sub/Suburb). Ignored fields are not imported.
+- Import sheet: choose the stage for imported people, skip duplicates (address match, also against saved street-only addresses). Re-importing the same file adds nothing new.
+- Tests: Smile/convert unit test plus a synthetic .mabackup written by a tiny Smile writer in tests/smoke.py. VERSION 2.6.0, cache rvapp-v11.

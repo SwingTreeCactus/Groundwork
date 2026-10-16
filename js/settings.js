@@ -347,16 +347,82 @@
   }
 
   // ---------- data ----------
-  function pickFile(accept) {
+  function pickFile(accept, binary) {
     return new Promise((resolve) => {
       const inp = h('input', { type: 'file', accept, style: { display: 'none' } });
-      inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; inp.remove(); resolve(f ? { name: f.name, text: await f.text() } : null); });
+      inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; inp.remove(); resolve(f ? (binary ? { name: f.name, buffer: await f.arrayBuffer() } : { name: f.name, text: await f.text() }) : null); });
       inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
       document.body.appendChild(inp);
       inp.click();
     });
   }
   const stamp = () => U.toDateStr(new Date());
+
+  async function maImport() {
+    const file = await pickFile('', true);
+    if (!file) return;
+    let parsed;
+    try {
+      const bytes = await RV.smile.gunzipIfNeeded(file.buffer);
+      const pairs = RV.smile.decode(bytes, { pairs: true });
+      const closed = S.settings.stages.find((s) => s.closed);
+      parsed = (stageId, skipDup) => {
+        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other' });
+        res.rvs = res.rvs.map((r) => ST.blankRv(r));
+        let dups = 0;
+        const seen = [];
+        // imported addresses carry city and zip, so also match on the bare street of records saved without one
+        const streetKey = (a) => U.normAddress(String(a || '').split(',')[0]);
+        const isDup = (r, pool) => L.duplicateMatches(r, pool).length > 0 ||
+          (streetKey(r.address) && pool.some((x) => !x.deletedAt && x.address && x.address.indexOf(',') < 0 && U.normAddress(x.address) === streetKey(r.address)));
+        const keep = res.rvs.filter((r) => {
+          const d = isDup(r, S.rvs.concat(seen));
+          if (d) dups++;
+          const drop = skipDup && d;
+          if (!drop) seen.push(r);
+          return !drop;
+        });
+        return { res, keep, dups };
+      };
+      parsed(S.settings.stages[0].id, false);
+    } catch (e) {
+      toast('Could not read that file as a Ministry Assistant backup.');
+      return;
+    }
+    const defStage = F.select(F.stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
+    const skipDup = h('input', { type: 'checkbox', checked: true });
+    const summary = h('div', { class: 'banner info' });
+    const refresh = () => {
+      const { res, keep, dups } = parsed(defStage.value, skipDup.checked);
+      summary.replaceChildren(icon('note'), h('div', { class: 'body' },
+        keep.length + ' ' + lbl('rvs') + ' and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
+        (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
+        (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
+    };
+    sheet('Import from Ministry Assistant', (close) => {
+      defStage.addEventListener('change', refresh);
+      skipDup.addEventListener('change', refresh);
+      const form = h('div', null,
+        field('Stage for imported people', defStage),
+        h('label', { class: 'check' }, skipDup, 'Skip people who match an existing address'),
+        summary,
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+          h('button', {
+            class: 'btn primary', type: 'button',
+            onclick: () => {
+              const { res, keep } = parsed(defStage.value, skipDup.checked);
+              const ids = new Set(keep.map((r) => r.id));
+              ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
+              close();
+              toast('Imported ' + keep.length + ' ' + lbl('rvs'));
+              location.hash = '#/rvs';
+            },
+          }, 'Import')));
+      refresh();
+      return form;
+    });
+  }
 
   async function importWizard() {
     const file = await pickFile('.csv,text/csv,text/plain');
@@ -496,6 +562,7 @@
       btn('download', 'Export ' + lbl('rvs') + ' as CSV', null, () => UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv')),
       btn('download', 'Export visit log as CSV', null, () => UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv')),
       btn('upload', 'Import from CSV', null, importWizard),
+      btn('upload', 'Import from Ministry Assistant', null, maImport),
       h('div', { style: { height: '12px' } }),
       btn('trash', 'Erase all data', null, async () => {
         if (!(await confirmDialog({ title: 'Erase everything?', message: 'All ' + lbl('rvs') + ', visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
