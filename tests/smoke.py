@@ -88,8 +88,13 @@ with sync_playwright() as p:
     page.reload(); page.wait_for_selector('.tabbar .tab')
     check(ev('RV.store.S.rvs.length') == 7, 'data survives a reload (IndexedDB)')
     shot('03-home-populated')
-    check(page.locator('text=Needs attention').count() >= 1, 'needs-attention card shows')
-    check(page.locator('text=Fall invitation').count() >= 1, 'campaign shown on Home')
+    # the seeded lib items are the OLD format (starter / scripture / undated campaign): they must migrate on load
+    check(ev('RV.store.S.lib.filter(x=>x.kind=="starter"||x.kind=="scripture").length') == 0, 'migration: starters and scriptures became topics')
+    check(ev('RV.store.S.lib.filter(x=>x.kind=="topic"&&!x.deletedAt).length') == 3, 'migration: all three kept as topics')
+    check(page.locator('.campaign-bar:has-text("Fall invitation")').count() == 1, 'active campaign shown as a banner on Home')
+    check(page.locator('.prow').count() == 3, 'Home lists the three topics (%d)' % page.locator('.prow').count())
+    check(page.locator('text=Conversation starters').count() == 0 and page.locator('.card-head:has-text("Needs attention")').count() == 0, 'no starters card, no work lists on Home')
+    check(page.locator('.row').count() == 0, 'Home lists no RVs')
 
     print('today')
     page.click('.tab >> text=Today'); page.wait_for_selector('text=Overdue')
@@ -184,8 +189,152 @@ with sync_playwright() as p:
     page.click('button:has-text("Hide for this RV")')
     check(page.locator('.banner:has-text("Usually not home")').count() == 0, 'banner can be hidden per RV')
 
+    print('v2: quick add, campaign tag, day tags, next time, topics')
+    dow = ev('new Date().getDay()')
+    campaign = ev('RV.store.activeCampaign()')
+    page.goto(URL + '#/home'); page.wait_for_selector('.campaign-bar')
+    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet .check:has-text("Fall invitation")').count() == 1, 'quick add offers the active campaign')
+    check(page.locator('.sheet .check input').is_checked(), 'campaign toggle defaults on')
+    page.locator('.sheet input[type=text]').nth(0).fill('Blank Note Person')
+    page.click('.sheet button[type=submit]'); page.wait_for_selector('.toast')
+    bn = ev('RV.store.S.rvs.find(r=>r.name=="Blank Note Person")')
+    check(bn['dayPrimary']['day'] == dow and bn['dayPrimary']['part'] in ('morning', 'afternoon', 'evening', 'night'), 'quick add stamps today as the primary best day: %s' % bn['dayPrimary'])
+    check(bn['campaignId'] == campaign['id'], 'quick add tags the active campaign')
+    be = ev('RV.store.S.entries.filter(e=>e.rvId=="%s")' % bn['id'])
+    check(len(be) == 1 and be[0]['type'] == 'visit' and 'Campaign: Fall invitation' in be[0]['text'] and 'Topic: ' in be[0]['text'], 'blank note filled with the live campaign and topics: %r' % (be[0]['text'] if be else None))
+    check(be[0]['campaignId'] == campaign['id'], 'first visit tagged with the campaign')
+    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
+    page.locator('.sheet input[type=text]').nth(0).fill('Off Campaign')
+    page.locator('.sheet .check input').uncheck()
+    page.locator('.sheet textarea').fill('Met at the market')
+    page.click('.sheet button[type=submit]'); page.wait_for_selector('.toast')
+    oc = ev('RV.store.S.rvs.find(r=>r.name=="Off Campaign")')
+    check(oc['campaignId'] is None, 'campaign toggle off: RV not tagged')
+    ocv = ev('RV.store.S.entries.find(e=>e.rvId=="%s")' % oc['id'])
+    check(ocv['campaignId'] is None and ocv['text'] == 'Met at the market', 'campaign toggle off: visit not tagged, own note kept')
+
+    print('v2: RV page leads with household notes, next time, last visit')
+    ben = ev('RV.store.S.rvs.find(r=>r.name=="Ben Carter").id')
+    ev('(id) => RV.store.updateRv(id, {notes: "Works nights, has a dog", whatsNext: "Bring the brochure"})', ben)
+    page.goto(URL + '#/rv/' + ben); page.wait_for_selector('text=Timeline')
+    check(page.locator('.household:has-text("Works nights")').count() == 1, 'household notes sit under the name and address')
+    check(page.locator('.snap-row.next:has-text("Bring the brochure")').count() == 1, 'Discuss next time is pinned at the top')
+    check(page.locator('.snap-row:has-text("Study on lesson 3")').count() == 1, 'last visit summary is pinned at the top')
+    order = ev('''() => { const c = document.querySelector('.household'), s = document.querySelector('.snap'), b = document.querySelector('.btn.big');
+      return [c.compareDocumentPosition(s) & 4 ? 1 : 0, s.compareDocumentPosition(b) & 4 ? 1 : 0]; }''')
+    check(order == [1, 1], 'order is household notes, then snapshot, then the action buttons')
+    check(page.locator('.card-head:has-text("Timeline") button').count() == 0, 'no manual Note button on the timeline')
+    page.click('button[aria-label="More actions"]')
+    check(page.locator('.sheet .opt:has-text("Add note")').count() == 0, 'no Add note in the actions menu')
+    page.keyboard.press('Escape')
+
+    print('v2: record visit with topic chips, next time and campaign toggle')
+    page.click('button:has-text("Record visit")'); page.wait_for_selector('.sheet textarea')
+    check(page.locator('.sheet .chip:has-text("Family worries")').count() == 1, 'featured topics appear as chips')
+    page.click('.sheet .chip:has-text("Family worries")')
+    check('Topic: Family worries' in page.locator('.sheet textarea').first.input_value(), 'tapping a topic inserts a tag into the note')
+    page.click('.sheet .chip:has-text("Family worries")')
+    check(page.locator('.sheet textarea').first.input_value().count('Topic: Family worries') == 1, 'tapping twice does not duplicate it')
+    page.locator('.sheet textarea').nth(1).fill('Ask about his shift change')
+    check(page.locator('.sheet .check:has-text("Fall invitation")').count() == 1, 'visit dialog has the campaign toggle')
+    page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
+    check(ev('RV.store.rvById("%s").whatsNext' % ben) == 'Ask about his shift change', 'next time replaced by what was entered')
+    newest = ev('RV.store.itemFor("%s").entries[0]' % ben)
+    check(newest['type'] == 'visit' and newest['campaignId'] == campaign['id'], 'visit tagged with the active campaign by default')
+    check(page.locator('.tl:has-text("Campaign: Fall invitation")').count() == 1, 'campaign shown on the timeline entry')
+    page.click('button:has-text("Record visit")'); page.wait_for_selector('.sheet textarea')
+    page.locator('.sheet .check input').uncheck()
+    page.locator('.sheet textarea').first.fill('Short follow up')
+    page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
+    follow = ev('RV.store.itemFor("%s").entries.find(e=>e.text=="Short follow up")' % ben)
+    check(follow and follow['campaignId'] is None, 'campaign toggle off leaves the visit untagged')
+
+    print('v2: day-tag overdue rule in the browser')
+    res = ev('''() => { const ST = RV.store, dow = new Date().getDay(); const d = n => new Date(Date.now() - n*864e5).toISOString();
+      const other = (dow + 3) % 7;
+      const r = ST.addRv({name: 'Tagtest', stage: 'initial', createdAt: d(30), dayPrimary: {day: other, part: 'evening'}});
+      ST.addEntry(r.id, 'visit', {text: 'x'}, d(10));
+      const a = ST.itemFor(r.id).att;
+      ST.updateRv(r.id, {dayPrimary: {day: dow, part: 'evening'}});
+      const b = ST.itemFor(r.id).att;
+      const r2 = ST.addRv({name: 'Tagtest2', stage: 'initial', createdAt: d(40), dayPrimary: {day: other, part: 'evening'}});
+      ST.addEntry(r2.id, 'visit', {text: 'x'}, d(20));
+      const c = ST.itemFor(r2.id).att;
+      ST.deleteRv(r.id); ST.deleteRv(r2.id);
+      return [a.state, !!a.waiting, b.state, c.state]; }''')
+    check(res == ['ok', True, 'overdue', 'overdue'], 'tagged: waits for its day; overdue on its day; safety net after 2x: %s' % res)
+
+    print('v2: Today and the 7-day forecast')
+    ev('''() => { const ST = RV.store, dow = new Date().getDay(); const find = n => ST.S.rvs.find(r => r.name === n).id;
+      ST.updateRv(find('Ben Carter'), {dayPrimary: {day: dow, part: 'evening'}, daySecondary: {day: (dow + 1) % 7, part: 'morning'}, whatsNext: ''});
+      ST.updateRv(find('Dee Alvarez'), {dayPrimary: {day: dow, part: 'morning'}});
+      const e = ST.addRv({name: 'Evening Person', stage: 'return', createdAt: new Date(Date.now() - 20*864e5).toISOString(), dayPrimary: {day: dow, part: 'evening'}});
+      ST.addEntry(e.id, 'visit', {text: 'Chatted'}, new Date(Date.now() - 3*864e5).toISOString()); }''')
+    page.goto(URL + '#/today'); page.wait_for_selector('.sec')
+    heads = [t.strip().lower() for t in page.locator('.sec-head h2').all_inner_texts()]
+    check('overdue' in heads and 'tagged for today' in heads and 'next 7 days' in heads, 'Today sections: %s' % heads)
+    check('coming up' not in heads and 'recently added' not in heads, 'Today no longer lists coming up or recently added')
+    check(page.locator('.sec:has(h2:text-is("Overdue")) .row:has-text("Eli Moore")').count() == 1, 'untagged overdue shows under Overdue')
+    subs = [t.strip().lower() for t in page.locator('.sec:has(h2:text-is("Tagged for today")) .subhead').all_inner_texts()]
+    check(subs == ['morning', 'evening'], 'tagged RVs grouped in natural part-of-day order: %s' % subs)
+    check(page.locator('.sec:has(h2:text-is("Tagged for today")) .row:has-text("Dee Alvarez")').count() == 1, 'Dee (tagged today morning) listed')
+    check(page.locator('.sec:has(h2:text-is("Tagged for today")) .row:has-text("Ben Carter")').count() == 0, 'Ben (tagged today) is not listed again: already visited today')
+    check(page.locator('.sec:has(h2:text-is("Next 7 days")) .row:has-text("Chen Family")').count() == 1, 'planned visit (Chen, in 2 days) is in the forecast')
+    check(page.locator('.sec:has(h2:text-is("Next 7 days")) .row:has-text("Ben Carter")').count() >= 1, 'secondary day shows Ben in the forecast')
+    check(page.locator('.sec:has(h2:text-is("Overdue")) .row:has-text("Chen Family")').count() == 0, 'future planned visit is not on the overdue list')
+    shot('14-today-v2')
+
+    print('v2: Home look')
+    page.goto(URL + '#/home'); page.wait_for_selector('.campaign-bar'); shot('15-home-v2')
+
+    print('v2: campaigns in Settings, one at a time')
+    page.goto(URL + '#/settings/campaigns'); page.wait_for_selector('.group-head')
+    check(page.locator('.group-head:has-text("Active now")').count() == 1 and page.locator('.row:has-text("Fall invitation")').count() == 1, 'campaigns page lists the active one')
+    s0 = ev('RV.util.toDateStr(new Date())'); s5 = ev('RV.util.toDateStr(RV.util.addDays(new Date(), 5))')
+    s40 = ev('RV.util.toDateStr(RV.util.addDays(new Date(), 40))'); s50 = ev('RV.util.toDateStr(RV.util.addDays(new Date(), 50))')
+    page.click('button:has-text("Add campaign")'); page.wait_for_selector('.sheet form')
+    page.locator('.sheet input[type=text]').nth(0).fill('Overlapping')
+    page.locator('.sheet input[type=date]').nth(0).fill(s0); page.locator('.sheet input[type=date]').nth(1).fill(s5)
+    page.click('.sheet button[type=submit]')
+    check('overlap' in page.locator('.sheet [role=alert]').inner_text().lower(), 'overlapping dates are blocked with a message')
+    check(ev('RV.store.campaigns().length') == 1, 'overlapping campaign was not saved')
+    page.locator('.sheet input[type=date]').nth(0).fill(s40); page.locator('.sheet input[type=date]').nth(1).fill(s50)
+    page.locator('.sheet input[type=text]').nth(1).fill('Peace of mind')
+    page.locator('.sheet textarea').nth(1).fill('Awake! magazine\nTract about hope')
+    page.click('.sheet button[type=submit]'); time.sleep(0.2)
+    check(ev('RV.store.campaigns().length') == 2 and page.locator('.group-head:has-text("Coming up")').count() == 1, 'a future campaign can be added ahead of time')
+    page.goto(URL + '#/home'); page.wait_for_selector('.campaign-bar')
+    check(page.locator('.campaign-bar:has-text("Fall invitation")').count() == 1, 'only the current campaign is shown on Home')
+    page.click('.campaign-bar'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet:has-text("Fall invitation")').count() == 1, 'tapping the banner opens its details')
+    page.keyboard.press('Escape')
+    page.goto(URL + '#/settings/lib/campaign'); page.wait_for_selector('.group-head')
+    check(page.locator('h1:has-text("Campaign")').count() == 1, 'old campaign link still works')
+
+    print('v2: Insights')
+    ev('''() => { const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
+      const fut = RV.util.toDateStr(RV.util.addDays(new Date(), 30));
+      const r = ST.addRv({name: 'Neverhome', stage: 'initial', createdAt: d(30), nextVisit: fut});
+      [7, 14, 21].forEach(n => ST.addEntry(r.id, 'nh', {}, d(n)));
+      ST.addRv({name: 'Stuckguy', stage: 'initial', createdAt: d(60), stageChangedAt: d(60), nextVisit: fut}); }''')
+    page.goto(URL + '#/insights'); page.wait_for_selector('.funnel')
+    check(page.locator('.frow').count() == 5, 'funnel shows the five active stages')
+    check(page.locator('.tile').count() == 5, 'five 60-day tiles')
+    pts = int(page.locator('.effort .num').inner_text())
+    check(pts > 0 and 'Level' in page.locator('.level').inner_text(), 'effort points and level shown (%d)' % pts)
+    check(page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Neverhome")').count() == 1, 'Worth reconsidering lists repeated not-homes')
+    check('Try' in page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Neverhome")').inner_text(), 'and suggests something else')
+    check(page.locator('.sec:has(h2:text-is("Stuck in stage")) .row:has-text("Stuckguy")').count() == 1, 'Stuck in stage lists long-stalled records')
+    check(page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Eli Moore")').count() == 0, 'pattern lists skip people already on Today')
+    shot('16-insights')
+    page.click('.frow:has-text("Bible Study")'); page.wait_for_selector('.sticky-filters')
+    on = page.locator('.chip[aria-pressed="true"]').all_inner_texts()
+    check(len(on) == 1 and on[0].startswith('Bible Study'), 'tapping a funnel stage opens the list filtered to it: %s' % on)
+    ev('() => { const ST = RV.store; ST.S.rvs.filter(r => ["Neverhome","Stuckguy"].includes(r.name)).forEach(r => ST.deleteRv(r.id)); localStorage.removeItem("rvapp.list"); }')
+
     print('settings pages open without errors')
-    for sec in ['', 'display', 'home', 'lib/starter', 'lib/campaign', 'stages', 'reasons', 'fields', 'labels', 'attention', 'security', 'data', 'about']:
+    for sec in ['', 'display', 'home', 'lib/topic', 'lib/campaign', 'campaigns', 'stages', 'reasons', 'fields', 'labels', 'attention', 'security', 'data', 'about']:
         page.goto(URL + '#/settings/' + sec if sec else URL + '#/settings'); page.wait_for_selector('.view')
         time.sleep(0.15)
         check(page.locator('.view').inner_text().strip() != '', 'settings/%s renders' % (sec or 'index'))

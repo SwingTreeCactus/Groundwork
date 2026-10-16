@@ -126,6 +126,7 @@
     if (att.state === 'snoozed') return h('span', { class: 'badge flag-snoozed' }, L.attentionText(att));
     return null;
   }
+  const campaignName = (id) => { const c = id ? S.lib.find((x) => x.id === id && !x.deletedAt) : null; return c ? c.title : ''; };
   const subtitle = (rv) => [rv.address, rv.neighborhood].filter(Boolean).join(' · ');
   const lastText = (it) => (it.entries.length ? 'Last: ' + U.relTime(it.last) : 'Added ' + U.relTime(it.last));
 
@@ -176,6 +177,8 @@
     const text = h('textarea', { value: e.text || '', placeholder: 'What happened?', 'data-autofocus': true });
     const when = h('input', { type: 'datetime-local', value: dateTimeLocal(e.at) });
     const typeName = { nh: lbl('notHome'), visit: 'Visit', note: 'Note', stage: 'Stage change' }[e.type] || e.type;
+    const camp = e.campaignId ? S.lib.find((x) => x.id === e.campaignId) : null;
+    const campOn = h('input', { type: 'checkbox', checked: true });
     sheet('Edit ' + typeName.toLowerCase(), (close) =>
       h('form', {
         onsubmit: (ev) => {
@@ -183,19 +186,21 @@
           const d = parseLocalDT(when.value);
           const patch = { text: text.value.trim() };
           if (d) patch.at = d.toISOString();
+          if (camp && !campOn.checked) patch.campaignId = null;
           ST.updateEntry(e.id, patch);
           close();
         },
       },
         field('Notes', text),
         isStage ? null : field('When', when),
+        camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
   RV.ui = {
-    lbl, sheet, confirmDialog, pick, textPrompt, toast, stageBadge, attBadge, subtitle, lastText, toggle, field, emptyState,
+    lbl, sheet, confirmDialog, pick, textPrompt, toast, stageBadge, attBadge, campaignName, subtitle, lastText, toggle, field, emptyState,
     doNotHome, editEntrySheet, dateTimeLocal, parseLocalDT, vibrate,
     download(name, text, mime) {
       const blob = new Blob([text], { type: mime || 'text/plain' });

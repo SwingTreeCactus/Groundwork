@@ -38,9 +38,32 @@
     S.lib = await DB.getAll('lib');
     const saved = await DB.getMeta('settings');
     S.settings = D.mergeSettings(saved);
-    if (!saved) await DB.setMeta('settings', S.settings);
+    if (!saved || (saved.version || 1) < S.settings.version) await DB.setMeta('settings', S.settings);
+    await migrateLib();
     S.ready = true;
     emit();
+  }
+
+  // Version 2: starters and scriptures became topics; campaigns got start/end dates.
+  async function migrateLib() {
+    const changed = [];
+    const today = new Date();
+    for (const x of S.lib) {
+      if (x.deletedAt) continue;
+      if (x.kind === 'starter' || x.kind === 'scripture') {
+        x.tags = U.uniq((x.tags || []).concat([x.kind === 'scripture' ? 'scripture' : 'starter']));
+        x.kind = 'topic';
+        touch(x); changed.push(x);
+      } else if (x.kind === 'campaign' && !('start' in x)) {
+        // a campaign that was switched on keeps running for 30 days; others wait for dates
+        x.topic = x.topic || '';
+        x.publications = x.publications || '';
+        x.start = x.active ? U.toDateStr(today) : '';
+        x.end = x.active ? U.toDateStr(U.addDays(today, 30)) : '';
+        touch(x); changed.push(x);
+      }
+    }
+    if (changed.length) await DB.putMany('lib', changed);
   }
 
   function saveSettings(mutator) {
@@ -55,6 +78,7 @@
     const first = S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages.find((s) => !s.closed);
     return Object.assign({
       id: U.uuid(), name: '', address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
+      dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null,
       notes: '', interests: '', scriptures: [], tags: [], custom: {},
       stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nhBannerOff: false,
       createdAt: now, stageChangedAt: now, updatedAt: now, deletedAt: null,
@@ -158,11 +182,12 @@
     const rv = rvById(rvId);
     if (!rv) return null;
     const snap = clone(rv);
-    const entry = mkEntry(rvId, 'visit', { text: (o.text || '').trim(), scriptures: o.scriptures || [] }, o.at);
+    const entry = mkEntry(rvId, 'visit', { text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.at);
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
     rv.snoozedUntil = o.snoozedUntil || null;
+    if (typeof o.whatsNext === 'string') rv.whatsNext = o.whatsNext.trim();
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
     if (o.scriptures && o.scriptures.length) rv.scriptures = U.uniq((rv.scriptures || []).concat(o.scriptures));
     touch(rv);
@@ -205,11 +230,14 @@
     return o;
   }
   const deleteLib = (id) => updateLib(id, { deletedAt: U.nowISO() });
+  const campaigns = () => S.lib.filter((x) => x.kind === 'campaign' && !x.deletedAt).sort((a, b) => ((a.start || '9') < (b.start || '9') ? -1 : 1));
+  const activeCampaign = (now) => L.activeCampaign(campaigns(), now);
+  const featuredTopics = () => libItems('topic').filter((x) => x.showOnHome);
 
   // ---------- backup, restore, import, erase ----------
   function exportAll() {
     return {
-      app: 'rv-app', version: 1, exportedAt: U.nowISO(),
+      app: 'rv-app', version: 2, exportedAt: U.nowISO(),
       settings: S.settings, rvs: S.rvs, entries: S.entries, lib: S.lib,
     };
   }
@@ -237,6 +265,7 @@
       S.entries = await mergeInto('entries', S.entries, data.entries);
       S.lib = await mergeInto('lib', S.lib, data.lib || []);
     }
+    await migrateLib();
     emit();
   }
   function importRvs(rvs, entries) {
@@ -261,7 +290,7 @@
     S, subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
     load, items, itemFor, rvById, saveSettings, addRv, updateRv, deleteRv, restoreRvSnapshot,
     addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze,
-    libItems, addLib, updateLib, deleteLib, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags,
+    libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags,
     flush: () => pending, clearError: () => { S.error = ''; emit(); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

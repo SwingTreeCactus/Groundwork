@@ -28,11 +28,9 @@
       title: 'Settings',
       el: h('div', null,
         row('#/settings/display', 'Display', 'Theme and text size', 'sliders'),
-        row('#/settings/home', 'Home screen', 'Choose and order the cards', 'home'),
-        row('#/settings/lib/starter', lbl('starters'), cnt('starter') + ' saved', 'message'),
-        row('#/settings/lib/scripture', lbl('scriptures'), cnt('scripture') + ' saved', 'bookmark'),
-        row('#/settings/lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'),
-        row('#/settings/lib/campaign', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar'),
+        row('#/settings/home', 'Home screen', 'Choose and order the sections', 'home'),
+        row('#/settings/lib/topic', lbl('topics'), cnt('topic') + ' saved · scriptures, openers and talking points', 'note'),
+        row('#/settings/campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved · dates, topic, publications', 'calendar'),
         row('#/settings/stages', 'Lead stages', S.settings.stages.filter((s) => !s.closed).map((s) => s.name).join(' › '), 'shuffle'),
         row('#/settings/reasons', 'Archive reasons', S.settings.archiveReasons.map((r) => r.name).join(', '), 'archive'),
         row('#/settings/fields', 'Lists and custom fields', lbl('neighborhood') + 's, how we met, extra fields', 'users'),
@@ -80,24 +78,84 @@
       });
     }
     render();
-    return page('Home screen', [hint('Turn cards on or off and set their order. Items in the libraries have their own show or hide switch.'), box], { noRerender: true });
+    return page('Home screen', [hint('Home always shows the current campaign when one is running. Choose and order the sections below it.'), box], { noRerender: true });
   }
 
-  // ---------- libraries ----------
-  function lib(kind) {
-    const K = RV.defaults.LIB_KINDS[kind];
-    const isCamp = kind === 'campaign';
-    const items = ST.libItems(kind);
+  // ---------- topics ----------
+  function lib() {
+    const items = ST.libItems('topic');
     const box = h('div', { class: 'list' }, items.map((x) =>
       h('div', { class: 'row plain' },
-        h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => RV.screens.libSheet(kind, x) },
+        h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => RV.screens.libSheet('topic', x) },
           h('div', { class: 'name' }, x.title), x.text ? h('div', { class: 'line2' }, x.text) : null,
           (x.tags || []).length ? h('div', { class: 'line3' }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null),
-        UI.toggle(isCamp ? x.active : x.showOnHome, (v) => ST.updateLib(x.id, isCamp ? { active: v } : { showOnHome: v }), (isCamp ? 'Active: ' : 'Show on Home: ') + x.title))));
-    return page(lbl(K.labelKey) + (isCamp ? 's' : ''), [
-      hint(isCamp ? 'Switch campaigns on or off. Active ones are highlighted on Home.' : 'The switch controls whether an item appears on the Home screen. Tap an item to edit it.'),
+        UI.toggle(x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Feature: ' + x.title))));
+    return page(lbl('topics'), [
+      hint('Put scriptures, conversation openers and talking points here. The switch features a topic: it shows on Home and as a tap-to-add chip when you record a visit. Tap a topic to edit it.'),
       items.length ? box : UI.emptyState('note', 'Nothing saved yet.'),
-      h('div', { style: { marginTop: '14px' } }, saveBtn('Add ' + K.single, () => RV.screens.libSheet(kind), 'primary block')),
+      h('div', { style: { marginTop: '14px' } }, saveBtn('Add topic', () => RV.screens.libSheet('topic'), 'primary block')),
+    ]);
+  }
+
+  // ---------- campaigns ----------
+  const campRange = (c) => (c.start && c.end ? U.fmtDate(c.start) + ' to ' + U.fmtDate(c.end) : 'No dates yet');
+  function campaignForm(c) {
+    const title = h('input', { type: 'text', value: c ? c.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Fall invitation' });
+    const topic = h('input', { type: 'text', value: c ? c.topic || '' : '', autocomplete: 'off', placeholder: 'The general theme, e.g. Hope for the future' });
+    const start = h('input', { type: 'date', value: c ? c.start || '' : U.toDateStr(new Date()) });
+    const end = h('input', { type: 'date', value: c ? c.end || '' : '' });
+    const text = h('textarea', { value: c ? c.text || '' : '', placeholder: 'A few basic details about the campaign', style: { minHeight: '84px' } });
+    const pubs = h('textarea', { value: c ? c.publications || '' : '', placeholder: 'One per line', style: { minHeight: '70px' } });
+    const err = h('div', { class: 'small', role: 'alert', style: { color: 'var(--danger)', minHeight: '1.3em', marginBottom: '6px' } });
+    sheet(c ? 'Edit ' + lbl('campaign').toLowerCase() : 'New ' + lbl('campaign').toLowerCase(), (close) =>
+      h('form', {
+        onsubmit: (e) => {
+          e.preventDefault();
+          const t = title.value.trim();
+          if (!t) { err.textContent = 'Give it a name.'; title.focus(); return; }
+          if (!start.value || !end.value) { err.textContent = 'Choose a start and an end date.'; return; }
+          if (end.value < start.value) { err.textContent = 'The end date comes before the start date.'; return; }
+          const clash = L.campaignOverlap(ST.campaigns(), { start: start.value, end: end.value }, c && c.id);
+          if (clash) { err.textContent = 'These dates overlap "' + clash.title + '" (' + campRange(clash) + '). Only one campaign can run at a time.'; return; }
+          const data = { title: t, topic: topic.value.trim(), text: text.value.trim(), publications: pubs.value.trim(), start: start.value, end: end.value };
+          if (c) ST.updateLib(c.id, data); else ST.addLib('campaign', data);
+          close();
+        },
+      },
+        field('Name', title),
+        field('Topic', topic),
+        h('div', { class: 'two' }, field('Starts', start), field('Ends', end)),
+        field('Details', text),
+        field('Featured publications', pubs),
+        err,
+        h('div', { class: 'actions' },
+          c ? h('button', {
+            class: 'btn danger', type: 'button',
+            onclick: async () => { if (await confirmDialog({ title: 'Delete this campaign?', message: 'Visits already tagged with it keep their history.', confirmText: 'Delete', danger: true })) { ST.deleteLib(c.id); close(); } },
+          }, 'Delete') : null,
+          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+  }
+  function campaigns() {
+    const now = new Date();
+    const all = ST.campaigns();
+    const groups = [['Active now', 'active'], ['Coming up', 'upcoming'], ['Needs dates', 'undated'], ['Past', 'past']];
+    const box = h('div');
+    groups.forEach(([label, key]) => {
+      const rows = all.filter((c) => L.campaignStatus(c, now) === key);
+      if (key === 'past') rows.reverse();
+      if (!rows.length) return;
+      box.appendChild(h('div', { class: 'group-head' }, label));
+      box.appendChild(h('div', { class: 'list' }, rows.map((c) =>
+        h('button', { class: 'row', type: 'button', style: { textAlign: 'left', width: '100%' }, onclick: () => campaignForm(c) },
+          h('div', { class: 'main' }, h('div', { class: 'name' }, c.title), h('div', { class: 'line2' }, campRange(c)),
+            c.topic ? h('div', { class: 'line2' }, c.topic) : null),
+          icon('right', 18)))));
+    });
+    return page(lbl('campaign') + 's', [
+      hint('Add campaigns ahead of time. Each switches on by itself on its start date and off after its end date, and only one can run at a time. While one is running Home shows it, and new visits are tagged with it (you can switch that off per visit).'),
+      all.length ? box : UI.emptyState('calendar', 'No campaigns yet.'),
+      h('div', { style: { marginTop: '14px' } }, saveBtn('Add campaign', () => campaignForm(), 'primary block')),
     ]);
   }
 
@@ -202,7 +260,7 @@
   // ---------- labels ----------
   function labels() {
     const def = RV.defaults.defaultSettings().labels;
-    const names = { rv: 'Record (singular)', rvs: 'Record (plural)', notHome: 'Not home button', notHomeShort: 'Not home short form', recordVisit: 'Record visit button', campaign: 'Campaign', starters: 'Conversation starters', scriptures: 'Scriptures', topics: 'Topics', neighborhood: 'Neighborhood', archive: 'Archive', today: 'Today screen', bibleStudy: 'Bible study' };
+    const names = { rv: 'Record (singular)', rvs: 'Record (plural)', notHome: 'Not home button', notHomeShort: 'Not home short form', recordVisit: 'Record visit button', campaign: 'Campaign', scriptures: 'Scriptures', topics: 'Topics', neighborhood: 'Neighborhood', archive: 'Archive', today: 'Today screen', bibleStudy: 'Bible study' };
     const box = h('div');
     Object.keys(def).forEach((k) => {
       const inp = h('input', { type: 'text', value: S.settings.labels[k] || '' });
@@ -225,8 +283,10 @@
     return page('Needs attention', [
       hint('An ' + lbl('rv') + ' is flagged by how long it has been since the last logged visit, unless it has a next visit date or is snoozed.'),
       mk('defaultStaleDays', 'Default days before flagged', 'Used for stages with no number of their own.', 1, 365),
-      mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days show under Coming up.', 1, 60),
+      mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days are marked as coming up.', 1, 60),
       mk('soonDays', 'Heads-up before overdue (days)', 'Flag as coming up this many days before an ' + lbl('rv') + ' becomes overdue.', 0, 14),
+      mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A ' + lbl('rv') + ' with a best day is only flagged overdue on that day. After this many times its usual timing, it is flagged on any day so nothing gets buried.', 1, 10),
+      mk('stuckFactor', 'Stuck in stage (times the usual timing)', 'Insights lists ' + lbl('rvs') + ' that have stayed in one stage this many times the stage\'s timing.', 2, 20),
       h('div', { class: 'card' },
         h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner'), h('div', { class: 'muted small' }, 'On a record, warn when it is a day and time you have mostly found them out. Hidden inside their best times.')),
           UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
@@ -418,5 +478,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, display, home: homeSettings, lib, stages, reasons, fields, labels, attention, security, data, about };
+  RV.settingsScreens = { index, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, security, data, about };
 })(window);

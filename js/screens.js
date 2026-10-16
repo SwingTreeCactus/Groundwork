@@ -37,30 +37,26 @@
     return h('section', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, title), headExtra || null), body);
   }
 
-  // ---------- library items (starters, scriptures, topics, campaigns) ----------
+  // ---------- topics and campaigns (shared sheets) ----------
   function libSheet(kind, item) {
-    const K = RV.defaults.LIB_KINDS[kind];
-    const isCamp = kind === 'campaign';
-    const titleLabel = { starter: 'Conversation starter', scripture: 'Scripture reference', topic: 'Topic', campaign: 'Campaign name' }[kind];
-    const textLabel = { starter: 'What to say or ask', scripture: 'Key point or notes', topic: 'Notes', campaign: 'Current campaign note' }[kind];
-    const title = h('input', { type: 'text', value: item ? item.title : '', 'data-autofocus': true, autocomplete: 'off' });
-    const text = h('textarea', { value: item ? item.text : '' });
+    // kind is always 'topic' now; scriptures and conversation starters live inside topics
+    const title = h('input', { type: 'text', value: item ? item.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Hope for the future' });
+    const text = h('textarea', { value: item ? item.text : '', placeholder: 'Scriptures, questions to ask, key points', style: { minHeight: '120px' } });
     const tags = h('input', { type: 'text', value: item ? (item.tags || []).join(', ') : '', placeholder: 'Optional, separated by commas' });
-    const on = h('input', { type: 'checkbox', checked: item ? (isCamp ? item.active : item.showOnHome) : (isCamp ? true : true) });
-    sheet((item ? 'Edit ' : 'New ') + K.single, (close) =>
+    const on = h('input', { type: 'checkbox', checked: item ? item.showOnHome : true });
+    sheet(item ? 'Edit topic' : 'New topic', (close) =>
       h('form', {
         onsubmit: (e) => {
           e.preventDefault();
           const t = title.value.trim();
           if (!t) { title.focus(); return; }
-          const data = { title: t, text: text.value.trim(), tags: U.splitList(tags.value) };
-          if (isCamp) data.active = on.checked; else data.showOnHome = on.checked;
-          if (item) ST.updateLib(item.id, data); else ST.addLib(kind, data);
+          const data = { title: t, text: text.value.trim(), tags: U.splitList(tags.value), showOnHome: on.checked };
+          if (item) ST.updateLib(item.id, data); else ST.addLib('topic', data);
           close();
         },
       },
-        field(titleLabel, title), field(textLabel, text), field('Tags', tags),
-        h('label', { class: 'check' }, on, isCamp ? 'Active now' : 'Show on Home screen'),
+        field('Topic', title), field('Details', text), field('Tags', tags),
+        h('label', { class: 'check' }, on, 'Feature on Home and in Record visit'),
         h('div', { class: 'actions' },
           item ? h('button', {
             class: 'btn danger', type: 'button',
@@ -69,62 +65,83 @@
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
+  // read-only view for use at the door
+  function topicView(x) {
+    sheet(x.title, (close) =>
+      h('div', null,
+        x.text ? h('div', { class: 'readtext' }, x.text) : h('div', { class: 'muted' }, 'No details yet.'),
+        (x.tags || []).length ? h('div', { style: { marginTop: '10px' } }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null,
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => { close(); libSheet('topic', x); } }, 'Edit'),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+  }
+  const campRange = (c) => (c.start && c.end ? U.fmtDate(c.start) + ' to ' + U.fmtDate(c.end) : 'No dates set');
+  function campaignSheet(c) {
+    const pubs = String(c.publications || '').split('\n').map((x) => x.trim()).filter(Boolean);
+    sheet(c.title, (close) =>
+      h('div', null,
+        h('div', { class: 'muted', style: { marginBottom: '10px' } }, campRange(c)),
+        c.topic ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'Topic'), h('div', null, c.topic)) : null,
+        c.text ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'About'), h('div', { class: 'readtext' }, c.text)) : null,
+        pubs.length ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'Featured publications'), h('ul', { class: 'plainul' }, pubs.map((x) => h('li', null, x)))) : null,
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => { close(); RV.settingsScreens.campaignForm(c); } }, 'Edit'),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+  }
 
   // ---------- Home ----------
-  function homeCards(items) {
-    const lists = L.attentionLists(items);
+  // Home is for planning: the live campaign, topics to review, and a way to add someone.
+  // The work lists (overdue, scheduled, tagged) live on Today.
+  function section(title, body, extra) {
+    return h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, title), extra || null), body);
+  }
+  function campaignBar() {
+    const camps = ST.campaigns();
     const now = new Date();
-    const more = (n, shown) => (n > shown ? h('a', { class: 'btn ghost sm', href: '#/today' }, 'See all ' + n) : null);
-    const libCard = (kind, cardTitle) => {
-      const all = ST.libItems(kind).filter((x) => x.showOnHome);
-      const body = all.length
-        ? h('div', { class: 'stack' }, all.map((x) =>
-          h('div', { onclick: () => libSheet(kind, x), style: { cursor: 'pointer' } },
-            h('div', { style: { fontWeight: 600 } }, x.title),
-            x.text ? h('div', { class: 'muted small', style: { whiteSpace: 'pre-wrap' } }, x.text) : null)))
-        : h('div', { class: 'muted small' }, 'Nothing here yet. Add items and choose what shows on Home.');
-      return card(cardTitle, body, h('span', null,
-        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Add', onclick: () => libSheet(kind) }, icon('plus')),
-        h('a', { class: 'btn ghost sm', href: '#/settings/lib/' + kind }, 'Manage')));
-    };
+    const c = L.activeCampaign(camps, now);
+    if (c) {
+      return h('button', { class: 'campaign-bar', type: 'button', onclick: () => campaignSheet(c) },
+        h('div', { class: 'cb-text' },
+          h('div', { class: 'cb-label' }, lbl('campaign') + ' now'),
+          h('div', { class: 'cb-title' }, c.title),
+          h('div', { class: 'cb-sub' }, [c.topic, 'until ' + U.fmtDate(c.end)].filter(Boolean).join(' · '))),
+        icon('right', 22));
+    }
+    const nx = L.nextCampaign(camps, now);
+    if (nx && U.daysBetween(U.parseDateStr(nx.start), now) <= 21) {
+      return h('button', { class: 'campaign-soon', type: 'button', onclick: () => campaignSheet(nx) },
+        icon('calendar', 16), 'Next ' + lbl('campaign').toLowerCase() + ': ' + nx.title + ' starts ' + U.fmtDate(nx.start));
+    }
+    return null;
+  }
+  function homeSections(items) {
+    const now = new Date();
     const builders = {
-      campaign() {
-        const camps = ST.libItems('campaign');
-        const body = camps.length
-          ? h('div', { class: 'stack' }, camps.map((c) =>
-            h('div', { class: 'switchrow' },
-              h('div', { class: 'grow', onclick: () => libSheet('campaign', c), style: { cursor: 'pointer' } },
-                h('div', { style: { fontWeight: 600 } }, c.title),
-                c.text ? h('div', { class: 'muted small', style: { whiteSpace: 'pre-wrap' } }, c.text) : null),
-              UI.toggle(c.active, (v) => ST.updateLib(c.id, { active: v }), 'Active: ' + c.title))))
-          : h('div', { class: 'muted small' }, 'No campaigns yet. Add one to keep the current focus in view.');
-        return card(lbl('campaign') + 's', body, h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Add campaign', onclick: () => libSheet('campaign') }, icon('plus')));
-      },
-      starters: () => libCard('starter', lbl('starters')),
-      scriptures: () => libCard('scripture', lbl('scriptures')),
-      topics: () => libCard('topic', lbl('topics')),
-      attention() {
-        const top = lists.overdue.slice(0, 5);
-        return card('Needs attention' + (lists.overdue.length ? ' (' + lists.overdue.length + ')' : ''),
-          top.length ? listOf(top) : h('div', { class: 'muted small' }, 'All caught up.'), more(lists.overdue.length, 5));
-      },
-      comingUp() {
-        const top = lists.soon.slice(0, 5);
-        return card('Coming up' + (lists.soon.length ? ' (' + lists.soon.length + ')' : ''),
-          top.length ? listOf(top) : h('div', { class: 'muted small' }, 'Nothing due soon.'), more(lists.soon.length, 5));
-      },
-      recent() {
-        const top = L.recentlyAdded(items, now).slice(0, 5);
-        return card('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'Nobody added in the last two weeks.'));
+      topics() {
+        const all = ST.featuredTopics();
+        const shown = all.slice(0, 6);
+        const body = all.length
+          ? h('div', { class: 'plainlist' }, shown.map((x) =>
+            h('button', { class: 'prow', type: 'button', onclick: () => topicView(x) },
+              h('div', { class: 'pt' }, x.title),
+              x.text ? h('div', { class: 'pd' }, x.text) : null)))
+          : h('div', { class: 'muted small' }, 'No featured topics yet. Add the ones you want in front of you before heading out.');
+        return section(lbl('topics'), body, h('span', { class: 'sec-actions' },
+          h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Add topic', onclick: () => libSheet('topic') }, icon('plus', 18)),
+          h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, all.length > shown.length ? 'All ' + all.length : 'Manage')));
       },
       quickAdd() {
-        return card('Quick add', h('div', { class: 'btn-row' },
+        return section('Add', h('div', { class: 'btn-row' },
           h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'New ' + lbl('rv')),
           h('button', { class: 'btn', type: 'button', onclick: () => F.rvForm(null) }, 'Full form')));
       },
+      recent() {
+        const top = L.recentlyAdded(items, now).slice(0, 5);
+        return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'Nobody added in the last two weeks.'));
+      },
       likelyHome() {
         const out = L.likelyHomeNow(items, now).slice(0, 8);
-        return card('Likely home right now', out.length
+        return section('Likely home right now', out.length
           ? h('div', { class: 'list' }, out.map((o) => rvRow(o.item, { why: o.why })))
           : h('div', { class: 'muted small' }, 'Nobody stands out for this day and time yet. It improves as you log visits and best times.'));
       },
@@ -144,27 +161,58 @@
     const d = new Date();
     return {
       title: 'Home', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', null, welcome, homeCards(items),
-        h('div', { style: { textAlign: 'center' } }, h('a', { class: 'btn ghost sm', href: '#/settings/home' }, 'Edit Home screen'))),
+      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
+        h('div', { style: { textAlign: 'center' } }, h('a', { class: 'link-quiet', href: '#/settings/home' }, 'Edit Home screen'))),
     };
   }
 
   // ---------- Today ----------
+  // Today = what you missed + what is scheduled for today + RVs tagged for today's weekday.
+  // Anything further out is in the 7-day forecast at the bottom.
   function today() {
     const items = ST.items();
-    const lists = L.attentionLists(items);
-    const recent = L.recentlyAdded(items, new Date());
-    const section = (title, arr, emptyText) =>
-      h('section', { class: 'card' },
-        h('div', { class: 'card-head' }, h('h2', null, title + (arr.length ? ' (' + arr.length + ')' : ''))),
-        arr.length ? listOf(arr) : h('div', { class: 'muted small' }, emptyText));
-    return {
-      title: lbl('today'), fab: true,
-      el: h('div', null,
-        section('Overdue', lists.overdue, 'Nothing overdue.'),
-        section('Coming up', lists.soon, 'Nothing due soon.'),
-        section('Recently added', recent, 'Nobody added in the last two weeks.')),
-    };
+    const now = new Date();
+    const plan = L.todayPlan(items, now);
+    const fc = L.forecast(items, now, 7);
+    const els = [];
+    const count = (n) => h('span', { class: 'count' }, String(n));
+    if (plan.overdue.length) els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue'), count(plan.overdue.length)), listOf(plan.overdue)));
+    if (plan.scheduled.length) els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Scheduled today'), count(plan.scheduled.length)), listOf(plan.scheduled)));
+    if (plan.tagged.length) {
+      const box = h('div');
+      let last = null;
+      plan.tagged.forEach((t) => {
+        const part = t.tag.part || '';
+        if (part !== last) { box.appendChild(h('div', { class: 'subhead' }, part ? part[0].toUpperCase() + part.slice(1) : 'Any time')); last = part; }
+        box.appendChild(h('div', { class: 'list', style: { marginBottom: '8px' } }, rvRow(t.item, {
+          why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
+        })));
+      });
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Tagged for today'), count(plan.tagged.length)), box));
+    }
+    if (!els.length) {
+      els.push(UI.emptyState('check', 'Nothing on your list today.',
+        h('div', { class: 'small', style: { marginTop: '6px' } }, 'RVs show up here when they are overdue, scheduled for today, or tagged with today\'s day of the week.')));
+    }
+    // 7-day forecast
+    const fbox = h('div');
+    if (!fc.length) fbox.appendChild(h('div', { class: 'muted small' }, 'Nothing planned or tagged for the next 7 days.'));
+    fc.forEach((day, i) => {
+      const rows = day.scheduled.map((it) => ({ it, why: 'Planned visit' })).concat(day.tagged.map((t) => ({ it: t.item, why: L.tagLabel(t.tag) })));
+      let shown = 5;
+      const list = h('div', { class: 'list' });
+      const paint = () => {
+        list.replaceChildren(...rows.slice(0, shown).map((r) => rvRow(r.it, { nh: false, why: r.why })));
+        if (rows.length > shown) list.appendChild(h('button', { class: 'btn ghost sm', type: 'button', onclick: () => { shown = rows.length; paint(); } }, 'Show ' + (rows.length - shown) + ' more'));
+      };
+      paint();
+      const d = day.date;
+      fbox.appendChild(h('div', { class: 'daygroup' },
+        h('div', { class: 'subhead' }, (day.dateStr === U.toDateStr(U.addDays(now, 1)) ? 'Tomorrow · ' : '') + U.DAYS3[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate()),
+        list));
+    });
+    els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Next 7 days')), fbox));
+    return { title: lbl('today'), fab: true, el: h('div', null, els) };
   }
 
   // ---------- RV list ----------
@@ -339,11 +387,31 @@
             ' · Turn off for everyone in Settings > Needs attention.'))));
     }
 
-    // header card
+    // header card: who they are and what to bring up, then the actions
+    const lastVisit = it.entries.find((e) => e.type === 'visit' && e.text);
+    const editNext = async () => {
+      const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'e.g. Bring the brochure on marriage. Ask about her daughter.' });
+      if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
+    };
+    const snapshot = !closed || rv.whatsNext || lastVisit
+      ? h('div', { class: 'snap' },
+        !closed || rv.whatsNext
+          ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
+            h('div', { class: 'snap-k' }, 'Discuss next time'),
+            h('div', { class: 'snap-v' + (rv.whatsNext ? '' : ' empty') }, rv.whatsNext || 'Tap to add'))
+          : null,
+        lastVisit
+          ? h('div', { class: 'snap-row' },
+            h('div', { class: 'snap-k' }, 'Last visit · ' + U.fmtDateTime(lastVisit.at)),
+            h('div', { class: 'snap-v clamp' }, lastVisit.text))
+          : null)
+      : null;
     const head = h('section', { class: 'card' },
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), attBadge(it.att)),
       rv.address ? h('div', null, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')) : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
       rv.phone ? h('div', { class: 'muted' }, rv.phone) : null,
+      rv.notes ? h('div', { class: 'household' }, rv.notes) : null,
+      snapshot,
       !closed
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
@@ -361,10 +429,11 @@
     const custom = (S.settings.customFields || []).map((c) => ((rv.custom || {})[c.id] ? [c.name, rv.custom[c.id]] : null));
     const rows = [
       rv.howMet ? ['How we met', rv.howMet] : null,
+      UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
       rv.nextVisit ? ['Next visit', U.fmtDate(rv.nextVisit)] : null,
       rv.snoozedUntil && U.parseDateStr(rv.snoozedUntil) >= U.startOfDay(new Date()) ? ['Snoozed until', U.fmtDate(rv.snoozedUntil)] : null,
+      L.dayTagsOf(rv).length ? ['Best days', L.dayTagsOf(rv).map(L.tagLabel).join('\n')] : null,
       (rv.bestTimes && rv.bestTimes.length) || rv.bestNote ? ['Best times', [L.describeWindows(rv.bestTimes), rv.bestNote].filter(Boolean).join('\n')] : null,
-      rv.notes ? ['Household', rv.notes] : null,
       rv.interests ? ['Interests', rv.interests] : null,
       (rv.scriptures || []).length ? [lbl('scriptures'), rv.scriptures.join(', ')] : null,
     ].concat(custom).concat([
@@ -389,6 +458,7 @@
           h('div', { class: 'when' }, U.fmtDateTime(e.at)),
           e.text ? h('div', { class: 'txt' }, e.text) : null,
           (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
+          UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null,
           e.type !== 'stage' || e.text ? h('div', { class: 'acts' },
             e.type !== 'stage' ? h('button', { class: 'btn ghost sm', type: 'button', onclick: () => UI.editEntrySheet(e.id) }, 'Edit') : null,
             e.type !== 'stage' ? h('button', {
@@ -401,7 +471,7 @@
     };
     renderTl();
     els.push(h('section', { class: 'card' },
-      h('div', { class: 'card-head' }, h('h2', null, 'Timeline'), !dnc ? h('button', { class: 'btn sm', type: 'button', onclick: () => F.addNoteFlow(rv.id) }, icon('plus', 16), 'Note') : null),
+      h('div', { class: 'card-head' }, h('h2', null, 'Timeline')),
       tlBox));
 
     const more = h('button', {
@@ -413,7 +483,6 @@
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
           !closed ? act('Set next visit date', () => F.nextVisitSheet(rv.id)) : null,
           !closed ? act('Snooze needs-attention', () => F.snoozeSheet(rv.id)) : null,
-          act('Add note', () => F.addNoteFlow(rv.id)),
           act('Delete this ' + lbl('rv') + ' permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
@@ -426,5 +495,5 @@
     };
   }
 
-  RV.screens = { home, today, list, detail, libSheet, rvRow };
+  RV.screens = { home, today, list, detail, libSheet, topicView, campaignSheet, rvRow };
 })(window);

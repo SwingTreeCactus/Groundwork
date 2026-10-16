@@ -169,3 +169,29 @@ Chrome menu > Install app. iPhone: Safari > Share > Add to Home Screen.
 
 Tests: `node tests/logic.test.js` for the pure logic. Browser smoke test: tests/smoke.py
 (Playwright).
+
+## 13. v2 release (current)
+Changes bundled in v2 (version 2.0.0, service worker cache rvapp-v3):
+- Manual timeline notes removed (timeline is automated; Not Home toast "Add note" still annotates an entry).
+- Conversation starters and Scriptures merged into one Topics library (old items migrated as topics tagged starter/scripture). Per-RV Scriptures field stays.
+- Home: campaign banner (tap for details), Topics, quick add. No work lists. Flat, calm style.
+- Today: Overdue, Scheduled today, Tagged for today (by part of day), plus Next 7 days forecast.
+- Day tags: primary (auto-set on Quick Add) and secondary best day + part of day. Overdue is held back on non-tagged days until 2x the stage threshold.
+- RV detail: pinned "Discuss next time", last-visit summary, household notes.
+- Insights tab: funnel (tap to filter), effort points (Not Home 1, visit 3, advance 5, new RV 2; level = 1+floor(sqrt(lifetime/20)); no streaks), 60-day activity, Worth reconsidering, Stuck in stage.
+- Campaigns (Settings): name, topic, dates, details, featured publications; one at a time, auto-active by date; visits/new RVs tagged with per-save toggle (default on).
+- Record Visit topic chips insert "Topic: Title"; Quick Add with blank note writes "Campaign: X. Topic: ...".
+- Dropped: visiting-partner field.
+
+### v2 interpretation decisions (check these)
+- Forecast counts planned visits and RVs tagged for that weekday.
+- Tagged for today excludes RVs visited today, snoozed, closed, or with a future planned date.
+- Worth reconsidering: 3+ Not Homes in a weekday+part (or weekday) with no visit there.
+- Stuck in stage: time in stage >= 3x its threshold.
+- Legacy active campaign migrates to a 30-day run starting today; inactive ones need dates.
+- Quick Add past the first stage always logs a first visit entry.
+- Imported RVs earn no new-RV points.
+- Home keeps optional, off-by-default Recently added and Likely home sections.
+
+### Future (not built)
+Google Drive sync, Ministry Assistant import (needs a sample export), AI note cleanup.

@@ -31,6 +31,16 @@
     return best || new Date(rv.createdAt);
   }
 
+  // ---------- day tags (primary / secondary best day + part of day) ----------
+  const PARTS = ['morning', 'afternoon', 'evening', 'night'];
+  const validTag = (g) => !!g && Number.isInteger(g.day) && g.day >= 0 && g.day <= 6 && (!g.part || PARTS.includes(g.part));
+  const dayTagsOf = (rv) => [rv.dayPrimary, rv.daySecondary].filter(validTag);
+  const partRank = (p) => { const i = PARTS.indexOf(p); return i < 0 ? PARTS.length : i; };
+  const tagLabel = (g) => (validTag(g) ? U.DAYS[g.day] + (g.part ? ' ' + g.part : '') : '');
+  const tagsLabel = (rv) => dayTagsOf(rv).map(tagLabel).join(' or ');
+  // the tag that matches this weekday (primary first), or null
+  const tagForDay = (rv, dow) => dayTagsOf(rv).find((g) => g.day === dow) || null;
+
   function attention(rv, last, settings, now) {
     now = now || new Date();
     if (isClosed(settings, rv)) return { state: 'closed' };
@@ -49,7 +59,14 @@
     }
     const t = thresholdFor(settings, rv);
     if (t == null) return { state: 'ok', reason: 'none', daysSince };
-    if (daysSince >= t) return { state: 'overdue', reason: 'stale', overdueBy: daysSince - t, threshold: t, daysSince };
+    if (daysSince >= t) {
+      // A day-tagged RV waits for its day, but never forever: past the force factor it is overdue on any day.
+      const factor = settings.dayTagForceFactor || 2;
+      if (dayTagsOf(rv).length && daysSince < t * factor && !tagForDay(rv, now.getDay())) {
+        return { state: 'ok', reason: 'daytag', waiting: true, threshold: t, daysSince };
+      }
+      return { state: 'overdue', reason: 'stale', overdueBy: daysSince - t, threshold: t, daysSince };
+    }
     const left = t - daysSince;
     if (left <= settings.soonDays) return { state: 'soon', reason: 'stale', inDays: left, threshold: t, daysSince };
     return { state: 'ok', reason: 'stale', inDays: left, threshold: t, daysSince };
@@ -112,7 +129,7 @@
   function haystack(item) {
     if (item._hay) return item._hay;
     const r = item.rv;
-    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.interests, r.bestNote, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
+    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.whatsNext, r.interests, r.bestNote, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
     for (const f of Object.keys(r.custom || {})) parts.push(r.custom[f]);
     for (const e of item.entries) parts.push(e.text, (e.scriptures || []).join(' '));
     item._hay = parts.filter(Boolean).join(' ').toLowerCase() + ' ' + U.digits(r.phone);
@@ -254,6 +271,184 @@
       .sort(SORTS.newest);
   }
 
+  // ---------- the Today plan and the week forecast ----------
+  const sameDay = (iso, now) => daysBetweenSafe(now, new Date(iso)) === 0;
+  function daysBetweenSafe(a, b) { return isNaN(b) ? NaN : U.daysBetween(a, b); }
+  const hasFutureVisit = (it) => it.att.reason === 'visit' && it.att.inDays > 0;
+
+  // Today = missed (overdue) + scheduled for today + RVs tagged for today's weekday (by part of day).
+  function todayPlan(items, now) {
+    now = now || new Date();
+    const overdue = items.filter((i) => i.att.state === 'overdue').sort(SORTS.attention);
+    const scheduled = items.filter((i) => i.att.state === 'soon' && i.att.reason === 'visit' && i.att.inDays === 0).sort(byName);
+    const used = new Set(overdue.concat(scheduled).map((i) => i.rv.id));
+    const tagged = [];
+    for (const it of items) {
+      if (used.has(it.rv.id) || it.att.state === 'closed' || it.att.state === 'snoozed' || hasFutureVisit(it)) continue;
+      const tag = tagForDay(it.rv, now.getDay());
+      if (!tag) continue;
+      if (it.entries.some((e) => e.type === 'visit' && sameDay(e.at, now))) continue; // already visited today
+      tagged.push({ item: it, tag, nhToday: it.entries.some((e) => e.type === 'nh' && sameDay(e.at, now)) });
+    }
+    tagged.sort((a, b) => partRank(a.tag.part) - partRank(b.tag.part) || byName(a.item, b.item));
+    return { overdue, scheduled, tagged };
+  }
+
+  // The next `days` days (starting tomorrow): planned visit dates, plus RVs tagged for that weekday.
+  function forecast(items, now, days) {
+    now = now || new Date();
+    const out = [];
+    for (let k = 1; k <= (days || 7); k++) {
+      const d = U.addDays(U.startOfDay(now), k);
+      const ds = U.toDateStr(d);
+      const scheduled = items.filter((i) => i.att.state !== 'closed' && i.rv.nextVisit === ds).sort(byName);
+      const ids = new Set(scheduled.map((i) => i.rv.id));
+      const tagged = [];
+      for (const it of items) {
+        if (ids.has(it.rv.id) || it.att.state === 'closed') continue;
+        if (it.rv.nextVisit && it.rv.nextVisit !== ds) continue; // has its own date elsewhere
+        if (it.rv.snoozedUntil && it.rv.snoozedUntil >= ds) continue;
+        const tag = tagForDay(it.rv, d.getDay());
+        if (tag) tagged.push({ item: it, tag });
+      }
+      tagged.sort((a, b) => partRank(a.tag.part) - partRank(b.tag.part) || byName(a.item, b.item));
+      if (scheduled.length || tagged.length) out.push({ date: d, dateStr: ds, scheduled, tagged });
+    }
+    return out;
+  }
+
+  // ---------- campaigns (lib items of kind 'campaign': title, topic, text, publications, start, end) ----------
+  function campaignStatus(c, now) {
+    now = now || new Date();
+    const s = U.parseDateStr(c.start), e = U.parseDateStr(c.end);
+    if (!s || !e) return 'undated';
+    const today = U.startOfDay(now);
+    if (today < s) return 'upcoming';
+    if (today > e) return 'past';
+    return 'active';
+  }
+  const activeCampaign = (camps, now) => (camps || []).find((c) => !c.deletedAt && campaignStatus(c, now) === 'active') || null;
+  // Returns the campaign that overlaps cand ({start,end}) or null. Only one campaign may be active at a time.
+  function campaignOverlap(camps, cand, selfId) {
+    const s = U.parseDateStr(cand.start), e = U.parseDateStr(cand.end);
+    if (!s || !e) return null;
+    return (camps || []).find((c) => {
+      if (c.deletedAt || c.id === selfId) return false;
+      const cs = U.parseDateStr(c.start), ce = U.parseDateStr(c.end);
+      return cs && ce && s <= ce && cs <= e;
+    }) || null;
+  }
+  function nextCampaign(camps, now) {
+    return (camps || []).filter((c) => !c.deletedAt && campaignStatus(c, now) === 'upcoming')
+      .sort((a, b) => (a.start < b.start ? -1 : 1))[0] || null;
+  }
+  // Quick add with an empty note: record which campaign and topics were live at that moment.
+  function quickAddFallback(campaign, topics) {
+    const parts = [];
+    if (campaign) parts.push('Campaign: ' + campaign.title);
+    if (topics && topics.length) parts.push('Topic: ' + topics.map((t) => t.title).join(', '));
+    return parts.join('. ');
+  }
+
+  // ---------- Insights ----------
+  function funnel(items, settings) {
+    const rows = settings.stages.filter((s) => !s.closed).map((s) => ({ stage: s, count: items.filter((i) => i.rv.stage === s.id).length }));
+    const archived = items.filter((i) => i.att.state === 'closed').length;
+    return { rows, archived, total: rows.reduce((n, r) => n + r.count, 0) };
+  }
+
+  // Effort points. Derived from the log each time, so editing or deleting an entry updates them.
+  function effortEvents(items, settings) {
+    const pts = settings.points || {};
+    const order = settings.stages.filter((s) => !s.closed).map((s) => s.id);
+    const ev = [];
+    for (const it of items) {
+      if (!it.rv.imported) ev.push({ at: new Date(it.rv.createdAt), kind: 'newRv', pts: pts.newRv || 0 });
+      for (const e of it.entries) {
+        const at = new Date(e.at);
+        if (isNaN(at)) continue;
+        if (e.type === 'nh') ev.push({ at, kind: 'nh', pts: pts.nh || 0 });
+        else if (e.type === 'visit') ev.push({ at, kind: 'visit', pts: pts.visit || 0 });
+        else if (e.type === 'stage') {
+          const a = order.indexOf(e.from), b = order.indexOf(e.to);
+          if (a >= 0 && b > a) {
+            ev.push({ at, kind: 'advance', pts: pts.advance || 0 });
+            if (e.to === 'study') ev.push({ at, kind: 'study', pts: 0 });
+          }
+        }
+      }
+    }
+    return ev;
+  }
+  function effortSummary(items, settings, now) {
+    now = now || new Date();
+    const ev = effortEvents(items, settings);
+    const age = (e) => U.daysBetween(now, e.at);
+    const sum = (f) => ev.filter(f).reduce((n, e) => n + e.pts, 0);
+    const lifetime = sum(() => true);
+    const level = 1 + Math.floor(Math.sqrt(lifetime / 20));
+    const floor = 20 * (level - 1) * (level - 1), next = 20 * level * level;
+    const count = (kind) => ev.filter((e) => e.kind === kind && age(e) >= 0 && age(e) < 60).length;
+    return {
+      lifetime, level, levelFloor: floor, levelNext: next, levelPct: Math.min(100, Math.round(((lifetime - floor) / (next - floor)) * 100)),
+      last7: sum((e) => age(e) >= 0 && age(e) < 7), prev7: sum((e) => age(e) >= 7 && age(e) < 14), last60: sum((e) => age(e) >= 0 && age(e) < 60),
+      counts60: { newRvs: count('newRv'), visits: count('visit'), nh: count('nh'), advances: count('advance'), studies: count('study') },
+    };
+  }
+
+  // Candidate slots to suggest when someone is never home at the usual time.
+  const SLOT_ORDER = [['weekday', 'evening'], ['weekend', 'morning'], ['weekend', 'afternoon'], ['weekday', 'morning'], ['weekday', 'afternoon'], ['weekend', 'evening']];
+  // RVs with repeated not-homes in the same weekday+part with no visit there. `exclude` = ids already shown elsewhere.
+  function reconsider(items, settings, now, exclude, minTries) {
+    now = now || new Date();
+    const min = minTries || 3;
+    const out = [];
+    for (const it of items) {
+      if (it.att.state === 'closed' || (exclude && exclude.has(it.rv.id))) continue;
+      const slots = new Map(), days = new Map(), tried = new Set(), homeSlots = new Map();
+      for (const e of it.entries) {
+        if (e.type !== 'nh' && e.type !== 'visit') continue;
+        const d = new Date(e.at);
+        if (isNaN(d)) continue;
+        const key = d.getDay() + '|' + partOf(d);
+        tried.add(dayType(d.getDay()) + '|' + partOf(d));
+        const tally = (m, k) => { const v = m.get(k) || { nh: 0, home: 0 }; v[e.type === 'nh' ? 'nh' : 'home']++; m.set(k, v); };
+        tally(slots, key); tally(days, String(d.getDay()));
+        if (e.type === 'visit') homeSlots.set(key, (homeSlots.get(key) || 0) + 1);
+      }
+      let best = null;
+      for (const [k, v] of slots) if (v.home === 0 && v.nh >= min && (!best || v.nh > best.nh)) { const [dow, part] = k.split('|'); best = { nh: v.nh, dow: +dow, part, label: U.DAYS[+dow] + ' ' + part + 's' }; }
+      if (!best) for (const [k, v] of days) if (v.home === 0 && v.nh >= min && (!best || v.nh > best.nh)) best = { nh: v.nh, dow: +k, part: '', label: U.DAYS[+k] + 's' };
+      if (!best) continue;
+      // suggestion: where they were found home, else their other tagged day, else a slot never tried
+      let suggest = '';
+      const home = Array.from(homeSlots.entries()).sort((a, b) => b[1] - a[1])[0];
+      const other = dayTagsOf(it.rv).find((g) => g.day !== best.dow);
+      if (home) { const [dow, part] = home[0].split('|'); suggest = 'You found them home on ' + U.DAYS[+dow] + ' ' + part + 's.'; }
+      else if (other) suggest = 'Try ' + tagLabel(other) + 's.';
+      else {
+        const slot = SLOT_ORDER.find(([t, p]) => !tried.has(t + '|' + p) && !(t === dayType(best.dow) && p === best.part));
+        if (slot) suggest = 'Try a ' + slot[0] + ' ' + slot[1] + ', which you have not tried yet.';
+      }
+      out.push({ item: it, nh: best.nh, label: best.label, suggest });
+    }
+    return out.sort((a, b) => b.nh - a.nh || byName(a.item, b.item));
+  }
+  // RVs sitting in their stage far longer than the stage's usual timing.
+  function stuckInStage(items, settings, now, exclude) {
+    now = now || new Date();
+    const factor = settings.stuckFactor || 3;
+    const out = [];
+    for (const it of items) {
+      if (it.att.state === 'closed' || (exclude && exclude.has(it.rv.id))) continue;
+      const t = thresholdFor(settings, it.rv);
+      if (t == null) continue;
+      const days = U.daysBetween(now, new Date(it.rv.stageChangedAt || it.rv.createdAt));
+      if (days >= t * factor) out.push({ item: it, days, stage: stageOf(settings, it.rv.stage) });
+    }
+    return out.sort((a, b) => b.days - a.days || byName(a.item, b.item));
+  }
+
   function attentionText(att) {
     if (att.state === 'overdue') {
       return att.reason === 'visit'
@@ -270,7 +465,7 @@
   // ---------- CSV export ----------
   function rvsToCsv(items, settings) {
     const custom = settings.customFields || [];
-    const head = ['Name', 'Address', 'Neighborhood', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Household notes', 'Interests', 'Scriptures', 'Tags', 'Created']
+    const head = ['Name', 'Address', 'Neighborhood', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Best days', 'Household notes', 'Discuss next time', 'Interests', 'Scriptures', 'Tags', 'Created']
       .concat(custom.map((c) => c.name));
     const rows = [head];
     for (const it of items) {
@@ -278,7 +473,7 @@
       rows.push([
         r.name, r.address, r.neighborhood, r.phone, r.howMet, stageOf(settings, r.stage).name,
         (reasonOf(settings, r.archiveReason) || {}).name || '', r.nextVisit || '', U.toDateStr(it.last),
-        describeWindows(r.bestTimes), r.bestNote, r.notes, r.interests, (r.scriptures || []).join('; '), (r.tags || []).join('; '),
+        describeWindows(r.bestTimes), r.bestNote, tagsLabel(r), r.notes, r.whatsNext || '', r.interests, (r.scriptures || []).join('; '), (r.tags || []).join('; '),
         U.toDateStr(new Date(r.createdAt)),
       ].concat(custom.map((c) => (r.custom || {})[c.id] || '')));
     }
@@ -360,7 +555,8 @@
       const rv = {
         id: U.uuid(), name,
         address: get(row, 'address'), neighborhood: get(row, 'neighborhood'), phone: get(row, 'phone'), howMet: get(row, 'howMet'),
-        bestTimes: [], bestNote: '', notes: get(row, 'notes'), interests: get(row, 'interests'),
+        bestTimes: [], bestNote: '', dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, imported: true,
+        notes: get(row, 'notes'), interests: get(row, 'interests'),
         scriptures: [], tags: U.splitList(get(row, 'tags')), custom: {},
         stage, archiveReason: null, prevStage: null,
         nextVisit: (() => { const d = parseLooseDate(get(row, 'nextVisit')); return d ? U.toDateStr(d) : null; })(),
@@ -382,6 +578,9 @@
     stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
+    PARTS, validTag, dayTagsOf, partRank, tagLabel, tagsLabel, tagForDay, todayPlan, forecast,
+    campaignStatus, activeCampaign, campaignOverlap, nextCampaign, quickAddFallback,
+    funnel, effortEvents, effortSummary, reconsider, stuckInStage,
     IMPORT_FIELDS, guessMapping, parseLooseDate, importRows,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.logic;

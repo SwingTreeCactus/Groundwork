@@ -48,6 +48,20 @@
     };
   }
 
+  // ---------- best-day tags (primary and secondary) ----------
+  const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+  function dayTagEditor(label, initial, hint) {
+    const day = select([{ value: '', label: '(none)' }].concat(DAY_ORDER.map((d) => ({ value: String(d), label: U.DAYS[d] }))), L.validTag(initial) ? String(initial.day) : '');
+    const part = select([{ value: '', label: 'Any time' }].concat(L.PARTS.map((p) => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))), (initial && initial.part) || '');
+    const sync = () => { part.disabled = day.value === ''; };
+    day.addEventListener('change', sync);
+    sync();
+    return {
+      el: h('div', { class: 'field' }, h('div', { class: 'lbl' }, label), h('div', { class: 'two' }, day, part), hint ? h('div', { class: 'hint' }, hint) : null),
+      get: () => (day.value === '' ? null : { day: parseInt(day.value, 10), part: part.value }),
+    };
+  }
+
   // ---------- add / edit RV ----------
   function rvForm(existing, opts) {
     opts = opts || {};
@@ -65,7 +79,8 @@
       stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
       nextVisit: h('input', { type: 'date', value: rv.nextVisit || '' }),
       bestNote: h('input', { type: 'text', value: rv.bestNote || '', placeholder: 'e.g. works nights, text first' }),
-      notes: h('textarea', { value: rv.notes || '' }),
+      notes: h('textarea', { value: rv.notes || '', placeholder: 'Who they are: family, work, pets, how they like to be approached' }),
+      whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'e.g. Bring the brochure on marriage. Ask about her daughter.', style: { minHeight: '64px' } }),
       interests: h('textarea', { value: rv.interests || '', placeholder: 'Questions or interests they mentioned' }),
       scriptures: h('input', { type: 'text', value: (rv.scriptures || []).join(', '), placeholder: 'Separate with commas' }),
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
@@ -73,6 +88,8 @@
     };
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
     const wins = windowsEditor(rv.bestTimes);
+    const dayP = dayTagEditor('Best day (primary)', rv.dayPrimary, isNew ? 'Optional. Quick add sets this for you from the day and time you meet someone.' : null);
+    const dayS = dayTagEditor('Best day (secondary)', rv.daySecondary);
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
     return sheet(isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
@@ -84,6 +101,7 @@
           const data = {
             name, address: f.address.value.trim(), neighborhood: f.neighborhood.value.trim(), phone: f.phone.value.trim(),
             howMet: f.howMet.value, nextVisit: f.nextVisit.value || null, bestTimes: wins.get(), bestNote: f.bestNote.value.trim(),
+            dayPrimary: dayP.get(), daySecondary: dayS.get(), whatsNext: f.whatsNext.value.trim(),
             notes: f.notes.value.trim(), interests: f.interests.value.trim(), scriptures: U.splitList(f.scriptures.value), tags: U.splitList(f.tags.value),
             nhBannerOff: f.nhOff.checked,
             custom: Object.assign({}, rv.custom || {}),
@@ -121,8 +139,10 @@
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         field('Next visit date', f.nextVisit, 'Optional. When set, it replaces the automatic overdue timing.'),
+        field('Discuss next time', f.whatsNext, 'Shows at the top of their record.'),
+        field('Household notes', f.notes, 'Durable facts about them, kept apart from visit notes.'),
+        dayP.el, dayS.el,
         h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best times to find them home'), wins.el, f.bestNote),
-        field('Household notes', f.notes),
         field('Interests and questions', f.interests),
         field(lbl('scriptures') + ' discussed', f.scriptures),
         field('Tags', f.tags),
@@ -136,6 +156,8 @@
   }
 
   // ---------- quick add ----------
+  // The field tool: stamps today's day and part of day as the primary best-day tag, tags the active
+  // campaign (switch it off to skip), and if the note is blank records the live campaign and topics.
   function quickAdd(opts) {
     opts = opts || {};
     const name = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: 'Name or household' });
@@ -144,6 +166,8 @@
     const nb = h('input', { type: 'text', list: 'nb-list-q', autocomplete: 'off', placeholder: 'Optional' });
     const note = h('textarea', { placeholder: 'What did you talk about? (optional)', style: { minHeight: '80px' } });
     const stage = select(stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id);
+    const camp = ST.activeCampaign();
+    const campOn = h('input', { type: 'checkbox', checked: true });
     sheet('Quick add ' + lbl('rv'), (close) =>
       h('form', {
         onsubmit: async (e) => {
@@ -163,11 +187,17 @@
               if (!ok) return;
             }
           }
-          const text = note.value.trim();
+          const now = new Date();
+          const tagged = camp && campOn.checked ? camp : null;
+          let text = note.value.trim();
+          if (!text) text = L.quickAddFallback(camp, ST.featuredTopics());
           const isFirstStage = S.settings.stages[0].id === stage.value;
+          data.dayPrimary = { day: now.getDay(), part: L.partOf(now) };
+          data.campaignId = tagged ? tagged.id : null;
           if (text && isFirstStage) data.notes = text;
           const rv = ST.addRv(data);
-          if (text && !isFirstStage) ST.addEntry(rv.id, 'visit', { text });
+          // meeting someone counts as a contact, so past the first stage it is recorded as the first visit
+          if (!isFirstStage) ST.addEntry(rv.id, 'visit', { text, campaignId: tagged ? tagged.id : null });
           close();
           toast('Added ' + rv.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + rv.id; } }] });
           if (opts.onSaved) opts.onSaved(rv);
@@ -179,6 +209,7 @@
         field(lbl('neighborhood'), nb),
         field('Note', note),
         field('Stage', stage),
+        camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Add'))));
@@ -203,9 +234,19 @@
     const next = h('input', { type: 'date', value: '' });
     const tags = h('input', { type: 'text', placeholder: 'Add tags, separated by commas', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
-    const chosen = new Set();
-    const scripts = ST.libItems('scripture');
-    const extra = h('input', { type: 'text', placeholder: 'Other scriptures, separated by commas' });
+    const extra = h('input', { type: 'text', placeholder: 'Scriptures, separated by commas' });
+    const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'What to bring up next time (optional)', style: { minHeight: '60px' } });
+    const camp = ST.activeCampaign();
+    const campOn = h('input', { type: 'checkbox', checked: true });
+    const topics = ST.featuredTopics();
+    const addTopic = (t) => {
+      const tag = 'Topic: ' + t.title;
+      if (text.value.includes(tag)) { text.focus(); return; }
+      const cur = text.value.replace(/\s+$/, '');
+      text.value = (cur ? cur + '\n' : '') + tag + '\n';
+      text.focus();
+      try { text.setSelectionRange(text.value.length, text.value.length); } catch (e) { /* ignore */ }
+    };
     const stageNote = h('div', { class: 'progress-note' });
     const updateNote = () => {
       const cur = L.stageOf(S.settings, rv.stage).name, to = L.stageOf(S.settings, stage.value).name;
@@ -221,7 +262,9 @@
           const d = UI.parseLocalDT(when.value);
           const res = ST.logVisit(rvId, {
             text: text.value,
-            scriptures: U.uniq(Array.from(chosen).concat(U.splitList(extra.value))),
+            scriptures: U.splitList(extra.value),
+            whatsNext: whatsNext.value,
+            campaignId: camp && campOn.checked ? camp.id : null,
             stage: stage.value,
             nextVisit: next.value || null,
             tags: U.splitList(tags.value),
@@ -233,6 +276,10 @@
       },
         tagList,
         h('div', { class: 'field' }, text),
+        topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
+          h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
+        field('Discuss next time', whatsNext),
+        camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         stageNote,
         h('details', { class: 'more', style: { marginTop: '12px' } },
           h('summary', null, icon('down', 18), 'More details'),
@@ -240,19 +287,7 @@
           field('Stage', stage),
           h('div', { class: 'field' }, h('label', null, 'Next visit date'), next, presetDates(next),
             h('div', { class: 'hint' }, 'Leave blank to clear any older date. A date here replaces the automatic overdue timing.')),
-          scripts.length
-            ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, lbl('scriptures') + ' discussed'),
-              h('div', { class: 'chips' }, scripts.map((s) =>
-                h('button', {
-                  type: 'button', class: 'chip', 'aria-pressed': 'false',
-                  onclick: (ev) => {
-                    const b = ev.currentTarget;
-                    if (chosen.has(s.title)) { chosen.delete(s.title); b.setAttribute('aria-pressed', 'false'); }
-                    else { chosen.add(s.title); b.setAttribute('aria-pressed', 'true'); }
-                  },
-                }, s.title))))
-            : null,
-          field(scripts.length ? 'Other scriptures' : lbl('scriptures') + ' discussed', extra),
+          field(lbl('scriptures') + ' discussed', extra),
           field('Tags', tags)),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
@@ -337,10 +372,5 @@
           h('button', { class: 'btn primary', type: 'button', onclick: () => { ST.updateRv(rvId, { nextVisit: date.value || null }); close(); } }, 'Save'))));
   }
 
-  async function addNoteFlow(rvId) {
-    const t = await UI.textPrompt({ title: 'Add note', multiline: true, placeholder: 'A note for the timeline (counts as activity)' });
-    if (t && t.trim()) ST.addEntry(rvId, 'note', { text: t.trim() });
-  }
-
-  RV.forms = { rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, nextVisitSheet, addNoteFlow, select, stageOptions };
+  RV.forms = { rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, nextVisitSheet, select, stageOptions };
 })(window);

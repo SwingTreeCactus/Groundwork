@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '1.0.0';
+  RV.VERSION = '2.0.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -38,23 +38,24 @@
     switch (p[0]) {
       case undefined: case 'home': return SC.home();
       case 'today': return SC.today();
+      case 'insights': return SC.insights();
       case 'rvs': return SC.list();
       case 'rv': return SC.detail(p[1]);
       case 'settings':
         if (!p[1]) return SS.index();
-        if (p[1] === 'lib') return SS.lib(p[2]);
+        if (p[1] === 'lib') return p[2] === 'campaign' ? SS.campaigns() : SS.lib(p[2]);
         return (SS[p[1]] || SS.index)();
       default: return SC.home();
     }
   }
   function activeTab() {
     const p = parts()[0];
-    return { undefined: 'home', home: 'home', today: 'today', rvs: 'rvs', rv: 'rvs', settings: 'settings' }[p] || 'home';
+    return { undefined: 'home', home: 'home', today: 'today', insights: 'insights', rvs: 'rvs', rv: 'rvs', settings: 'settings' }[p] || 'home';
   }
 
   function renderTabs() {
     const overdue = ST.items().filter((i) => i.att.state === 'overdue').length;
-    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', UI.lbl('rvs')], ['settings', '#/settings', 'sliders', 'Settings']];
+    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', UI.lbl('rvs')], ['insights', '#/insights', 'chart', 'Insights'], ['settings', '#/settings', 'sliders', 'Settings']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },

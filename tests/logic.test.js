@@ -220,6 +220,148 @@ test('export contains header and stage names', () => {
   assert.match(csv, /Mon-Fri 17:00-20:00/);
 });
 
+console.log('day tags and the overdue rule');
+const tag = (day, part = 'evening') => ({ day, part });
+test('a day-tagged RV waits for its day, but never forever', () => {
+  const mon = mkRv({ stage: 'initial', dayPrimary: tag(1) });                       // Thursday now, 7-day threshold
+  assert.equal(item(mon, [mkEntry(mon.id, 'visit', daysAgo(10))]).att.state, 'ok');   // stale, wrong day: waits
+  assert.equal(item(mon, [mkEntry(mon.id, 'visit', daysAgo(10))]).att.waiting, true);
+  const thu = mkRv({ stage: 'initial', dayPrimary: tag(4) });
+  assert.equal(item(thu, [mkEntry(thu.id, 'visit', daysAgo(10))]).att.state, 'overdue'); // today is their day
+  const second = mkRv({ stage: 'initial', dayPrimary: tag(1), daySecondary: tag(4, 'morning') });
+  assert.equal(item(second, [mkEntry(second.id, 'visit', daysAgo(10))]).att.state, 'overdue'); // secondary matches
+  assert.equal(item(mon, [mkEntry(mon.id, 'visit', daysAgo(14))]).att.state, 'overdue'); // 2x threshold: safety net
+  const none = mkRv({ stage: 'initial' });
+  assert.equal(item(none, [mkEntry(none.id, 'visit', daysAgo(10))]).att.state, 'overdue'); // no tag: plain recency
+});
+test('a planned visit date still overrides day tags', () => {
+  const rv = mkRv({ stage: 'initial', dayPrimary: tag(1), nextVisit: U.toDateStr(U.addDays(NOW, -2)) });
+  assert.equal(item(rv, [mkEntry(rv.id, 'visit', daysAgo(1))]).att.state, 'overdue');
+});
+test('tag helpers: validation and labels', () => {
+  assert.ok(L.validTag(tag(2))); assert.ok(L.validTag({ day: 0, part: '' }));
+  assert.ok(!L.validTag(null)); assert.ok(!L.validTag({ day: 9, part: 'morning' })); assert.ok(!L.validTag({ day: 1, part: 'noon' }));
+  assert.equal(L.tagLabel(tag(1, 'morning')), 'Monday morning'); assert.equal(L.tagLabel({ day: 6, part: '' }), 'Saturday');
+  assert.equal(L.tagsLabel({ dayPrimary: tag(1, 'morning'), daySecondary: tag(5, 'evening') }), 'Monday morning or Friday evening');
+});
+
+console.log('today plan and forecast');
+test('Today: overdue, scheduled today, tagged for today by part of day; nothing else', () => {
+  const t = (name, o) => mkRv(Object.assign({ name, stage: 'return' }, o));
+  const a = t('a'), b = t('b', { nextVisit: U.toDateStr(NOW) }), c = t('c', { dayPrimary: tag(4, 'evening') });
+  const d = t('d', { dayPrimary: tag(1), daySecondary: tag(4, 'morning') }), e = t('e', { dayPrimary: tag(4) });
+  const f = t('f', { dayPrimary: tag(4), nextVisit: U.toDateStr(U.addDays(NOW, 5)) }), g = t('g', { dayPrimary: tag(4) });
+  const hh = t('h', { dayPrimary: tag(4), snoozedUntil: U.toDateStr(U.addDays(NOW, 3)) }), i = t('i', { dayPrimary: tag(4), stage: 'archived', archiveReason: 'moved' });
+  const j = t('j', { dayPrimary: { day: 4, part: '' } }), k = t('k', { dayPrimary: tag(4, 'morning') });
+  const es = [
+    mkEntry(a.id, 'visit', daysAgo(30)), mkEntry(b.id, 'visit', daysAgo(1)), mkEntry(c.id, 'visit', daysAgo(2)), mkEntry(d.id, 'visit', daysAgo(3)),
+    mkEntry(e.id, 'visit', at(2026, 10, 15, 8)),                    // already visited today: not listed again
+    mkEntry(f.id, 'visit', daysAgo(2)), mkEntry(g.id, 'visit', daysAgo(30)), mkEntry(hh.id, 'visit', daysAgo(2)),
+    mkEntry(j.id, 'visit', daysAgo(2)), mkEntry(k.id, 'nh', at(2026, 10, 15, 7)),
+  ];
+  const items = L.buildItems([a, b, c, d, e, f, g, hh, i, j, k], es, S, NOW);
+  const plan = L.todayPlan(items, NOW);
+  assert.deepEqual(plan.overdue.map((x) => x.rv.name), ['a', 'g']);           // g is stale AND tagged today: shown once, in Overdue
+  assert.deepEqual(plan.scheduled.map((x) => x.rv.name), ['b']);
+  assert.deepEqual(plan.tagged.map((x) => x.item.rv.name), ['d', 'k', 'c', 'j']); // morning, morning, evening, any time
+  assert.equal(plan.tagged.find((x) => x.item.rv.name === 'k').nhToday, true);
+});
+test('forecast: next 7 days of planned visits and tagged weekdays', () => {
+  const x = mkRv({ name: 'x', nextVisit: '2026-10-17' }), y = mkRv({ name: 'y', dayPrimary: tag(6, 'evening') });
+  const z = mkRv({ name: 'z', dayPrimary: tag(6, 'morning') }), w = mkRv({ name: 'w', dayPrimary: tag(6), nextVisit: '2026-10-20' });
+  const far = mkRv({ name: 'far', nextVisit: '2026-10-30' }), closed = mkRv({ name: 'cl', stage: 'archived', archiveReason: 'moved', dayPrimary: tag(6) });
+  const fc = L.forecast(L.buildItems([x, y, z, w, far, closed], [], S, NOW), NOW, 7);
+  assert.deepEqual(fc.map((d) => d.dateStr), ['2026-10-17', '2026-10-20']);   // Saturday, and Tuesday for w's own date
+  assert.deepEqual(fc[0].scheduled.map((i) => i.rv.name), ['x']);
+  assert.deepEqual(fc[0].tagged.map((t) => t.item.rv.name), ['z', 'y']);
+  assert.deepEqual(fc[1].scheduled.map((i) => i.rv.name), ['w']);
+});
+
+console.log('campaigns');
+const camps = [
+  { id: 'c1', title: 'Fall', start: '2026-10-12', end: '2026-11-09' }, { id: 'c2', title: 'Winter', start: '2026-11-10', end: '2026-11-30' },
+  { id: 'c3', title: 'Summer', start: '2026-07-01', end: '2026-07-31' }, { id: 'c4', title: 'Draft', start: '', end: '' },
+];
+test('status, active, next', () => {
+  assert.deepEqual(camps.map((c) => L.campaignStatus(c, NOW)), ['active', 'upcoming', 'past', 'undated']);
+  assert.equal(L.activeCampaign(camps, NOW).id, 'c1'); assert.equal(L.nextCampaign(camps, NOW).id, 'c2');
+  assert.equal(L.activeCampaign(camps, new Date(2026, 11, 25)), null);
+  assert.equal(L.activeCampaign(camps, new Date(2026, 10, 9, 23, 0)).id, 'c1'); // last day counts
+});
+test('only one campaign at a time: overlapping dates are detected', () => {
+  assert.equal(L.campaignOverlap(camps, { start: '2026-11-09', end: '2026-11-12' }).id, 'c1');   // touches the last day
+  assert.equal(L.campaignOverlap(camps, { start: '2026-11-20', end: '2026-12-10' }).id, 'c2');
+  assert.equal(L.campaignOverlap(camps, { start: '2026-12-01', end: '2026-12-10' }), null);
+  assert.equal(L.campaignOverlap(camps, { start: '2026-10-01', end: '2026-12-31' }).id, 'c1');   // engulfs others
+  assert.equal(L.campaignOverlap(camps, { start: '2026-10-13', end: '2026-11-01' }, 'c1'), null); // editing itself is fine
+});
+test('quick add fallback note', () => {
+  assert.equal(L.quickAddFallback({ title: 'Fall' }, [{ title: 'Hope' }, { title: 'Family' }]), 'Campaign: Fall. Topic: Hope, Family');
+  assert.equal(L.quickAddFallback({ title: 'Fall' }, []), 'Campaign: Fall');
+  assert.equal(L.quickAddFallback(null, [{ title: 'Hope' }]), 'Topic: Hope');
+  assert.equal(L.quickAddFallback(null, []), '');
+});
+
+console.log('insights');
+test('funnel counts per stage and archived', () => {
+  const rvs = [mkRv({ stage: 'initial' }), mkRv({ stage: 'initial' }), mkRv({ stage: 'study' }), mkRv({ stage: 'archived', archiveReason: 'moved' })];
+  const f = L.funnel(L.buildItems(rvs, [], S, NOW), S);
+  assert.deepEqual(f.rows.map((r) => r.count), [0, 2, 0, 0, 1]); assert.equal(f.archived, 1); assert.equal(f.total, 3);
+});
+test('effort points: every action counts, not-home too; advances and studies; imports excluded', () => {
+  const rv = mkRv({ createdAt: daysAgo(5) }), imp = mkRv({ createdAt: daysAgo(5), imported: true }), old = mkRv({ createdAt: daysAgo(80) });
+  const stage = (id, from, to, when) => Object.assign(mkEntry(id, 'stage', when), { from, to });
+  const es = [
+    mkEntry(rv.id, 'nh', daysAgo(1)), mkEntry(rv.id, 'nh', daysAgo(2)), mkEntry(rv.id, 'visit', daysAgo(3)),
+    stage(rv.id, 'initial', 'return', daysAgo(3)),                              // forward: 5
+    stage(rv.id, 'return', 'study', daysAgo(2)),                                // forward + a study started
+    stage(rv.id, 'study', 'archived', daysAgo(1)),                              // archiving earns nothing
+    mkEntry(old.id, 'visit', daysAgo(70)),                                       // outside 60 days
+  ];
+  const e = L.effortSummary(L.buildItems([rv, imp, old], es, S, NOW), S, NOW);
+  assert.equal(e.last7, 2 + 1 + 1 + 3 + 5 + 5);                                  // new RV, 2 NH, visit, 2 advances
+  assert.equal(e.lifetime, e.last7 + 2 + 3);                                     // + old RV created 80 days ago + its visit
+  assert.deepEqual(e.counts60, { newRvs: 1, visits: 1, nh: 2, advances: 2, studies: 1 });
+  assert.equal(e.level, 1 + Math.floor(Math.sqrt(e.lifetime / 20)));
+  assert.ok(e.levelPct >= 0 && e.levelPct <= 100);
+});
+test('worth reconsidering: same slot, repeated not-home, no visit there; suggests something else', () => {
+  const mk = (o) => mkRv(o);
+  const a = mk({ name: 'a' }), b = mk({ name: 'b', daySecondary: tag(6, 'evening') }), c = mk({ name: 'c' }), d = mk({ name: 'd' }), e = mk({ name: 'e' });
+  const nhs = (id) => [mkEntry(id, 'nh', at(2026, 10, 8, 9, 30)), mkEntry(id, 'nh', at(2026, 10, 1, 9, 30)), mkEntry(id, 'nh', at(2026, 9, 24, 10, 0))];
+  const es = [].concat(nhs(a.id), nhs(b.id), nhs(c.id), [mkEntry(c.id, 'visit', at(2026, 10, 8, 9, 45))],   // c: a visit in the same slot
+    [mkEntry(d.id, 'nh', at(2026, 10, 8, 9)), mkEntry(d.id, 'nh', at(2026, 10, 1, 9))],                          // only two tries
+    nhs(e.id), [mkEntry(e.id, 'visit', at(2026, 10, 10, 15))]);                                                  // e was home Saturday afternoon
+  const items = L.buildItems([a, b, c, d, e], es, S, NOW);
+  const out = L.reconsider(items, S, NOW, new Set());
+  const names = out.map((r) => r.item.rv.name).sort();
+  assert.deepEqual(names, ['a', 'b', 'e']);                                      // c had a visit in that slot, d too few tries
+  const get = (n) => out.find((r) => r.item.rv.name === n);
+  assert.equal(get('a').nh, 3); assert.equal(get('a').label, 'Thursday mornings');
+  assert.match(get('a').suggest, /^Try a weekday evening/);                       // never tried
+  assert.equal(get('b').suggest, 'Try Saturday evenings.');                      // their other tagged day
+  assert.match(get('e').suggest, /found them home on Saturday afternoons/);
+  assert.deepEqual(L.reconsider(items, S, NOW, new Set([a.id])).map((r) => r.item.rv.name).includes('a'), false); // additive: skips ids shown elsewhere
+});
+test('stuck in stage: far longer than the stage timing', () => {
+  const a = mkRv({ name: 'a', stage: 'initial', stageChangedAt: daysAgo(25) }), b = mkRv({ name: 'b', stage: 'return', stageChangedAt: daysAgo(30) });
+  const c = mkRv({ name: 'c', stage: 'study', stageChangedAt: daysAgo(100) }), d = mkRv({ name: 'd', stage: 'archived', archiveReason: 'moved', stageChangedAt: daysAgo(300) });
+  const items = L.buildItems([a, b, c, d], [], S, NOW);
+  const out = L.stuckInStage(items, S, NOW, new Set());
+  assert.deepEqual(out.map((x) => x.item.rv.name), ['c', 'a']);                  // 100 >= 90, 25 >= 21; b (30 < 42) and archived excluded
+  assert.equal(out[1].days, 25);
+  assert.deepEqual(L.stuckInStage(items, S, NOW, new Set([c.id])).map((x) => x.item.rv.name), ['a']);
+});
+
+console.log('settings migration');
+test('old Home cards are dropped, version bumped, new settings added', () => {
+  const m = D.mergeSettings({ version: 1, homeCards: [{ id: 'campaign', on: true }, { id: 'starters', on: true }, { id: 'topics', on: false }, { id: 'attention', on: true }, { id: 'quickAdd', on: true }] });
+  assert.equal(m.version, 2);
+  assert.deepEqual(m.homeCards.map((c) => c.id), ['topics', 'quickAdd', 'recent', 'likelyHome']);
+  assert.equal(m.homeCards[0].on, false);
+  assert.equal(m.dayTagForceFactor, 2); assert.equal(m.points.nh, 1);
+});
+
 console.log('settings merge');
 test('merge keeps saved values and adds new defaults', () => {
   const saved = { labels: { rv: 'Contact' }, homeCards: [{ id: 'topics', on: false }], defaultStaleDays: 21 };

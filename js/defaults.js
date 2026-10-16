@@ -3,34 +3,28 @@
   'use strict';
   const RV = (root.RV = root.RV || {});
 
+  // Home is for planning, not for work lists. The active campaign banner is automatic (not a card).
   const HOME_CARD_NAMES = {
-    campaign: 'Campaigns',
-    starters: 'Conversation starters',
-    scriptures: 'Scriptures',
     topics: 'Topics',
-    attention: 'Needs attention',
-    comingUp: 'Coming up',
-    recent: 'Recently added',
     quickAdd: 'Quick add',
+    recent: 'Recently added',
     likelyHome: 'Likely home right now',
   };
 
+  // Conversation starters and scriptures were folded into Topics in version 2.
   const LIB_KINDS = {
-    starter: { card: 'starters', labelKey: 'starters', single: 'conversation starter' },
-    scripture: { card: 'scriptures', labelKey: 'scriptures', single: 'scripture' },
     topic: { card: 'topics', labelKey: 'topics', single: 'topic' },
     campaign: { card: 'campaign', labelKey: 'campaign', single: 'campaign' },
   };
 
   function defaultSettings() {
     return {
-      version: 1,
+      version: 2,
       labels: {
         rv: 'RV', rvs: 'RVs',
         notHome: 'Not Home', notHomeShort: 'NH',
         recordVisit: 'Record visit',
         campaign: 'Campaign',
-        starters: 'Conversation starters',
         scriptures: 'Scriptures',
         topics: 'Topics',
         neighborhood: 'Neighborhood',
@@ -56,15 +50,16 @@
       defaultStaleDays: 14,
       comingUpDays: 7,
       soonDays: 2,
+      // An RV with a best-day tag is not flagged overdue on other days until it is this many times past its threshold.
+      dayTagForceFactor: 2,
+      // "Stuck in stage" starts at this many times the stage's threshold.
+      stuckFactor: 3,
+      // Effort points (Insights). Every logged action earns something, including Not Home.
+      points: { nh: 1, visit: 3, advance: 5, newRv: 2 },
       homeCards: [
-        { id: 'campaign', on: true },
-        { id: 'starters', on: true },
-        { id: 'scriptures', on: true },
         { id: 'topics', on: true },
-        { id: 'attention', on: true },
-        { id: 'comingUp', on: true },
-        { id: 'recent', on: false },
         { id: 'quickAdd', on: true },
+        { id: 'recent', on: false },
         { id: 'likelyHome', on: false },
       ],
       theme: 'system',
@@ -87,10 +82,11 @@
     const d = defaultSettings();
     if (!saved || typeof saved !== 'object') return d;
     const out = Object.assign({}, d, saved);
-    for (const k of ['labels', 'notHomeBanner', 'lists', 'lock']) out[k] = Object.assign({}, d[k], saved[k] || {});
+    for (const k of ['labels', 'notHomeBanner', 'lists', 'lock', 'points']) out[k] = Object.assign({}, d[k], saved[k] || {});
     const cards = Array.isArray(saved.homeCards) ? saved.homeCards.filter((c) => HOME_CARD_NAMES[c.id]) : d.homeCards;
     for (const c of d.homeCards) if (!cards.some((x) => x.id === c.id)) cards.push(c);
     out.homeCards = cards;
+    out.version = d.version;
     if (!Array.isArray(out.stages) || !out.stages.length) out.stages = d.stages;
     if (!out.stages.some((s) => s.closed)) out.stages.push(d.stages[d.stages.length - 1]);
     if (!Array.isArray(out.archiveReasons) || !out.archiveReasons.length) out.archiveReasons = d.archiveReasons;
