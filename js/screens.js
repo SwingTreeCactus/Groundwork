@@ -170,21 +170,23 @@
           h('a', { class: 'btn', href: '#/settings/data' }, 'Import CSV'))))
       : null;
     const d = new Date();
+    const sched = L.todayPlan(items, d).scheduled;
+    const schedSec = sched.length
+      ? h('section', { class: 'sec sched-today' }, h('div', { class: 'sec-head' }, h('h2', null, 'Scheduled today'), h('span', { class: 'count' }, String(sched.length))), listOf(sched))
+      : null;
     return {
       title: 'Home', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
+      el: h('div', { class: 'home' }, schedSec, campaignBar(), welcome, homeSections(items),
         h('div', { style: { textAlign: 'center' } }, h('a', { class: 'link-quiet', href: '#/settings/home' }, 'Edit Home screen'))),
     };
   }
 
   // ---------- Today ----------
-  // Today = what you missed + what is scheduled for today + RVs tagged for today's weekday.
-  // Anything further out is in the 7-day forecast at the bottom.
+  // Today = overdue people (good day today first) + RVs whose best day is today. Scheduled visits are on Home.
   function today() {
     const items = ST.items();
     const now = new Date();
     const plan = L.todayPlan(items, now);
-    const fc = L.forecast(items, now, 7);
     const els = [];
     const count = (n) => h('span', { class: 'count' }, String(n));
     const partName = (p) => (p ? p[0].toUpperCase() + p.slice(1) : 'Any time');
@@ -203,7 +205,6 @@
       });
       els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue: good day today'), count(plan.goodToday.length)), box));
     }
-    if (plan.scheduled.length) els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Scheduled today'), count(plan.scheduled.length)), listOf(plan.scheduled)));
     if (plan.tagged.length) {
       const box = h('div');
       let last = null;
@@ -224,26 +225,8 @@
     }
     if (!els.length) {
       els.push(UI.emptyState('check', 'Nothing on your list today.',
-        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue, scheduled for today, or their best day is today.')));
+        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue or their best day is today. Visits scheduled for today are on Home.')));
     }
-    // 7-day forecast
-    const fbox = h('div');
-    if (!fc.length) fbox.appendChild(h('div', { class: 'muted small' }, 'Nothing coming up.'));
-    fc.forEach((day, i) => {
-      const rows = day.scheduled.map((it) => ({ it, why: 'Planned visit' })).concat(day.tagged.map((t) => ({ it: t.item, why: L.tagLabel(t.tag) })));
-      let shown = 5;
-      const list = h('div', { class: 'list' });
-      const paint = () => {
-        list.replaceChildren(...rows.slice(0, shown).map((r) => rvRow(r.it, { nh: false, best: false, why: r.why })));
-        if (rows.length > shown) list.appendChild(h('button', { class: 'btn ghost sm', type: 'button', onclick: () => { shown = rows.length; paint(); } }, 'Show ' + (rows.length - shown) + ' more'));
-      };
-      paint();
-      const d = day.date;
-      fbox.appendChild(h('div', { class: 'daygroup' },
-        h('div', { class: 'subhead' }, (day.dateStr === U.toDateStr(U.addDays(now, 1)) ? 'Tomorrow · ' : '') + U.DAYS3[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate()),
-        list));
-    });
-    els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Next 7 days')), fbox));
     return { title: lbl('today'), fab: true, el: h('div', null, els) };
   }
 
@@ -266,7 +249,8 @@
     const selected = () => new Set(st.stages ? st.stages.filter((id) => stages.some((s) => s.id === id)) : activeIds());
 
     const search = h('input', { type: 'search', placeholder: 'Search name, address, notes…', value: '', autocomplete: 'off', 'aria-label': 'Search' });
-    search.addEventListener('input', U.debounce(() => { st.q = search.value; shown = 100; refresh(); }, 120));
+    const onSearch = U.debounce(() => { if (st.q === search.value) return; st.q = search.value; shown = 100; refresh(); }, 120);
+    ['input', 'search', 'change', 'compositionend', 'keyup'].forEach((ev) => search.addEventListener(ev, onSearch));
     const chipsBox = h('div', { class: 'chips scroll' });
     const sortSel = F.select(Object.keys(L.SORT_NAMES).map((k) => ({ value: k, label: L.SORT_NAMES[k] })), st.sort, { 'aria-label': 'Sort' });
     sortSel.addEventListener('change', () => { st.sort = sortSel.value; saveListState(st); refresh(); });
@@ -334,8 +318,11 @@
       if (st.neighborhood && !ST.neighborhoods().includes(st.neighborhood)) st.neighborhood = '';
       rebuildNb();
       sortSel.value = st.sort;
-      const rows = L.filterItems(all, { stages: sel, neighborhood: st.neighborhood, bestDay: st.bestDay, q: st.q }, S.settings).sort(L.SORTS[st.sort]);
-      countEl.textContent = rows.length + ' ' + (rows.length === 1 ? lbl('rv') : lbl('rvs'));
+      // a search looks through everyone: the stage chips, best day and neighborhood filters only apply when not searching
+      const searching = !!String(st.q || '').trim();
+      const filtered = searching ? { stages: new Set(activeIds()), q: st.q } : { stages: sel, neighborhood: st.neighborhood, bestDay: st.bestDay, q: st.q };
+      const rows = L.filterItems(all, filtered, S.settings).sort(L.SORTS[st.sort]);
+      countEl.textContent = rows.length + ' ' + (rows.length === 1 ? lbl('rv') : lbl('rvs')) + (searching ? ' found (searching all, filters ignored)' : '');
       listBox.replaceChildren();
       if (!rows.length) {
         const none = !S.rvs.some((r) => !r.deletedAt);
