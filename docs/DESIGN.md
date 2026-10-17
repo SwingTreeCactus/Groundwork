@@ -270,3 +270,5 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - Row buttons: "Log NH" with "Map" under it in one column at the right edge.
 - Accent is purple (default) or blue, chosen in Display; it replaces red everywhere (overdue badges, tab count, dots, underlines). Warnings (Do not call, delete) use a muted amber. Implemented by redefining the `--red` token per `data-accent`.
 - VERSION 2.8.0, cache rvapp-v19. Tests: logic 44, smoke 191.
+- Packaging: release zips are named JW-CRM-v<VERSION>.zip (from 2.8.0).
+- v2.8.1: the neighborhood/area field (edit form and Quick add) is a pick list of saved and used areas with "+ Add new…" instead of free text. A new name that matches an existing one ignoring case and spacing picks the existing one. Settings > Lists and custom fields shows each area with its record count, flags near-duplicates, and offers Rename or merge (typing an existing name moves its records over) and Remove. Cache rvapp-v20.

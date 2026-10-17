@@ -15,6 +15,35 @@
   const activeStages = () => S.settings.stages.filter((s) => !s.closed);
   const stageOptions = () => activeStages().map((s) => ({ value: s.id, label: s.name }));
 
+  // ---------- area pick list: choose a saved area, or add one (matched to an existing name ignoring case) ----------
+  const areaKey = (x) => String(x || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  function areaPicker(current) {
+    const sel = h('select', { 'aria-label': lbl('neighborhood') });
+    const NEW = '__new__';
+    let value = String(current || '').trim();
+    const render = () => {
+      const names = ST.neighborhoods();
+      if (value && !names.some((n) => n === value)) names.push(value);
+      sel.replaceChildren(h('option', { value: '' }, '(none)'),
+        ...names.map((n) => h('option', { value: n, selected: n === value }, n)),
+        h('option', { value: NEW }, '+ Add new ' + lbl('neighborhood').toLowerCase() + '…'));
+      sel.value = value;
+    };
+    sel.addEventListener('change', async () => {
+      if (sel.value !== NEW) { value = sel.value; return; }
+      sel.value = value;
+      const typed = await UI.textPrompt({ title: 'New ' + lbl('neighborhood').toLowerCase(), placeholder: 'Name' });
+      const name = String(typed || '').trim().replace(/\s+/g, ' ');
+      if (!name) return;
+      const existing = ST.neighborhoods().find((n) => areaKey(n) === areaKey(name));
+      if (existing) { value = existing; if (existing !== name) toast('Already on the list as ' + existing); }
+      else { ST.saveSettings((st) => { st.lists.neighborhoods = U.uniq(st.lists.neighborhoods.concat(name)); }); value = name; }
+      render();
+    });
+    render();
+    return { el: sel, get: () => value };
+  }
+
   // ---------- best days: tap any weekdays ----------
   function daysPicker(initial) {
     let days = (initial || []).slice();
@@ -33,11 +62,10 @@
     const rv = existing || {};
     const isNew = !existing;
     const isClosed = !isNew && L.isClosed(S.settings, rv);
-    const nbList = h('datalist', { id: 'nb-list' }, ST.neighborhoods().map((n) => h('option', { value: n })));
     const f = {
       name: h('input', { type: 'text', value: rv.name || opts.name || '', autocomplete: 'off', 'data-autofocus': true, required: true }),
       address: h('input', { type: 'text', value: rv.address || '', autocomplete: 'off' }),
-      neighborhood: h('input', { type: 'text', value: rv.neighborhood || '', list: 'nb-list', autocomplete: 'off' }),
+      neighborhood: areaPicker(rv.neighborhood),
       phone: h('input', { type: 'tel', value: rv.phone || '', autocomplete: 'off' }),
       howMet: select([{ value: '', label: '(not set)' }].concat(
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), rv.howMet || ''),
@@ -74,7 +102,7 @@
           const name = f.name.value.trim();
           if (!name) { f.name.focus(); return; }
           const data = {
-            name, address: f.address.value.trim(), neighborhood: f.neighborhood.value.trim(), phone: f.phone.value.trim(),
+            name, address: f.address.value.trim(), neighborhood: f.neighborhood.get(), phone: f.phone.value.trim(),
             howMet: f.howMet.value, bestDays: bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
             publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
             notes: f.notes.value.trim(), interests: f.interests.value.trim(), scriptures: U.splitList(f.scriptures.value), tags: U.splitList(f.tags.value),
@@ -107,10 +135,10 @@
           if (opts.onSaved) opts.onSaved(saved);
         },
       },
-        nbList, tagList, pubList,
+        tagList, pubList,
         field('Name', f.name),
         field('Address', f.address),
-        field(lbl('neighborhood'), f.neighborhood),
+        field(lbl('neighborhood'), f.neighborhood.el),
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         studyBox,
@@ -147,8 +175,7 @@
     opts = opts || {};
     const name = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: 'Name or household' });
     const address = h('input', { type: 'text', autocomplete: 'off', placeholder: 'Optional' });
-    const nbList = h('datalist', { id: 'nb-list-q' }, ST.neighborhoods().map((n) => h('option', { value: n })));
-    const nb = h('input', { type: 'text', list: 'nb-list-q', autocomplete: 'off', placeholder: 'Optional' });
+    const nb = areaPicker('');
     const note = h('textarea', { placeholder: 'Note (optional)', style: { minHeight: '80px' } });
     const stage = select(stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id);
     const camp = ST.activeCampaign();
@@ -159,7 +186,7 @@
           e.preventDefault();
           const nm = name.value.trim();
           if (!nm) { name.focus(); return; }
-          const data = { name: nm, address: address.value.trim(), neighborhood: nb.value.trim(), stage: stage.value };
+          const data = { name: nm, address: address.value.trim(), neighborhood: nb.get(), stage: stage.value };
           if (data.address) {
             const dups = L.duplicateMatches(data, S.rvs);
             if (dups.length) {
@@ -188,10 +215,9 @@
           if (opts.onSaved) opts.onSaved(rv);
         },
       },
-        nbList,
         field('Name', name),
         field('Address', address),
-        field(lbl('neighborhood'), nb),
+        field(lbl('neighborhood'), nb.el),
         field('Note', note),
         field('Stage', stage),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
@@ -378,5 +404,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

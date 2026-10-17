@@ -237,8 +237,47 @@
 
   // ---------- lists and custom fields ----------
   function fields() {
-    const nb = h('textarea', { value: S.settings.lists.neighborhoods.join('\n'), style: { minHeight: '110px' } });
-    nb.addEventListener('change', () => save((s) => { s.lists.neighborhoods = U.uniq(nb.value.split('\n').map((x) => x.trim()).filter(Boolean)); }));
+    // areas: one list, with how many records use each; rename merges into an existing name
+    const areaKey = (x) => String(x || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const abox = h('div');
+    const live = () => S.rvs.filter((r) => !r.deletedAt);
+    function renderAreas() {
+      const names = ST.neighborhoods();
+      abox.replaceChildren(h('div', { class: 'list' }, names.length ? names.map((n) => {
+        const used = live().filter((r) => r.neighborhood === n).length;
+        return h('button', { class: 'row area-row', type: 'button', onclick: () => areaSheet(n, used) },
+          h('div', { class: 'main' }, h('div', { class: 'name' }, n), h('div', { class: 'line2' }, used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')),
+            names.some((x) => x !== n && areaKey(x) === areaKey(n)) ? h('span', { class: 'dup-hint' }, ' · Looks like a duplicate. Tap to merge') : null)), icon('right', 18));
+      }) : h('div', { class: 'muted small', style: { padding: '14px 16px' } }, 'None yet.')),
+      saveBtn('Add ' + lbl('neighborhood').toLowerCase(), async () => {
+        const v = String(await UI.textPrompt({ title: 'New ' + lbl('neighborhood').toLowerCase(), placeholder: 'Name' }) || '').trim().replace(/\s+/g, ' ');
+        if (!v) return;
+        if (ST.neighborhoods().some((n) => areaKey(n) === areaKey(v))) { toast('Already on the list'); return; }
+        save((s) => { s.lists.neighborhoods = U.uniq(s.lists.neighborhoods.concat(v)); }); renderAreas();
+      }, 'sm'));
+    }
+    function areaSheet(name, used) {
+      sheet(name, (close) => h('div', null,
+        h('button', { class: 'opt', type: 'button', onclick: async () => {
+          close();
+          const v = String(await UI.textPrompt({ title: 'Rename ' + name, value: name, placeholder: 'Name' }) || '').trim().replace(/\s+/g, ' ');
+          if (!v || v === name) return;
+          const other = ST.neighborhoods().find((n) => n !== name && areaKey(n) === areaKey(v));
+          const target = other || v;
+          live().filter((r) => r.neighborhood === name).forEach((r) => ST.updateRv(r.id, { neighborhood: target }));
+          save((s) => { s.lists.neighborhoods = U.uniq(s.lists.neighborhoods.filter((n) => n !== name).concat(target)); });
+          toast(other ? 'Merged into ' + other : 'Renamed to ' + target);
+          renderAreas();
+        } }, h('div', null, h('div', null, 'Rename or merge'), h('div', { class: 'sub' }, 'Type an existing name to merge them'))),
+        h('button', { class: 'opt', type: 'button', onclick: async () => {
+          close();
+          if (used && !(await confirmDialog({ title: 'Remove ' + name + '?', message: used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) + ' will have no ' + lbl('neighborhood').toLowerCase() + '.', confirmText: 'Remove', danger: true }))) return;
+          live().filter((r) => r.neighborhood === name).forEach((r) => ST.updateRv(r.id, { neighborhood: '' }));
+          save((s) => { s.lists.neighborhoods = s.lists.neighborhoods.filter((n) => n !== name); });
+          renderAreas();
+        } }, h('div', null, h('div', null, 'Remove'), h('div', { class: 'sub' }, used ? 'Clears it from ' + used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) : 'Not used on any record')))));
+    }
+    renderAreas();
     const hm = h('textarea', { value: S.settings.lists.howMet.join('\n'), style: { minHeight: '110px' } });
     hm.addEventListener('change', () => save((s) => { s.lists.howMet = U.uniq(hm.value.split('\n').map((x) => x.trim()).filter(Boolean)); }));
     const cbox = h('div');
@@ -253,7 +292,7 @@
     }
     renderCustom();
     return page('Lists and custom fields', [
-      field(lbl('neighborhood') + 's', nb, 'One per line. Names already used on records are suggested automatically too.'),
+      h('div', { class: 'field' }, h('div', { class: 'lbl' }, lbl('neighborhood') + 's'), abox),
       field('How we met options', hm, 'One per line.'),
       h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Custom text fields'), cbox,
         saveBtn('Add custom field', () => { save((s) => { s.customFields.push({ id: 'cf-' + U.uuid().slice(0, 8), name: 'New field', type: 'text' }); }); renderCustom(); }, 'sm')),
