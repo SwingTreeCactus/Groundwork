@@ -15,51 +15,16 @@
   const activeStages = () => S.settings.stages.filter((s) => !s.closed);
   const stageOptions = () => activeStages().map((s) => ({ value: s.id, label: s.name }));
 
-  // ---------- best-times editor ----------
-  function windowsEditor(initial) {
-    let wins = (initial || []).map((w) => ({ days: (w.days || []).slice(), from: w.from || '', to: w.to || '' }));
-    const box = h('div');
-    function render() {
-      box.replaceChildren();
-      wins.forEach((w, i) => {
-        const days = h('div', { class: 'dayrow' },
-          U.DAYS3.map((d, di) =>
-            h('button', {
-              type: 'button', class: 'chip', 'aria-pressed': String(w.days.includes(di)),
-              onclick: () => { w.days = w.days.includes(di) ? w.days.filter((x) => x !== di) : w.days.concat(di); render(); },
-            }, d)));
-        box.appendChild(h('div', { class: 'window' },
-          days,
-          h('div', { class: 'two' },
-            h('div', { class: 'field', style: { marginBottom: 0 } }, h('label', null, 'From'), h('input', { type: 'time', value: w.from, oninput: (e) => { w.from = e.target.value; } })),
-            h('div', { class: 'field', style: { marginBottom: 0 } }, h('label', null, 'To'), h('input', { type: 'time', value: w.to, oninput: (e) => { w.to = e.target.value; } }))),
-          h('div', { style: { marginTop: '8px' } },
-            h('button', { type: 'button', class: 'btn sm danger', onclick: () => { wins.splice(i, 1); render(); } }, icon('trash', 16), 'Remove'))));
-      });
-      box.appendChild(h('div', { class: 'chips' },
-        h('button', { type: 'button', class: 'chip', onclick: () => { wins.push({ days: [1, 2, 3, 4, 5], from: '17:00', to: '20:00' }); render(); } }, '+ Weekday evenings'),
-        h('button', { type: 'button', class: 'chip', onclick: () => { wins.push({ days: [0, 6], from: '09:00', to: '12:00' }); render(); } }, '+ Weekend mornings'),
-        h('button', { type: 'button', class: 'chip', onclick: () => { wins.push({ days: [], from: '', to: '' }); render(); } }, '+ Custom')));
-    }
+  // ---------- best days: tap any weekdays ----------
+  function daysPicker(initial) {
+    let days = (initial || []).slice();
+    const box = h('div', { class: 'daypick', role: 'group', 'aria-label': 'Best days' });
+    const render = () => box.replaceChildren(...U.DAYS3.map((d, i) => h('button', {
+      type: 'button', class: 'chip', 'aria-pressed': String(days.includes(i)), 'aria-label': U.DAYS[i],
+      onclick: () => { days = days.includes(i) ? days.filter((x) => x !== i) : days.concat(i); render(); },
+    }, d)));
     render();
-    return {
-      el: box,
-      get: () => wins.filter((w) => w.from && w.to).map((w) => ({ days: w.days.slice().sort(), from: w.from, to: w.to })),
-    };
-  }
-
-  // ---------- best-day tags (primary and secondary) ----------
-  const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
-  function dayTagEditor(label, initial, hint) {
-    const day = select([{ value: '', label: '(none)' }].concat(DAY_ORDER.map((d) => ({ value: String(d), label: U.DAYS[d] }))), L.validTag(initial) ? String(initial.day) : '');
-    const part = select([{ value: '', label: 'Any time' }].concat(L.PARTS.map((p) => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))), (initial && initial.part) || '');
-    const sync = () => { part.disabled = day.value === ''; };
-    day.addEventListener('change', sync);
-    sync();
-    return {
-      el: h('div', { class: 'field' }, h('div', { class: 'lbl' }, label), h('div', { class: 'two' }, day, part), hint ? h('div', { class: 'hint' }, hint) : null),
-      get: () => (day.value === '' ? null : { day: parseInt(day.value, 10), part: part.value }),
-    };
+    return { el: box, get: () => days.slice().sort((a, b) => a - b) };
   }
 
   // ---------- add / edit RV ----------
@@ -77,9 +42,9 @@
       howMet: select([{ value: '', label: '(not set)' }].concat(
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), rv.howMet || ''),
       stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
-      nextVisit: h('input', { type: 'date', value: rv.nextVisit || '' }),
       publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
-      progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'Lesson, paragraph, page' }),
+      progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' }),
+      nextStart: h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' }),
       bestNote: h('input', { type: 'text', value: rv.bestNote || '', placeholder: 'e.g. works nights, text first' }),
       notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
       whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
@@ -90,13 +55,16 @@
     };
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
     const pubList = h('datalist', { id: 'pub-list' }, ST.publications().map((n) => h('option', { value: n })));
-    const studyBox = h('div', null, field('Publication', f.publication), field('Where you are', f.progress));
-    const syncStudy = () => { studyBox.hidden = !L.isStudyStage(S.settings, isClosed ? rv.stage : f.stage.value); };
+    const studyBox = h('div', null, field('Publication', f.publication), h('div', { class: 'two' }, field('Last covered', f.progress), field('Start next time', f.nextStart)));
+    const nextField = field('Discuss next time', f.whatsNext);
+    const syncStudy = () => {
+      const study = L.isStudyStage(S.settings, isClosed ? rv.stage : f.stage.value);
+      studyBox.hidden = !study;
+      nextField.hidden = study && !f.whatsNext.value.trim(); // studies use Start next time instead
+    };
     f.stage.addEventListener('change', syncStudy);
     syncStudy();
-    const wins = windowsEditor(rv.bestTimes);
-    const dayP = dayTagEditor('Best day (primary)', rv.dayPrimary);
-    const dayS = dayTagEditor('Best day (secondary)', rv.daySecondary);
+    const bestDays = daysPicker(L.bestDaysOf(rv));
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
     return sheet(isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
@@ -107,9 +75,8 @@
           if (!name) { f.name.focus(); return; }
           const data = {
             name, address: f.address.value.trim(), neighborhood: f.neighborhood.value.trim(), phone: f.phone.value.trim(),
-            howMet: f.howMet.value, nextVisit: f.nextVisit.value || null, bestTimes: wins.get(), bestNote: f.bestNote.value.trim(),
-            dayPrimary: dayP.get(), daySecondary: dayS.get(), whatsNext: f.whatsNext.value.trim(),
-            publication: f.publication.value.trim(), progress: f.progress.value.trim(),
+            howMet: f.howMet.value, bestDays: bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
+            publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
             notes: f.notes.value.trim(), interests: f.interests.value.trim(), scriptures: U.splitList(f.scriptures.value), tags: U.splitList(f.tags.value),
             nhBannerOff: f.nhOff.checked,
             custom: Object.assign({}, rv.custom || {}),
@@ -146,12 +113,10 @@
         field(lbl('neighborhood'), f.neighborhood),
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
-        field('Next visit date', f.nextVisit),
         studyBox,
-        field('Discuss next time', f.whatsNext),
+        nextField,
         field('Household notes', f.notes),
-        dayP.el, dayS.el,
-        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best times to find them home'), wins.el, f.bestNote),
+        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
         field('Interests and questions', f.interests),
         field(lbl('scriptures') + ' discussed', f.scriptures),
         field('Tags', f.tags),
@@ -212,7 +177,7 @@
           let text = note.value.trim();
           if (!text) text = L.quickAddFallback(camp, ST.featuredTopics());
           const isFirstStage = S.settings.stages[0].id === stage.value;
-          data.dayPrimary = { day: now.getDay(), part: L.partOf(now) };
+          data.bestDays = [now.getDay()];
           data.campaignId = tagged ? tagged.id : null;
           if (text && isFirstStage) data.notes = text;
           const rv = ST.addRv(data);
@@ -255,12 +220,16 @@
     text.addEventListener('pointerdown', writing);
     text.addEventListener('input', () => { writing(); grow(); });
     const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-v', autocomplete: 'off', placeholder: 'Publication' });
-    const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: rv.progress ? 'Last: ' + rv.progress : 'Lesson, paragraph, page' });
+    // study: what was covered today (starts as what was planned) and where to start next time (suggested, editable)
+    const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, value: rv.nextStart || '', placeholder: rv.progress ? 'Last time: ' + rv.progress : 'e.g. Lesson 3' });
+    const nextStart = h('input', { type: 'text', autocomplete: 'off', value: L.suggestNext(rv.nextStart || ''), placeholder: 'e.g. Lesson 4' });
+    let nextTouched = false;
+    nextStart.addEventListener('input', () => { nextTouched = true; });
+    prog.addEventListener('input', () => { if (!nextTouched) nextStart.value = L.suggestNext(prog.value); });
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
     const autoStage = rv.stage === 'yet' && S.settings.stages.some((s) => s.id === 'initial') ? 'initial' : rv.stage;
     const stage = select(stageOptions(), autoStage);
-    const next = h('input', { type: 'date', value: '' });
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
     const extra = h('input', { type: 'text', placeholder: 'Scriptures' });
@@ -292,12 +261,12 @@
           const res = ST.logVisit(rvId, {
             text: text.value,
             scriptures: U.splitList(extra.value),
-            whatsNext: whatsNext.value,
+            whatsNext: study ? undefined : whatsNext.value,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
             publication: study ? pub.value : undefined,
             progress: study ? prog.value : undefined,
+            nextStart: study ? nextStart.value : undefined,
             stage: stage.value,
-            nextVisit: next.value || null,
             tags: U.splitList(tags.value),
             at: d ? d.toISOString() : undefined,
           });
@@ -307,12 +276,12 @@
       },
         tagList, pubList,
         study ? field('Publication', pub) : null,
-        study ? field('Where you stopped', prog) : null,
+        study ? h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)) : null,
         study ? null : h('div', { class: 'field note-field' }, text,
           h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')),
         !study && topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
           h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
-        field('Discuss next time', whatsNext),
+        study ? null : field('Discuss next time', whatsNext),
         study ? field('Note', text) : null,
         !study && camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         stageNote,
@@ -320,8 +289,6 @@
           h('summary', null, icon('down', 18), 'More details'),
           field('When', when),
           field('Stage', stage),
-          h('div', { class: 'field' }, h('label', null, 'Next visit date'), next, presetDates(next),
-            null),
           field(lbl('scriptures') + ' discussed', extra),
           field('Tags', tags)),
         h('div', { class: 'actions' },
@@ -393,32 +360,23 @@
           h('button', { class: 'btn primary', type: 'button', onclick: () => { if (date.value) { apply(date.value); close(); } } }, 'Set date'))));
   }
 
-  function nextVisitSheet(rvId) {
-    const rv = ST.rvById(rvId);
-    if (!rv) return;
-    const date = h('input', { type: 'date', value: rv.nextVisit || '', 'data-autofocus': true });
-    sheet('Next visit date', (close) =>
-      h('div', null,
-        field('Date', date), presetDates(date),
-        h('div', { class: 'actions' },
-          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'button', onclick: () => { ST.updateRv(rvId, { nextVisit: date.value || null }); close(); } }, 'Save'))));
-  }
+
 
   // quick edit of what they are studying and where they are
   function studyEdit(rvId) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
     const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-e', autocomplete: 'off', placeholder: 'Publication', 'data-autofocus': true });
-    const prog = h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'Lesson, paragraph, page' });
+    const prog = h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' });
+    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' });
     sheet('Studying', (close) =>
-      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), progress: prog.value.trim() }); close(); } },
+      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), progress: prog.value.trim(), nextStart: nxt.value.trim() }); close(); } },
         h('datalist', { id: 'pub-list-e' }, ST.publications().map((n) => h('option', { value: n }))),
-        field('Publication', pub), field('Where you are', prog),
+        field('Publication', pub), field('Start next time', nxt), field('Last covered', prog),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, nextVisitSheet, select, stageOptions };
+  RV.forms = { studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

@@ -64,6 +64,7 @@
         { id: 'likelyHome', on: false },
       ],
       theme: 'system',
+      accent: 'purple',
       textScale: 1,
       nhRowButton: true,
       nhToastSeconds: 6,

@@ -40,8 +40,20 @@
     S.settings = D.mergeSettings(saved);
     if (!saved || (saved.version || 1) < S.settings.version) await DB.setMeta('settings', S.settings);
     await migrateLib();
+    await migrateBestDays();
     S.ready = true;
     emit();
+  }
+
+  // 2.8: best days are a set of weekdays. Older records had a primary/secondary day with a part of day.
+  async function migrateBestDays() {
+    const changed = [];
+    for (const r of S.rvs) {
+      if (Array.isArray(r.bestDays)) continue;
+      r.bestDays = L.bestDaysOf(r);
+      changed.push(r);
+    }
+    if (changed.length) await DB.putMany('rvs', changed);
   }
 
   // Version 2: starters and scriptures became topics; campaigns got start/end dates.
@@ -78,7 +90,7 @@
     const first = S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages.find((s) => !s.closed);
     return Object.assign({
       id: U.uuid(), name: '', address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
-      dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, publication: '', progress: '',
+      bestDays: [], dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, publication: '', progress: '', nextStart: '',
       notes: '', interests: '', scriptures: [], tags: [], custom: {},
       stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nhBannerOff: false,
       createdAt: now, stageChangedAt: now, updatedAt: now, deletedAt: null,
@@ -86,6 +98,7 @@
   }
   function addRv(fields) {
     const rv = blankRv(fields);
+    if (!fields || !Array.isArray(fields.bestDays)) rv.bestDays = L.bestDaysOf(Object.assign({}, rv, { bestDays: undefined }));
     S.rvs.push(rv);
     persist('rvs', rv);
     emit();
@@ -182,7 +195,7 @@
     const rv = rvById(rvId);
     if (!rv) return null;
     const snap = clone(rv);
-    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress ? { progress: o.progress.trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
+    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress || o.nextStart ? { progress: (o.progress || '').trim(), nextStart: (o.nextStart || '').trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
@@ -190,6 +203,7 @@
     if (typeof o.whatsNext === 'string') rv.whatsNext = o.whatsNext.trim();
     if (typeof o.publication === 'string') rv.publication = o.publication.trim();
     if (typeof o.progress === 'string' && o.progress.trim()) rv.progress = o.progress.trim();
+    if (typeof o.nextStart === 'string') rv.nextStart = o.nextStart.trim();
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
     if (o.scriptures && o.scriptures.length) rv.scriptures = U.uniq((rv.scriptures || []).concat(o.scriptures));
     touch(rv);

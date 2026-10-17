@@ -56,6 +56,9 @@
       h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Theme'),
         seg([{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], S.settings.theme,
           (v) => { save((s) => { s.theme = v; }); RV.app.applyDisplay(); })),
+      h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Accent color'),
+        seg([{ value: 'purple', label: 'Purple' }, { value: 'blue', label: 'Blue' }], S.settings.accent || 'purple',
+          (v) => { save((s) => { s.accent = v; }); RV.app.applyDisplay(); })),
       h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Text size'),
         seg([{ value: 0.9, label: 'Small' }, { value: 1, label: 'Default' }, { value: 1.15, label: 'Large' }, { value: 1.3, label: 'Extra large' }], S.settings.textScale,
           (v) => { save((s) => { s.textScale = v; }); RV.app.applyDisplay(); })),
@@ -367,7 +370,7 @@
       const pairs = RV.smile.decode(bytes, { pairs: true });
       const closed = S.settings.stages.find((s) => s.closed);
       parsed = (stageId, skipDup, bestFromLast) => {
-        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', partOf: L.partOf, bestFromLast });
+        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', bestFromLast });
         res.rvs = res.rvs.map((r) => ST.blankRv(r));
         let dups = 0;
         const seen = [];
@@ -384,9 +387,9 @@
           const hit = matchesOf(r, S.rvs.concat(seen));
           if (hit.length) dups++;
           const drop = skipDup && hit.length;
-          if (drop && bestFromLast && r.dayPrimary) {
-            const ex = hit.find((x) => S.rvs.includes(x) && !x.dayPrimary);
-            if (ex && !updates.some((u) => u.id === ex.id)) updates.push({ id: ex.id, dayPrimary: r.dayPrimary });
+          if (drop && bestFromLast && r.bestDays.length) {
+            const ex = hit.find((x) => S.rvs.includes(x) && !L.dayTagsOf(x).length);
+            if (ex && !updates.some((u) => u.id === ex.id)) updates.push({ id: ex.id, bestDays: r.bestDays });
           }
           if (!drop) seen.push(r);
           return !drop;
@@ -406,7 +409,7 @@
       const { res, keep, dups, updates } = parsed(defStage.value, skipDup.checked, bestDay.checked);
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
         keep.length + ' ' + lbl('rvs') + ' and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
-        (updates.length ? ' ' + updates.length + ' already here will get a best day and time.' : '') +
+        (updates.length ? ' ' + updates.length + ' already here will get a best day.' : '') +
         (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
         (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
     };
@@ -417,7 +420,7 @@
       const form = h('div', null,
         field('Stage for imported people', defStage),
         h('label', { class: 'check' }, skipDup, 'Skip people who match an existing address'),
-        h('label', { class: 'check' }, bestDay, 'Set best day and time from their last visit'),
+        h('label', { class: 'check' }, bestDay, 'Set best day from their last visit'),
         summary,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
@@ -427,7 +430,7 @@
               const { res, keep, updates } = parsed(defStage.value, skipDup.checked, bestDay.checked);
               const ids = new Set(keep.map((r) => r.id));
               ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
-              updates.forEach((u) => ST.updateRv(u.id, { dayPrimary: u.dayPrimary }));
+              updates.forEach((u) => ST.updateRv(u.id, { bestDays: u.bestDays, dayPrimary: null, daySecondary: null }));
               close();
               toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl('rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
               location.hash = '#/rvs';

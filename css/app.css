@@ -765,3 +765,29 @@ details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
 .toast { width: auto; max-width: 100%; min-height: 0; padding: 4px 4px 4px 14px; border-radius: 999px; gap: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
 .toast .msg { font-size: .84rem; cursor: pointer; }
 .toast button { min-height: 32px; padding: 4px 10px; font-size: .84rem; }
+
+/* v2.8: accent is purple (default) or blue instead of red; warnings are a muted amber.
+   --red is kept as the accent token's name so older rules pick it up. */
+:root[data-accent="purple"] { --red: #5b3e96; --accent-soft: #ece7f6; --danger: #8a5300; --danger-soft: #f8ecd9; }
+:root[data-accent="blue"] { --red: #2f5fa8; --accent-soft: #e3ebf7; --danger: #8a5300; --danger-soft: #f8ecd9; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-accent="purple"] { --red: #b9a2ee; --accent-soft: #272036; --danger: #f2bd69; --danger-soft: #30250f; }
+  :root:not([data-theme="light"])[data-accent="blue"] { --red: #8db2ee; --accent-soft: #1b2535; --danger: #f2bd69; --danger-soft: #30250f; }
+}
+:root[data-theme="dark"][data-accent="purple"] { --red: #b9a2ee; --accent-soft: #272036; --danger: #f2bd69; --danger-soft: #30250f; }
+:root[data-theme="dark"][data-accent="blue"] { --red: #8db2ee; --accent-soft: #1b2535; --danger: #f2bd69; --danger-soft: #30250f; }
+.badge.flag-overdue { background: var(--accent-soft); color: var(--red); }
+.tab .dot { background: var(--red); color: var(--bg); }
+
+/* row buttons: Log NH over Map in one column at the right edge */
+.row-acts { flex-direction: column; gap: 8px; align-items: stretch; width: 64px; }
+.row-acts .nhbtn { width: 64px; min-width: 64px; height: 36px; padding: 0 6px; font-size: .78rem; border-radius: 999px; }
+.navbtn { width: 64px; height: 36px; gap: 4px; font-size: .78rem; font-weight: 600; border-radius: 999px; }
+
+/* best days picker */
+.daypick { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.daypick .chip { min-height: 40px; padding: 0; justify-content: center; font-size: .82rem; }
+
+/* study block lines */
+.study-line { display: flex; gap: 8px; align-items: baseline; margin-top: 4px; }
+.study-line .snap-k { min-width: 92px; }

@@ -31,16 +31,21 @@
     return best || new Date(rv.createdAt);
   }
 
-  // ---------- day tags (primary / secondary best day + part of day) ----------
+  // ---------- best days: a set of weekdays (rv.bestDays). Older records used dayPrimary/daySecondary with a part of day. ----------
   const PARTS = ['morning', 'afternoon', 'evening', 'night'];
   const validTag = (g) => !!g && Number.isInteger(g.day) && g.day >= 0 && g.day <= 6 && (!g.part || PARTS.includes(g.part));
-  const dayTagsOf = (rv) => [rv.dayPrimary, rv.daySecondary].filter(validTag);
+  const validDay = (d) => Number.isInteger(d) && d >= 0 && d <= 6;
+  // weekdays, in week order; reads the old primary/secondary tags when a record has no bestDays yet
+  const bestDaysOf = (rv) => {
+    const src = Array.isArray(rv.bestDays) ? rv.bestDays : [rv.dayPrimary, rv.daySecondary].filter(validTag).map((g) => g.day);
+    return U.uniq(src.filter(validDay)).sort((a, b) => a - b);
+  };
+  const dayTagsOf = (rv) => bestDaysOf(rv).map((day) => ({ day, part: '' }));
   const partRank = (p) => { const i = PARTS.indexOf(p); return i < 0 ? PARTS.length : i; };
-  const tagLabel = (g) => (validTag(g) ? U.DAYS[g.day] + (g.part ? ' ' + g.part : '') : '');
-  const PART_SHORT = { morning: 'morn', afternoon: 'aft', evening: 'eve', night: 'night' };
-  const tagShort = (g) => (validTag(g) ? U.DAYS3[g.day] + (g.part ? ' ' + PART_SHORT[g.part] : '') : '');
-  const tagsShort = (rv) => dayTagsOf(rv).map(tagShort).join(' / ');
-  const tagsLabel = (rv) => dayTagsOf(rv).map(tagLabel).join(' or ');
+  const tagLabel = (g) => (validTag(g) ? U.DAYS[g.day] : '');
+  const tagShort = (g) => (validTag(g) ? U.DAYS3[g.day] : '');
+  const tagsShort = (rv) => dayTagsOf(rv).map(tagShort).join(' · ');
+  const tagsLabel = (rv) => dayTagsOf(rv).map(tagLabel).join(', ');
   // the tag that matches this weekday (primary first), or null
   const tagForDay = (rv, dow) => dayTagsOf(rv).find((g) => g.day === dow) || null;
 
@@ -51,7 +56,7 @@
     const daysSince = U.daysBetween(today, last);
     const sn = rv.snoozedUntil ? U.parseDateStr(rv.snoozedUntil) : null;
     if (sn && sn >= today) return { state: 'snoozed', until: rv.snoozedUntil, daysSince };
-    if (rv.nextVisit) {
+    if (settings.useNextVisit && rv.nextVisit) {
       const due = U.parseDateStr(rv.nextVisit);
       if (due) {
         const d = U.daysBetween(due, today);
@@ -132,7 +137,7 @@
   function haystack(item) {
     if (item._hay) return item._hay;
     const r = item.rv;
-    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.whatsNext, r.interests, r.bestNote, r.publication, r.progress, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
+    const parts = [r.name, r.address, r.neighborhood, r.phone, r.howMet, r.notes, r.whatsNext, r.interests, r.bestNote, r.publication, r.progress, r.nextStart, (r.tags || []).join(' '), (r.scriptures || []).join(' ')];
     for (const f of Object.keys(r.custom || {})) parts.push(r.custom[f]);
     for (const e of item.entries) parts.push(e.text, (e.scriptures || []).join(' '));
     item._hay = parts.filter(Boolean).join(' ').toLowerCase() + ' ' + U.digits(r.phone);
@@ -209,38 +214,35 @@
     if (!cfg || !cfg.on) return null;
     const rv = item.rv;
     if (rv.nhBannerOff || item.att.state === 'closed') return null;
-    if (inBestWindow(rv, now)) return null;
-    const dow = now.getDay(), part = partOf(now);
+    const dow = now.getDay();
     const min = Math.max(1, cfg.minAttempts || 2);
-    const day = tally(item.entries, (d) => d.getDay() === dow && partOf(d) === part);
+    const day = tally(item.entries, (d) => d.getDay() === dow);
     if (day.home === 0 && day.nh >= min) {
-      return { scope: 'day', nh: day.nh, home: day.home, label: U.DAYS[dow] + ' ' + part + 's' };
-    }
-    const dt = dayType(dow);
-    const grp = tally(item.entries, (d) => dayType(d.getDay()) === dt && partOf(d) === part);
-    if (grp.home === 0 && grp.nh >= min + 1) {
-      return { scope: 'daytype', nh: grp.nh, home: grp.home, label: dt + ' ' + part + 's' };
+      return { scope: 'day', nh: day.nh, home: day.home, label: U.DAYS[dow] + 's' };
     }
     return null;
   }
 
   function likelyHomeNow(items, now) {
     now = now || new Date();
-    const dow = now.getDay(), part = partOf(now);
+    const dow = now.getDay();
     const out = [];
     for (const it of items) {
       if (it.att.state === 'closed') continue;
-      if (inBestWindow(it.rv, now)) {
-        out.push({ item: it, score: 3, why: 'In their best time window' });
-        continue;
-      }
-      const t = tally(it.entries, (d) => d.getDay() === dow && partOf(d) === part);
+      const t = tally(it.entries, (d) => d.getDay() === dow);
       const n = t.nh + t.home;
       if (t.home >= 1 && t.home / n >= 0.5) {
-        out.push({ item: it, score: 1 + t.home / n, why: 'Home ' + t.home + ' of ' + n + ' tries at this time' });
+        out.push({ item: it, score: 1 + t.home / n, why: 'Home ' + t.home + ' of ' + n + ' ' + U.DAYS[dow] + (n === 1 ? '' : 's') });
       }
     }
     return out.sort((a, b) => b.score - a.score || byName(a.item, b.item));
+  }
+
+  // "Lesson 3" -> "Lesson 4", "Ch. 5 ¶12" -> "Ch. 5 ¶13"; text without a trailing number gives ''
+  function suggestNext(text) {
+    const m = /^(.*?)(\d+)(\D{0,3})$/.exec(String(text || '').trim());
+    if (!m) return '';
+    return m[1] + (parseInt(m[2], 10) + 1) + m[3];
   }
 
   function describeWindows(wins) {
@@ -301,7 +303,7 @@
       if (it.entries.some((e) => e.type === 'visit' && sameDay(e.at, now))) continue; // already visited today
       tagged.push({ item: it, tag, nhToday: it.entries.some((e) => e.type === 'nh' && sameDay(e.at, now)) });
     }
-    tagged.sort((a, b) => partRank(a.tag.part) - partRank(b.tag.part) || byName(a.item, b.item));
+    tagged.sort((a, b) => byName(a.item, b.item));
     // overdue people split by whether today is a good day to find them: their best day is today,
     // or they are usually home at this time (from visit history). Grouped by part of day.
     const nowPart = partOf(now), dow = now.getDay();
@@ -309,11 +311,11 @@
     const goodToday = [], otherDays = [];
     for (const it of overdue) {
       const tag = tagForDay(it.rv, dow);
-      if (tag) goodToday.push({ item: it, part: tag.part || '', why: 'Best: ' + tagShort(tag) });
-      else if (likely.has(it.rv.id)) goodToday.push({ item: it, part: nowPart, why: likely.get(it.rv.id) });
+      if (tag) goodToday.push({ item: it, part: '', why: 'Best: ' + tagsShort(it.rv) });
+      else if (likely.has(it.rv.id)) goodToday.push({ item: it, part: '', why: likely.get(it.rv.id) });
       else otherDays.push(it);
     }
-    goodToday.sort((a, b) => partRank(a.part) - partRank(b.part) || SORTS.attention(a.item, b.item));
+    goodToday.sort((a, b) => SORTS.attention(a.item, b.item));
     return { overdue, scheduled, tagged, goodToday, otherDays, nowPart };
   }
 
@@ -602,7 +604,8 @@
     isStudyStage, stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
-    PARTS, validTag, dayTagsOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, forecast,
+    suggestNext,
+    PARTS, validTag, dayTagsOf, bestDaysOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, forecast,
     campaignStatus, activeCampaign, campaignOverlap, nextCampaign, quickAddFallback,
     funnel, effortEvents, effortSummary, reconsider, stuckInStage,
     IMPORT_FIELDS, guessMapping, parseLooseDate, importRows,

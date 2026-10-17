@@ -16,16 +16,16 @@
       ? h('button', {
         class: 'nhbtn', type: 'button', 'aria-label': lbl('notHome') + ' for ' + rv.name,
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.doNotHome(rv.id); },
-      }, lbl('notHomeShort'))
+      }, 'Log ' + lbl('notHomeShort'))
       : null;
     const addr = [rv.address, rv.neighborhood].filter(Boolean).join(', ');
     const navBtn = o.nh !== false && rv.address && it.att.state !== 'closed'
       ? h('button', {
         class: 'navbtn', type: 'button', 'aria-label': 'Directions to ' + rv.name,
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(addr); },
-      }, icon('navigation', 20))
+      }, icon('navigation', 14), 'Map')
       : null;
-    const sub = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.progress) ? [rv.publication, rv.progress].filter(Boolean).join(' · ') : UI.subtitle(rv);
+    const sub = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart) ? [rv.publication, rv.nextStart ? 'Next: ' + rv.nextStart : null].filter(Boolean).join(' · ') : UI.subtitle(rv);
     return h('a', { class: 'row', href: '#/rv/' + rv.id },
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
@@ -39,7 +39,7 @@
           o.best !== false && L.dayTagsOf(rv).length ? h('span', { class: 'besttag' }, icon('clock', 13), L.tagsShort(rv)) : null,
           o.noBestHint && !L.dayTagsOf(rv).length ? h('span', { class: 'besttag none' }, 'No best day') : null,
           o.why ? h('span', { class: 'muted' }, o.why) : h('span', { class: 'muted' }, UI.lastText(it)))),
-      (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, navBtn, nhBtn) : null);
+      (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, nhBtn, navBtn) : null);
   }
   function listOf(items, o) {
     return h('div', { class: 'list' }, items.map((it) => rvRow(it, o)));
@@ -170,13 +170,9 @@
           h('a', { class: 'btn', href: '#/settings/data' }, 'Import CSV'))))
       : null;
     const d = new Date();
-    const sched = L.todayPlan(items, d).scheduled;
-    const schedSec = sched.length
-      ? h('section', { class: 'sec sched-today' }, h('div', { class: 'sec-head' }, h('h2', null, 'Scheduled today'), h('span', { class: 'count' }, String(sched.length))), listOf(sched))
-      : null;
     return {
       title: 'Home', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, schedSec, campaignBar(), welcome, homeSections(items),
+      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
         h('div', { style: { textAlign: 'center' } }, h('a', { class: 'link-quiet', href: '#/settings/home' }, 'Edit Home screen'))),
     };
   }
@@ -189,34 +185,17 @@
     const plan = L.todayPlan(items, now);
     const els = [];
     const count = (n) => h('span', { class: 'count' }, String(n));
-    const partName = (p) => (p ? p[0].toUpperCase() + p.slice(1) : 'Any time');
-    // overdue and a good day to find them: grouped by part of day, the current part marked Now
+    // overdue and a good day to find them: their best day is today, or they are usually home on this weekday
     if (plan.goodToday.length) {
-      const box = h('div');
-      let last = null, list = null;
-      plan.goodToday.forEach((g) => {
-        if (g.part !== last) {
-          box.appendChild(h('div', { class: 'subhead' }, partName(g.part), g.part === plan.nowPart ? h('span', { class: 'now-pill' }, 'Now') : null));
-          list = h('div', { class: 'list', style: { marginBottom: '10px' } });
-          box.appendChild(list);
-          last = g.part;
-        }
-        list.appendChild(rvRow(g.item, { why: g.why, best: false }));
-      });
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue: good day today'), count(plan.goodToday.length)), box));
+      const list = h('div', { class: 'list' }, plan.goodToday.map((g) => rvRow(g.item, { why: g.why, best: false })));
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue: good day today'), count(plan.goodToday.length)), list));
     }
     if (plan.tagged.length) {
-      const box = h('div');
-      let last = null;
-      plan.tagged.forEach((t) => {
-        const part = t.tag.part || '';
-        if (part !== last) { box.appendChild(h('div', { class: 'subhead' }, partName(part), part === plan.nowPart ? h('span', { class: 'now-pill' }, 'Now') : null)); last = part; }
-        box.appendChild(h('div', { class: 'list', style: { marginBottom: '8px' } }, rvRow(t.item, {
-          best: false,
-          why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
-        })));
-      });
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Also good today'), count(plan.tagged.length)), box));
+      const list = h('div', { class: 'list' }, plan.tagged.map((t) => rvRow(t.item, {
+        best: false,
+        why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
+      })));
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Also good today'), count(plan.tagged.length)), list));
     }
     if (plan.otherDays.length) {
       els.push(h('details', { class: 'sec fold-sec' },
@@ -225,7 +204,7 @@
     }
     if (!els.length) {
       els.push(UI.emptyState('check', 'Nothing on your list today.',
-        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue or their best day is today. Visits scheduled for today are on Home.')));
+        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue or their best day is today.')));
     }
     return { title: lbl('today'), fab: true, el: h('div', null, els) };
   }
@@ -365,7 +344,7 @@
 
   function entryLabel(e) {
     if (e.type === 'nh') return lbl('notHome');
-    if (e.type === 'visit') return e.progress ? 'Study' : 'Visit';
+    if (e.type === 'visit') return e.progress || e.nextStart ? 'Study' : 'Visit';
     if (e.type === 'note') return 'Note';
     if (e.type === 'stage') {
       const to = L.stageOf(S.settings, e.to), from = L.stageOf(S.settings, e.from);
@@ -397,7 +376,7 @@
       const why = it.att.reason === 'visit' ? 'Based on the next visit date.' : 'Flagged after ' + it.att.threshold + ' days in ' + L.stageOf(S.settings, rv.stage).name + '.';
       els.push(h('div', { class: 'banner ' + (it.att.state === 'overdue' ? 'warn' : 'info') }, icon(it.att.state === 'overdue' ? 'alert' : 'clock'),
         h('div', { class: 'body' }, h('strong', null, L.attentionText(it.att) + '. '), UI.lastText(it) + '. ' + why,
-          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.snoozeSheet(rv.id) }, 'Snooze'), ' · ', h('button', { class: 'link', type: 'button', onclick: () => F.nextVisitSheet(rv.id) }, 'Set next visit')))));
+          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.snoozeSheet(rv.id) }, 'Snooze')))));
     }
     const pattern = L.notHomePattern(it, S.settings, new Date());
     if (pattern) {
@@ -423,9 +402,10 @@
           ? h('button', { class: 'snap-row study', type: 'button', onclick: () => F.studyEdit(rv.id) },
             h('div', { class: 'snap-k' }, 'Studying'),
             h('div', { class: 'snap-v study-pub' + (rv.publication ? '' : ' empty') }, rv.publication || 'Choose a publication'),
-            h('div', { class: 'snap-v' + (rv.progress ? '' : ' empty') }, rv.progress ? 'Stopped at ' + rv.progress + (lastStudy ? ' · ' + U.fmtDate(lastStudy.at) : '') : 'Add where you are'))
+            h('div', { class: 'study-line' }, h('span', { class: 'snap-k' }, 'Next'), h('span', { class: 'snap-v' + (rv.nextStart ? '' : ' empty') }, rv.nextStart || 'Tap to set')),
+            h('div', { class: 'study-line' }, h('span', { class: 'snap-k' }, 'Last covered'), h('span', { class: 'snap-v' + (rv.progress ? '' : ' empty') }, rv.progress ? rv.progress + (lastStudy ? ' · ' + U.fmtDate(lastStudy.at) : '') : '—')))
           : null,
-        !closed || rv.whatsNext
+        (!closed && !study) || rv.whatsNext
           ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
             h('div', { class: 'snap-k' }, 'Discuss next time'),
             h('div', { class: 'snap-v' + (rv.whatsNext ? '' : ' empty') }, rv.whatsNext || 'Tap to add'))
@@ -463,10 +443,8 @@
     const rows = [
       rv.howMet ? ['How we met', rv.howMet] : null,
       UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
-      rv.nextVisit ? ['Next visit', U.fmtDate(rv.nextVisit)] : null,
       rv.snoozedUntil && U.parseDateStr(rv.snoozedUntil) >= U.startOfDay(new Date()) ? ['Snoozed until', U.fmtDate(rv.snoozedUntil)] : null,
-      L.dayTagsOf(rv).length ? ['Best days', L.dayTagsOf(rv).map(L.tagLabel).join('\n')] : null,
-      (rv.bestTimes && rv.bestTimes.length) || rv.bestNote ? ['Best times', [L.describeWindows(rv.bestTimes), rv.bestNote].filter(Boolean).join('\n')] : null,
+      L.dayTagsOf(rv).length || rv.bestNote ? ['Best days', [L.tagsLabel(rv), rv.bestNote].filter(Boolean).join('\n')] : null,
       rv.interests ? ['Interests', rv.interests] : null,
       (rv.scriptures || []).length ? [lbl('scriptures'), rv.scriptures.join(', ')] : null,
     ].concat(custom).concat([
@@ -490,7 +468,7 @@
         ul.appendChild(h('li', { class: e.type },
           h('div', { class: 'what' }, entryLabel(e)),
           h('div', { class: 'when' }, U.fmtDateTime(e.at)),
-          e.progress ? h('div', { class: 'txt', style: { fontWeight: 500 } }, (e.publication ? e.publication + ' · ' : '') + e.progress) : null,
+          e.progress || e.nextStart ? h('div', { class: 'txt', style: { fontWeight: 500 } }, [e.publication, e.progress ? 'Covered ' + e.progress : null, e.nextStart ? 'next: ' + e.nextStart : null].filter(Boolean).join(' · ')) : null,
           e.text ? h('div', { class: 'txt' }, e.text) : null,
           (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
           UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null,
@@ -516,7 +494,6 @@
         return h('div', null,
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Set next visit date', () => F.nextVisitSheet(rv.id)) : null,
           !closed ? act('Snooze needs-attention', () => F.snoozeSheet(rv.id)) : null,
           act('Delete this ' + lbl('rv') + ' permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });

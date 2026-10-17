@@ -13,7 +13,7 @@
   const NOT_HOME = /^\s*(n\/?h|not\s*home|no\s*one\s*(was\s*)?home|nobody\s*home|no\s*answer)\b/i;
 
   // pairs: output of RV.smile.decode(bytes, {pairs: true})
-  // opts: { uuid: () => id, stageId, closedStageId, closedReason, partOf: (Date) => 'morning'|..., bestFromLast: bool }
+  // opts: { uuid: () => id, stageId, closedStageId, closedReason, bestFromLast: bool }
   function convert(pairs, opts) {
     opts = opts || {};
     const uuid = opts.uuid || (() => Math.random().toString(36).slice(2));
@@ -54,14 +54,14 @@
         result.entries.push({ id: uuid(), rvId, type: 'visit', at: v.at || createdAt, text: v.text, scriptures: v.scriptures, updatedAt: v.at || createdAt, deletedAt: null });
         result.notes++;
       });
-      // best day/time: when they were last actually home, from the newest note that is not a not-home
-      let dayPrimary = null;
-      if (opts.bestFromLast && opts.partOf) {
+      // best day: the weekday they were last actually home, from the newest note that is not a not-home
+      let bestDays = [];
+      if (opts.bestFromLast) {
         const home = visits.filter((v) => v.at && !NOT_HOME.test(v.text)).sort((a, b) => (a.at < b.at ? 1 : -1))[0];
-        if (home) { const d = new Date(home.at); dayPrimary = { day: d.getDay(), part: opts.partOf(d) }; }
+        if (home) bestDays = [new Date(home.at).getDay()];
       }
       const rv = {
-        id: rvId, dayPrimary, name, address, phone: str(first(person, 'Ph') || first(person, 'Phone') || first(person, 'Tel')),
+        id: rvId, bestDays, name, address, phone: str(first(person, 'Ph') || first(person, 'Phone') || first(person, 'Tel')),
         neighborhood: str(first(person, 'Sub') || first(person, 'Suburb')),
         stage: hidden && opts.closedStageId ? opts.closedStageId : opts.stageId,
         archiveReason: hidden && opts.closedStageId ? (opts.closedReason || 'other') : null,

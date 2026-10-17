@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.7.3';
+  RV.VERSION = '2.8.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -23,6 +23,7 @@
     if (S.settings.theme === 'light' || S.settings.theme === 'dark') html.setAttribute('data-theme', S.settings.theme);
     else html.removeAttribute('data-theme');
     html.style.setProperty('--scale', String(S.settings.textScale || 1));
+    html.setAttribute('data-accent', S.settings.accent === 'blue' ? 'blue' : 'purple');
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       const dark = S.settings.theme === 'dark' || (S.settings.theme === 'system' && root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches);
