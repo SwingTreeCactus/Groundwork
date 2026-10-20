@@ -928,3 +928,9 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .abody .ghead { margin: 12px 18px 6px; }
 .abody .list { gap: 0; }
 .abody .list .row { border-radius: 0; }
+
+/* v2.14.1: folder area headings stand apart from the names inside */
+.ahead { padding: 18px 16px 18px 18px; }
+.ahead .nm { font-size: 1.45rem; font-weight: 700; color: var(--red); line-height: 1.2; }
+.ahead .n { color: var(--red); font-size: 2.1rem; }
+.acard.open .ahead { background: var(--accent-soft); }
