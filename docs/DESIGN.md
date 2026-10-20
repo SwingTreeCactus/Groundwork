@@ -1,4 +1,4 @@
-# RV App: Design Doc (working name: JW-CRM)
+# Groundwork: Design Doc (formerly JW-CRM)
 
 Status: spec filled in by Mark on 2026-10-15. Phase 1 (local-only) is the first build.
 This file is the source of truth for later sessions, so keep it current when decisions change.
@@ -272,3 +272,12 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - VERSION 2.8.0, cache rvapp-v19. Tests: logic 44, smoke 191.
 - Packaging: release zips are named JW-CRM-v<VERSION>.zip (from 2.8.0).
 - v2.8.1: the neighborhood/area field (edit form and Quick add) is a pick list of saved and used areas with "+ Add new…" instead of free text. A new name that matches an existing one ignoring case and spacing picks the existing one. Settings > Lists and custom fields shows each area with its record count, flags near-duplicates, and offers Rename or merge (typing an existing name moves its records over) and Remove. Cache rvapp-v20.
+
+## 23. v2.9.0 one New RV form, three note fields
+
+- One form for new contacts (the + button and every Add RV spot; Quick add is gone, `F.quickAdd` now opens it). Short: Name, Address, Area, "What did you discuss?". Filled in: Initial Call, House to house, today as a best day, the running campaign. "More details" expands phone, stage, how we met, household notes, best days, discuss next time, tags, custom fields, campaign switch and the not-home banner switch in place, keeping what was typed. The note becomes the first visit (Last visit); for a Yet to Contact stage it goes to household notes. Editing opens the full form with no visit note.
+- Note fields are Household notes, the visit note, and Discuss next time. Interests and questions and Scriptures discussed are removed from the forms and the visit sheet; on load, existing interests and record-level scriptures are appended once to household notes ("Interests: …", "Scriptures: …") and cleared. Entry-level scriptures already in the timeline stay.
+- How we met: "Door" renamed "House to house" (list and records, migrated on load) and is the default for new contacts and Ministry Assistant imports.
+- VERSION 2.9.0, cache rvapp-v21. Smoke tests 212.
+- v2.9.1: new app icon (house-shaped speech bubble with three dots, on #5B3E96), favicons and maskable icons in icons/, rebuilt from the brand guide geometry; manifest, index.html and sw.js updated. See docs/BRAND.md. Cache rvapp-v22.
+- v2.9.2: app renamed Groundwork (title, home-screen name, About, privacy page, Drive backup file name "Groundwork backup.json"). Repo and web address unchanged. Release zips are now named Groundwork-v<VERSION>.zip. Cache rvapp-v23.

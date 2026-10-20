@@ -6,7 +6,7 @@
   // Home is for planning, not for work lists. The active campaign banner is automatic (not a card).
   const HOME_CARD_NAMES = {
     topics: 'Topics',
-    quickAdd: 'Quick add',
+    quickAdd: 'New RV button',
     recent: 'Recently added',
     likelyHome: 'Likely home right now',
   };
@@ -71,7 +71,7 @@
       notHomeBanner: { on: true, minAttempts: 2 },
       lists: {
         neighborhoods: [],
-        howMet: ['Door', 'Street', 'Referral', 'Phone or letter', 'Other'],
+        howMet: ['House to house', 'Street', 'Referral', 'Phone or letter', 'Other'],
       },
       customFields: [],
       savedViews: [],
@@ -92,6 +92,8 @@
     out.version = d.version;
     if (!Array.isArray(out.stages) || !out.stages.length) out.stages = d.stages;
     if (!out.stages.some((s) => s.closed)) out.stages.push(d.stages[d.stages.length - 1]);
+    // 2.9: "Door" became "House to house" (the default for new contacts)
+    if (out.lists && Array.isArray(out.lists.howMet)) out.lists.howMet = out.lists.howMet.map((x) => (x === 'Door' ? 'House to house' : x));
     // 2.7.2: overdue after 30 days by default. Move old untouched defaults (7, 7, 14, 14) once; values set by hand stay.
     if (!saved.overdue30) {
       const old = { initial: 7, cultivating: 7, return: 14 };

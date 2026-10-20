@@ -41,9 +41,26 @@
     if (!saved || (saved.version || 1) < S.settings.version) await DB.setMeta('settings', S.settings);
     await migrateLib();
     await migrateBestDays();
+    await migrateNotes();
     S.ready = true;
     emit();
   }
+
+  // 2.9: three note fields. Interests and record-level scriptures fold into household notes once; "Door" became "House to house".
+  async function migrateNotes() {
+    const changed = [];
+    for (const r of S.rvs) {
+      let hit = false;
+      const add = [];
+      if (r.interests && String(r.interests).trim()) { add.push('Interests: ' + String(r.interests).trim()); r.interests = ''; hit = true; }
+      if (Array.isArray(r.scriptures) && r.scriptures.length) { add.push(lbl0('scriptures') + ': ' + r.scriptures.join(', ')); r.scriptures = []; hit = true; }
+      if (add.length) r.notes = [String(r.notes || '').trim()].concat(add).filter(Boolean).join('\n');
+      if (r.howMet === 'Door') { r.howMet = 'House to house'; hit = true; }
+      if (hit) { touch(r); changed.push(r); }
+    }
+    if (changed.length) await DB.putMany('rvs', changed);
+  }
+  const lbl0 = (k) => (S.settings.labels && S.settings.labels[k]) || 'Scriptures';
 
   // 2.8: best days are a set of weekdays. Older records had a primary/secondary day with a part of day.
   async function migrateBestDays() {
@@ -205,7 +222,6 @@
     if (typeof o.progress === 'string' && o.progress.trim()) rv.progress = o.progress.trim();
     if (typeof o.nextStart === 'string') rv.nextStart = o.nextStart.trim();
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
-    if (o.scriptures && o.scriptures.length) rv.scriptures = U.uniq((rv.scriptures || []).concat(o.scriptures));
     touch(rv);
     persist('rvs', rv);
     let stageRes = null;

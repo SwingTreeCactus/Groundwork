@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.8.1';
+  RV.VERSION = '2.9.2';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -11,7 +11,7 @@
   const topbar = h('header', { class: 'topbar' });
   const statusBar = h('div', { style: { maxWidth: '640px', margin: '0 auto', width: '100%', padding: '10px 16px 0' } });
   const view = h('main', { class: 'view', id: 'view', tabindex: '-1' });
-  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': 'Quick add', onclick: () => RV.forms.quickAdd() }, icon('plus', 26));
+  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': 'New ' + RV.ui.lbl('rv'), onclick: () => RV.forms.rvForm() }, icon('plus', 26));
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Main' }, h('div', { class: 'inner' }));
   let current = null;
   let lastHash = null;
@@ -120,7 +120,7 @@
     view.replaceChildren(screen.el);
     fab.hidden = !screen.fab;
     document.body.classList.toggle('has-fab', !!screen.fab);
-    document.title = (screen.title ? screen.title + ' · ' : '') + 'JW-CRM';
+    document.title = (screen.title ? screen.title + ' · ' : '') + 'Groundwork';
     renderTabs();
     renderStatus();
     lastHash = hash;

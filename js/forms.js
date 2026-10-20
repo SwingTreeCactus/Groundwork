@@ -57,30 +57,35 @@
   }
 
   // ---------- add / edit RV ----------
+  // One form. New: Name, Address, Area and "What did you discuss?", with More details expanding the rest in place.
+  // Filled in for a new contact: Initial Call, House to house, today as a best day, the running campaign.
+  // Edit: everything shown.
+  const HOUSE = 'House to house';
   function rvForm(existing, opts) {
     opts = opts || {};
     const rv = existing || {};
     const isNew = !existing;
     const isClosed = !isNew && L.isClosed(S.settings, rv);
+    const howMetDefault = isNew ? (S.settings.lists.howMet.includes(HOUSE) ? HOUSE : '') : (rv.howMet || '');
     const f = {
-      name: h('input', { type: 'text', value: rv.name || opts.name || '', autocomplete: 'off', 'data-autofocus': true, required: true }),
+      name: h('input', { type: 'text', value: rv.name || opts.name || '', autocomplete: 'off', 'data-autofocus': true, required: true, placeholder: isNew ? 'Name or household' : '' }),
       address: h('input', { type: 'text', value: rv.address || '', autocomplete: 'off' }),
       neighborhood: areaPicker(rv.neighborhood),
+      visit: h('textarea', { placeholder: 'Optional', 'aria-label': 'What did you discuss?', style: { minHeight: '96px' } }),
       phone: h('input', { type: 'tel', value: rv.phone || '', autocomplete: 'off' }),
       howMet: select([{ value: '', label: '(not set)' }].concat(
-        S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), rv.howMet || ''),
+        S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), howMetDefault),
       stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
       publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
       progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' }),
       nextStart: h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' }),
-      bestNote: h('input', { type: 'text', value: rv.bestNote || '', placeholder: 'e.g. works nights, text first' }),
       notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
       whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
-      interests: h('textarea', { value: rv.interests || '', placeholder: 'Interests, questions' }),
-      scriptures: h('input', { type: 'text', value: (rv.scriptures || []).join(', '), placeholder: 'Separate with commas' }),
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
       nhOff: h('input', { type: 'checkbox', checked: !!rv.nhBannerOff }),
     };
+    const camp = isNew ? ST.activeCampaign() : null;
+    const campOn = h('input', { type: 'checkbox', checked: true });
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
     const pubList = h('datalist', { id: 'pub-list' }, ST.publications().map((n) => h('option', { value: n })));
     const studyBox = h('div', null, field('Publication', f.publication), h('div', { class: 'two' }, field('Last covered', f.progress), field('Start next time', f.nextStart)));
@@ -92,10 +97,35 @@
     };
     f.stage.addEventListener('change', syncStudy);
     syncStudy();
-    const bestDays = daysPicker(L.bestDaysOf(rv));
+    const bestDays = daysPicker(isNew ? [new Date().getDay()] : L.bestDaysOf(rv));
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
     return sheet(isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
+      const more = h('div', { class: 'more-fields' },
+        field('Phone', f.phone),
+        h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
+        studyBox,
+        field('Household notes', f.notes),
+        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
+        nextField,
+        field('Tags', f.tags),
+        customInputs.map((ci) => field(ci.c.name, ci.input)),
+        camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
+        h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this ' + lbl('rv')),
+        isNew ? null : h('button', {
+          class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
+          onclick: async () => {
+            const ok = await UI.confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
+            if (!ok) return;
+            close();
+            ST.deleteRv(rv.id);
+            location.hash = '#/rvs';
+            toast('Deleted ' + rv.name);
+          },
+        }, icon('trash', 18), 'Delete this ' + lbl('rv')));
+      more.hidden = isNew;
+      const moreBtn = isNew ? h('button', { class: 'btn ghost more-btn', type: 'button', onclick: () => { more.hidden = false; moreBtn.hidden = true; } }, icon('down', 18), 'More details') : null;
+
       const form = h('form', {
         onsubmit: async (e) => {
           e.preventDefault();
@@ -105,7 +135,7 @@
             name, address: f.address.value.trim(), neighborhood: f.neighborhood.get(), phone: f.phone.value.trim(),
             howMet: f.howMet.value, bestDays: bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
             publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
-            notes: f.notes.value.trim(), interests: f.interests.value.trim(), scriptures: U.splitList(f.scriptures.value), tags: U.splitList(f.tags.value),
+            notes: f.notes.value.trim(), tags: U.splitList(f.tags.value),
             nhBannerOff: f.nhOff.checked,
             custom: Object.assign({}, rv.custom || {}),
           };
@@ -126,7 +156,17 @@
           }
           let saved;
           if (isNew) {
-            saved = ST.addRv(Object.assign(data, { stage: f.stage.value }));
+            const tagged = camp && campOn.checked ? camp : null;
+            let text = f.visit.value.trim();
+            if (!text) text = L.quickAddFallback(tagged, ST.featuredTopics());
+            const isFirstStage = S.settings.stages[0].id === f.stage.value;
+            data.stage = f.stage.value;
+            data.campaignId = tagged ? tagged.id : null;
+            // the note from meeting them is the first visit; for someone not yet contacted it goes to household notes
+            if (text && isFirstStage) data.notes = [data.notes, text].filter(Boolean).join('\n');
+            saved = ST.addRv(data);
+            if (!isFirstStage) ST.addEntry(saved.id, 'visit', { text, campaignId: tagged ? tagged.id : null });
+            toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
           } else {
             saved = ST.updateRv(rv.id, data);
             if (!isClosed && f.stage.value !== rv.stage) ST.setStage(rv.id, f.stage.value);
@@ -139,92 +179,18 @@
         field('Name', f.name),
         field('Address', f.address),
         field(lbl('neighborhood'), f.neighborhood.el),
-        field('Phone', f.phone),
-        h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
-        studyBox,
-        nextField,
-        field('Household notes', f.notes),
-        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
-        field('Interests and questions', f.interests),
-        field(lbl('scriptures') + ' discussed', f.scriptures),
-        field('Tags', f.tags),
-        customInputs.map((ci) => field(ci.c.name, ci.input)),
-        h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this ' + lbl('rv')),
-        isNew ? null : h('button', {
-          class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
-          onclick: async () => {
-            const ok = await UI.confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
-            if (!ok) return;
-            close();
-            ST.deleteRv(rv.id);
-            location.hash = '#/rvs';
-            toast('Deleted ' + rv.name);
-          },
-        }, icon('trash', 18), 'Delete this ' + lbl('rv')),
+        isNew ? field('What did you discuss?', f.visit) : null,
+        moreBtn,
+        more,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, 'Save')));
+          h('button', { class: 'btn primary', type: 'submit' }, isNew ? 'Add' : 'Save')));
       return form;
     });
   }
 
-  // ---------- quick add ----------
-  // The field tool: stamps today's day and part of day as the primary best-day tag, tags the active
-  // campaign (switch it off to skip), and if the note is blank records the live campaign and topics.
-  function quickAdd(opts) {
-    opts = opts || {};
-    const name = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, placeholder: 'Name or household' });
-    const address = h('input', { type: 'text', autocomplete: 'off', placeholder: 'Optional' });
-    const nb = areaPicker('');
-    const note = h('textarea', { placeholder: 'Note (optional)', style: { minHeight: '80px' } });
-    const stage = select(stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id);
-    const camp = ST.activeCampaign();
-    const campOn = h('input', { type: 'checkbox', checked: true });
-    sheet('Quick add ' + lbl('rv'), (close) =>
-      h('form', {
-        onsubmit: async (e) => {
-          e.preventDefault();
-          const nm = name.value.trim();
-          if (!nm) { name.focus(); return; }
-          const data = { name: nm, address: address.value.trim(), neighborhood: nb.get(), stage: stage.value };
-          if (data.address) {
-            const dups = L.duplicateMatches(data, S.rvs);
-            if (dups.length) {
-              const dnc = dups.find((d) => L.isDNC(S.settings, d));
-              const ok = await confirmDialog({
-                title: dnc ? 'Do not call on file' : 'Possible duplicate',
-                message: dups.slice(0, 3).map((d) => d.name + (d.address ? ' (' + d.address + ')' : '')).join('\n') + (dnc ? '\n\nThis address matches a Do not call record.' : '\n\nThis address is already saved.'),
-                confirmText: 'Add anyway', danger: !!dnc,
-              });
-              if (!ok) return;
-            }
-          }
-          const now = new Date();
-          const tagged = camp && campOn.checked ? camp : null;
-          let text = note.value.trim();
-          if (!text) text = L.quickAddFallback(camp, ST.featuredTopics());
-          const isFirstStage = S.settings.stages[0].id === stage.value;
-          data.bestDays = [now.getDay()];
-          data.campaignId = tagged ? tagged.id : null;
-          if (text && isFirstStage) data.notes = text;
-          const rv = ST.addRv(data);
-          // meeting someone counts as a contact, so past the first stage it is recorded as the first visit
-          if (!isFirstStage) ST.addEntry(rv.id, 'visit', { text, campaignId: tagged ? tagged.id : null });
-          close();
-          toast('Added ' + rv.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + rv.id; } }] });
-          if (opts.onSaved) opts.onSaved(rv);
-        },
-      },
-        field('Name', name),
-        field('Address', address),
-        field(lbl('neighborhood'), nb.el),
-        field('Note', note),
-        field('Stage', stage),
-        camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
-        h('div', { class: 'actions' },
-          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, 'Add'))));
-  }
+  // Older name for the same form.
+  const quickAdd = (opts) => rvForm(null, opts);
 
   // ---------- record visit ----------
   function presetDates(input) {
@@ -258,7 +224,6 @@
     const stage = select(stageOptions(), autoStage);
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
-    const extra = h('input', { type: 'text', placeholder: 'Scriptures' });
     const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
@@ -286,7 +251,6 @@
           const d = UI.parseLocalDT(when.value);
           const res = ST.logVisit(rvId, {
             text: text.value,
-            scriptures: U.splitList(extra.value),
             whatsNext: study ? undefined : whatsNext.value,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
             publication: study ? pub.value : undefined,
@@ -315,7 +279,6 @@
           h('summary', null, icon('down', 18), 'More details'),
           field('When', when),
           field('Stage', stage),
-          field(lbl('scriptures') + ' discussed', extra),
           field('Tags', tags)),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),

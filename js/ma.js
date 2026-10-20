@@ -61,7 +61,7 @@
         if (home) bestDays = [new Date(home.at).getDay()];
       }
       const rv = {
-        id: rvId, bestDays, name, address, phone: str(first(person, 'Ph') || first(person, 'Phone') || first(person, 'Tel')),
+        id: rvId, bestDays, howMet: opts.howMet || '', name, address, phone: str(first(person, 'Ph') || first(person, 'Phone') || first(person, 'Tel')),
         neighborhood: str(first(person, 'Sub') || first(person, 'Suburb')),
         stage: hidden && opts.closedStageId ? opts.closedStageId : opts.stageId,
         archiveReason: hidden && opts.closedStageId ? (opts.closedReason || 'other') : null,

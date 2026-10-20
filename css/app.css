@@ -796,3 +796,7 @@ details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
 .dup-hint { color: var(--red); font-weight: 500; }
 .field > .list + .btn { margin-top: 10px; }
 .list + .btn.sm { margin-top: 10px; }
+
+/* v2.9: New RV form, More details */
+.more-btn { width: 100%; justify-content: center; color: var(--muted); margin: 2px 0 6px; }
+.more-fields { animation: up .15s ease-out; }

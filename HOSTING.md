@@ -1,4 +1,4 @@
-# Putting JW-CRM on your phone (free)
+# Putting Groundwork on your phone (free)
 
 1. Make a free GitHub account, create a new repository (Public is fine; the app has no data in it. Your records live only on your phone).
 2. Upload everything in this folder (index.html, sw.js, manifest.webmanifest, css/, js/, icons/) to the repository root.

@@ -409,7 +409,7 @@
       const pairs = RV.smile.decode(bytes, { pairs: true });
       const closed = S.settings.stages.find((s) => s.closed);
       parsed = (stageId, skipDup, bestFromLast) => {
-        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', bestFromLast });
+        const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', bestFromLast, howMet: S.settings.lists.howMet.includes('House to house') ? 'House to house' : '' });
         res.rvs = res.rvs.map((r) => ST.blankRv(r));
         let dups = 0;
         const seen = [];
@@ -633,7 +633,7 @@
   function about() {
     return page('About', [
       h('div', { class: 'card stack' },
-        h('div', { style: { fontWeight: 600 } }, 'JW-CRM (working name) · version ' + RV.VERSION),
+        h('div', { style: { fontWeight: 600 } }, 'Groundwork · version ' + RV.VERSION),
         h('div', { class: 'muted small' }, 'Android: Chrome menu > Install app. iPhone: Safari Share > Add to Home Screen.'),
         h('a', { class: 'muted small', href: 'privacy.html', target: '_blank', rel: 'noopener' }, 'Privacy policy')),
     ], { noRerender: true });

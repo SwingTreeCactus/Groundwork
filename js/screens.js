@@ -445,8 +445,6 @@
       UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
       rv.snoozedUntil && U.parseDateStr(rv.snoozedUntil) >= U.startOfDay(new Date()) ? ['Snoozed until', U.fmtDate(rv.snoozedUntil)] : null,
       L.dayTagsOf(rv).length || rv.bestNote ? ['Best days', [L.tagsLabel(rv), rv.bestNote].filter(Boolean).join('\n')] : null,
-      rv.interests ? ['Interests', rv.interests] : null,
-      (rv.scriptures || []).length ? [lbl('scriptures'), rv.scriptures.join(', ')] : null,
     ].concat(custom).concat([
       ['Activity', it.visits + ' visits · ' + it.nh + ' ' + lbl('notHome').toLowerCase()],
       ['Added', U.fmtDate(new Date(rv.createdAt))],
