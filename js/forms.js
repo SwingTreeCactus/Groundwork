@@ -265,7 +265,7 @@
         },
       },
         tagList, pubList,
-        study ? field('Publication', pub) : null,
+        study && !rv.publication ? field('Publication', pub) : null,
         study ? h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)) : null,
         study ? null : h('div', { class: 'field note-field' }, text,
           h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')),
@@ -352,16 +352,14 @@
 
 
   // quick edit of what they are studying and where they are
+  // Tapping the Studying block only sets where to start next time; the publication is changed in Edit.
   function studyEdit(rvId) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
-    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-e', autocomplete: 'off', placeholder: 'Publication', 'data-autofocus': true });
-    const prog = h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' });
-    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' });
-    sheet('Studying', (close) =>
-      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), progress: prog.value.trim(), nextStart: nxt.value.trim() }); close(); } },
-        h('datalist', { id: 'pub-list-e' }, ST.publications().map((n) => h('option', { value: n }))),
-        field('Publication', pub), field('Start next time', nxt), field('Last covered', prog),
+    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': true });
+    sheet('Start next time', (close) =>
+      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { nextStart: nxt.value.trim() }); close(); } },
+        field(rv.publication || 'Next time', nxt),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
