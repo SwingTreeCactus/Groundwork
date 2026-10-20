@@ -184,18 +184,19 @@
     const now = new Date();
     const plan = L.todayPlan(items, now);
     const els = [];
+    const dayName = U.DAYS[now.getDay()];
     const count = (n) => h('span', { class: 'count' }, String(n));
     // overdue and a good day to find them: their best day is today, or they are usually home on this weekday
     if (plan.goodToday.length) {
       const list = h('div', { class: 'list' }, plan.goodToday.map((g) => rvRow(g.item, { why: g.why, best: false })));
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Overdue: good day today'), count(plan.goodToday.length)), list));
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, dayName + ': overdue'), count(plan.goodToday.length)), list));
     }
     if (plan.tagged.length) {
       const list = h('div', { class: 'list' }, plan.tagged.map((t) => rvRow(t.item, {
         best: false,
         why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
       })));
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, 'Also good today'), count(plan.tagged.length)), list));
+      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, dayName + ': also good'), count(plan.tagged.length)), list));
     }
     if (plan.otherDays.length) {
       els.push(h('details', { class: 'sec fold-sec' },
