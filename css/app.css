@@ -901,3 +901,14 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .atile { background: var(--accent); color: var(--accent-fg); }
 .atile .sub { color: var(--accent-fg); font-weight: 600; }
 .atile .sub.calm { color: var(--accent-fg); opacity: .6; font-weight: 400; }
+
+/* v2.13: person screen: tappable address (directions) and phone (call), compact study block */
+.linkline { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 6px 0; font: inherit; font-size: 1rem; color: var(--fg); text-align: left; cursor: pointer; }
+.linkline .lt { flex: 1; min-width: 0; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.linkline .icon, .linkline svg { flex: none; color: var(--red); }
+.linkline:active { opacity: .6; }
+.phoneline { display: flex; align-items: center; gap: 6px; }
+.phoneline .linkline { flex: 1; }
+.card .snap-row.study2 { background: transparent; border-radius: 0; padding: 10px 0; border-top: 1px solid var(--line); }
+.snap-row.study2 .snap-v.pub { font-weight: 600; }
+.snap-row.study2 .study-sub { font-size: .9rem; color: var(--muted); margin-top: 2px; }

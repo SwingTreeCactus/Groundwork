@@ -507,11 +507,10 @@
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
         study
-          ? h('button', { class: 'snap-row study', type: 'button', onclick: () => F.studyEdit(rv.id) },
+          ? h('button', { class: 'snap-row study2', type: 'button', onclick: () => F.studyEdit(rv.id) },
             h('div', { class: 'snap-k' }, 'Studying'),
-            h('div', { class: 'snap-v study-pub' + (rv.publication ? '' : ' empty') }, rv.publication || 'Choose a publication'),
-            h('div', { class: 'study-line' }, h('span', { class: 'snap-k' }, 'Next'), h('span', { class: 'snap-v' + (rv.nextStart ? '' : ' empty') }, rv.nextStart || 'Tap to set')),
-            h('div', { class: 'study-line' }, h('span', { class: 'snap-k' }, 'Last covered'), h('span', { class: 'snap-v' + (rv.progress ? '' : ' empty') }, rv.progress ? rv.progress + (lastStudy ? ' · ' + U.fmtDate(lastStudy.at) : '') : '—')))
+            h('div', { class: 'snap-v' + (rv.publication ? ' pub' : ' empty') }, rv.publication || 'Choose a publication'),
+            h('div', { class: 'study-sub' }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
           : null,
         (!closed && !study) || rv.whatsNext
           ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
@@ -526,23 +525,22 @@
       : null;
     const head = h('section', { class: 'card' },
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
-      rv.address ? h('div', null, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')) : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
-      rv.phone ? h('div', { class: 'muted' }, rv.phone) : null,
+      rv.address
+        ? h('button', { class: 'linkline', type: 'button', 'aria-label': 'Directions to ' + rv.address, onclick: () => UI.openNav([rv.address, rv.neighborhood].filter(Boolean).join(', ')) },
+          h('span', { class: 'lt' }, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')), icon('navigation', 18))
+        : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
+      rv.phone
+        ? h('div', { class: 'phoneline' },
+          h('button', { class: 'linkline', type: 'button', 'aria-label': 'Call ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, h('span', { class: 'lt' }, rv.phone), icon('phone', 18)),
+          h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 18)))
+        : null,
       rv.notes ? h('div', { class: 'household' }, rv.notes) : null,
       snapshot,
       !closed
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), 'Record ' + lbl('notHomeShort')),
-            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
-          study ? null : h('div', { class: 'quicklog' },
-            h('span', { class: 'ql-label' }, 'One-tap log'),
-            ['Brief chat', 'Left literature'].map((t) => h('button', { class: 'btn sm ql', type: 'button', onclick: () => { const res = ST.logVisit(rv.id, { text: t }); toast(t + ' logged', { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] }); } }, icon('plus', 16), t))),
-          h('div', { class: 'btn-row' },
-            rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openTel(rv.phone) }, icon('phone', 16), 'Call') : null,
-            rv.phone ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openSms(rv.phone) }, icon('message', 16), 'Text') : null,
-            rv.address ? h('button', { class: 'btn sm', type: 'button', onclick: () => UI.openNav([rv.address, rv.neighborhood].filter(Boolean).join(', ')) }, icon('navigation', 16), 'Directions') : null,
-            h('button', { class: 'btn sm', type: 'button', onclick: () => F.stageFlow(rv.id) }, icon('shuffle', 16), 'Stage')))
+            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))))
         : null);
     els.push(head);
 
