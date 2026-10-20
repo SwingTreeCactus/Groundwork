@@ -588,10 +588,24 @@
             s.tokenOk ? h('button', { class: 'btn primary', type: 'button', disabled: s.busy, onclick: async () => { if (await D.backupNow()) toast('Saved to Google Drive'); } }, 'Back up now')
               : h('button', { class: 'btn primary', type: 'button', onclick: () => D.connect() }, 'Reconnect'),
             h('button', { class: 'btn', type: 'button', disabled: s.busy || !s.tokenOk, onclick: async () => {
-              try { const data = await D.fetchBackup(); if (!data) { toast('No backup found in Drive.'); return; } await restoreData(data); } catch (e) { toast(e.message || 'Could not read Drive.'); }
+              try {
+                const list = await D.listBackups();
+                if (!list.length) { toast('No backup found in Drive.'); return; }
+                let id = list[0].id;
+                if (list.length > 1) {
+                  id = await UI.pick('Restore from Google Drive', list.map((b, i) => ({
+                    value: b.id,
+                    label: i === 0 && !b.day ? 'Latest backup' : U.fmtDate(b.day),
+                    sub: i === 0 && !b.day ? (b.modifiedTime ? 'Saved ' + U.fmtDateTime(b.modifiedTime) : '') : 'Daily copy',
+                  })));
+                  if (!id) return;
+                }
+                const data = await D.fetchBackup(id);
+                await restoreData(data);
+              } catch (e) { toast(e.message || 'Could not read Drive.'); }
             } }, 'Restore')),
           h('button', { class: 'link-quiet', type: 'button', style: { alignSelf: 'flex-start', background: 'none', border: 0, cursor: 'pointer' }, onclick: async () => {
-            if (await confirmDialog({ title: 'Disconnect Google Drive?', message: 'The backup file stays in your Drive.', confirmText: 'Disconnect' })) D.disconnect();
+            if (await confirmDialog({ title: 'Disconnect Google Drive?', message: 'The Groundwork folder and its backups stay in your Drive.', confirmText: 'Disconnect' })) D.disconnect();
           } }, 'Disconnect')));
       }
       box.replaceChildren(...kids);
