@@ -869,3 +869,12 @@ details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
 button.link-quiet { background: none; border: 0; font: inherit; color: var(--muted); cursor: pointer; }
 .fsheet .link-quiet { font-size: .92rem; }
 .wopt.sel { width: 188px; margin-left: -94px; }
+
+/* v2.12: Today circles all white and more prominent */
+.circ { width: min(132px, 36vw); background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 18px rgba(0, 0, 0, .07); }
+.circ.study { background: var(--surface); color: var(--fg); }
+.circ.zero { opacity: 1; }
+.circ.zero .num { color: var(--muted); opacity: .5; }
+.circ .num { font-size: 3.6rem; }
+:root[data-theme="dark"] .circ { box-shadow: none; background: var(--surface2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .circ { box-shadow: none; background: var(--surface2); } }
