@@ -896,3 +896,8 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .upn { display: flex; justify-content: space-between; align-items: baseline; font-size: .95rem; font-weight: 600; margin: 18px 6px 8px; }
 .upn .muted { font-weight: 400; font-size: .88rem; }
 .atile .sub.calm { color: var(--muted); font-weight: 400; }
+
+/* v2.12.1: area tiles follow the Today circles: ink in light mode, white in dark mode */
+.atile { background: var(--accent); color: var(--accent-fg); }
+.atile .sub { color: var(--accent-fg); font-weight: 600; }
+.atile .sub.calm { color: var(--accent-fg); opacity: .6; font-weight: 400; }

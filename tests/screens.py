@@ -1,7 +1,7 @@
 """Screen checks for Today and RVs with 14 sample people. Run: python3 tests/screens.py . <screenshot folder>"""
 import http.server, socketserver, threading, functools, sys, json
 from playwright.sync_api import sync_playwright
-ROOT, OUT = sys.argv[1], sys.argv[2]; PORT=8782
+ROOT, OUT = sys.argv[1], sys.argv[2]; PORT=8783
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*a): pass
 socketserver.TCPServer.allow_reuse_address=True
