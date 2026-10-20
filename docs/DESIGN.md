@@ -291,3 +291,13 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - VERSION 2.10.0, cache rvapp-v26.
 - v2.10.1: Today's first two sections are headed by the weekday ("Tuesday: overdue", "Tuesday: also good") instead of "Overdue: good day today" and "Also good today". Cache rvapp-v27.
 - About page (about.html): public description for Google's brand review, linked from the privacy policy; use https://mygroundwork.app/about.html as the consent screen home page.
+
+## 25. Planned v2.11: Today dashboard, simpler RVs page, calmer rows (agreed 2026-10-20, not built yet)
+
+Mockups were made in a session on 2026-10-20 (rendered with the real app styles and 14 sample people).
+- Today tab becomes a dashboard: a Today / All switch (pill segmented control, remembers last choice, opens on Today), a one-line total ("11 to see on Tuesday" / "14 RVs"), and one large circle per active stage (Doto number, stage name under it; 2-2-1 grid; empty stages dimmed; the study stage circle is solid). No overdue line under the circles. Tapping a circle opens that stage's list with the same Today/All scope, most urgent first.
+- Today scope: every active RV whose best day is today, or who is usually home on this weekday (visit history), or who has no best day set; snoozed and archived left out; anyone visited today drops off so the count goes down.
+- RVs page: search bar (kept) with one filter button beside it. Default order is longest since last visit first (no group headings), so nobody falls through the cracks. Search looks through everyone; an address match shows the address line with the match highlighted.
+- Filter and sort page (opened from the filter button): one horizontal picker wheel per category, iOS style: one continuous track, the choice centred on a raised pill, neighbours fading at the edges, wraps around, snaps on release. Sort (Longest since visit, Area, Name, Newest), Stage (Any stage + stages), Area (Any area + areas), Best day (Any day, Today, Mon..Sun, None set). A wheel off "Any" gets a purple outline. One choice per category (combinations go in Saved views). "Show N RVs" updates live; Reset; Saved views. On the list, the filter button turns solid with a count and removable chips show the active filters, with "N of M RVs · Clear all".
+- Rows everywhere: larger bold name; area (not address) with stage pips and stage name; then "Last 6 wk ago", shown in the accent colour when the person is due. NH and Map stacked on the right. No "Overdue" wording anywhere: badges and headings removed, settings labels say "due". Study-stage rows keep publication and next lesson.
+- Home: the New RV button card is removed (the + button covers it); the empty-state welcome card keeps its Add button.
