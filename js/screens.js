@@ -176,8 +176,7 @@
     const d = new Date();
     return {
       title: 'Groundwork', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
-        h('div', { style: { textAlign: 'center' } }, h('a', { class: 'link-quiet', href: '#/settings/home' }, 'Edit Home screen'))),
+      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items)),
     };
   }
 
