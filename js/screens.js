@@ -257,7 +257,40 @@
     return { stages: new Set(st.stage ? [st.stage] : active), neighborhood: st.neighborhood, bestDay: st.bestDay };
   }
 
-  function list() {
+  const NO_AREA = '-';
+  function areaGroups(live) {
+    const map = new Map();
+    for (const it of live) {
+      const k = it.rv.neighborhood || NO_AREA;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(it);
+    }
+    return Array.from(map.entries())
+      .map(([key, items]) => ({ key, name: key === NO_AREA ? 'No ' + lbl('neighborhood').toLowerCase() : key, items }))
+      .sort((a, b) => (a.key === NO_AREA) - (b.key === NO_AREA) || U.cmp(a.name, b.name));
+  }
+  // One area: likely home today first, everyone else underneath, each longest since a visit first.
+  function areaScreen(key) {
+    const name = key === NO_AREA ? 'No ' + lbl('neighborhood').toLowerCase() : key;
+    const box = h('div');
+    function paint() {
+      const now = new Date();
+      const all = ST.items();
+      const inArea = (i) => (i.rv.neighborhood || NO_AREA) === key;
+      const live = all.filter((i) => i.att.state !== 'closed' && inArea(i)).sort(L.SORTS.oldest);
+      const home = new Set(L.likelyHomeToday(all, now).filter(inArea).map((i) => i.rv.id));
+      const top = live.filter((i) => home.has(i.rv.id)), rest = live.filter((i) => !home.has(i.rv.id));
+      const sec = (title, arr) => arr.length ? [h('div', { class: 'ghead' }, h('span', null, title), h('span', null, String(arr.length))), listOf(arr, { hideArea: true })] : [];
+      box.replaceChildren(...(live.length
+        ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest))
+        : [UI.emptyState('users', 'Nobody here yet.')]));
+    }
+    paint();
+    return { title: name, back: '#/rvs', fab: true, el: box, update: paint };
+  }
+
+  function list(sub, key) {
+    if (sub === 'area' && key) return areaScreen(key);
     const st = loadListState();
     let shown = 100;
     const search = h('input', { type: 'search', placeholder: 'Search name, address, notes…', value: '', autocomplete: 'off', 'aria-label': 'Search' });
@@ -330,6 +363,29 @@
       });
     }
 
+    // No search and no filters: one tile per area, then the few people who have gone longest without a visit.
+    function paintTiles(all) {
+      const live = all.filter((i) => i.att.state !== 'closed');
+      const groups = areaGroups(live);
+      const word = (k) => (k === 1 ? lbl('rv') : lbl('rvs'));
+      metaEl.replaceChildren(h('span', null, live.length + ' ' + word(live.length) + (groups.length ? ' in ' + groups.length + ' ' + (groups.length === 1 ? 'area' : 'areas') : '')));
+      if (!live.length) {
+        listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
+        return;
+      }
+      const next = live.slice().sort(L.SORTS.oldest).slice(0, 3);
+      listBox.replaceChildren(
+        h('div', { class: 'tgrid' }, groups.map((g) => {
+          const due = g.items.filter((i) => i.att.state === 'overdue').length;
+          return h('a', { class: 'atile', href: '#/rvs/area/' + encodeURIComponent(g.key) },
+            h('span', { class: 'n' }, String(g.items.length)),
+            h('span', { class: 'nm' }, g.name),
+            h('span', { class: 'sub' + (due ? '' : ' calm') }, due ? due + ' due' : 'All recent'));
+        })),
+        h('div', { class: 'upn' }, h('span', null, 'Up next'), h('span', { class: 'muted' }, 'longest since a visit')),
+        listOf(next));
+    }
+
     function refresh() {
       const all = ST.items();
       if (st.neighborhood && !ST.neighborhoods().includes(st.neighborhood)) st.neighborhood = '';
@@ -344,6 +400,7 @@
         st.bestDay ? ['bestDay', 'Best day: ' + dayLabel(st.bestDay)] : null,
       ].filter(Boolean).map(([k, label]) => h('button', { class: 'achip', type: 'button', 'aria-label': 'Remove ' + label, onclick: () => { st[k] = ''; saveListState(st); shown = 100; refresh(); } }, label, icon('x', 14)))));
       chipsBox.hidden = !chipsBox.firstChild;
+      if (!searching && !n) { paintTiles(all); return; }
       const filter = searching ? { stages: new Set(S.settings.stages.filter((x) => !x.closed).map((x) => x.id)), q: st.q } : Object.assign(listFilterFor(st), { q: '' });
       const rows = L.filterItems(all, filter, S.settings).sort(L.SORTS[st.sort] || L.SORTS.oldest);
       const total = all.filter((i) => i.att.state !== 'closed').length;

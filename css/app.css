@@ -878,3 +878,21 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .circ .num { font-size: 3.6rem; }
 :root[data-theme="dark"] .circ { box-shadow: none; background: var(--surface2); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .circ { box-shadow: none; background: var(--surface2); } }
+
+/* v2.12: Today circles ink in light mode, white in dark mode */
+.circ, .circ.study { background: var(--accent); color: var(--accent-fg); box-shadow: none; }
+:root[data-theme="dark"] .circ { background: var(--accent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .circ { background: var(--accent); } }
+.circ.zero { opacity: .28; }
+.circ.zero .num { color: inherit; opacity: 1; }
+
+/* v2.12: RVs area tiles */
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.atile { background: var(--surface); border-radius: 22px; padding: 16px 12px 14px; min-height: 124px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: inherit; transition: transform .1s; }
+.atile:active { transform: scale(.97); }
+.atile .n { font-family: var(--font-dot); font-weight: 700; font-size: 2.6rem; line-height: 1.1; }
+.atile .nm { font-size: 1.02rem; font-weight: 600; text-align: center; }
+.atile .sub { font-size: .82rem; color: var(--red); font-weight: 500; }
+.upn { display: flex; justify-content: space-between; align-items: baseline; font-size: .95rem; font-weight: 600; margin: 18px 6px 8px; }
+.upn .muted { font-weight: 400; font-size: .88rem; }
+.atile .sub.calm { color: var(--muted); font-weight: 400; }
