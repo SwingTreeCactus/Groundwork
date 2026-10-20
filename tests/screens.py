@@ -1,7 +1,7 @@
 """Screen checks for Today and RVs with 14 sample people. Run: python3 tests/screens.py . <screenshot folder>"""
 import http.server, socketserver, threading, functools, sys, json
 from playwright.sync_api import sync_playwright
-ROOT, OUT = sys.argv[1], sys.argv[2]; PORT=8783
+ROOT, OUT = sys.argv[1], sys.argv[2]; PORT=8786
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*a): pass
 socketserver.TCPServer.allow_reuse_address=True
@@ -81,6 +81,16 @@ with sync_playwright() as p:
     check(len(heads)==2 and heads[1]=='Others', 'everyone else in the area is listed underneath')
     check(pg.locator('.topbar h1').inner_text().strip()=='Oak Park', 'area screen is titled with the area')
     pg.goto(base+'#/rvs'); pg.wait_for_selector('.atile')
+    # Tiles / Folders switch
+    check(pg.locator('.vswitch button').count()==2, 'a Tiles / Folders switch replaces the summary line')
+    pg.click('.vswitch button:has-text("Folders")'); pg.wait_for_selector('.acard')
+    check(pg.locator('.acard').count()==3 and pg.locator('.abody').count()==0, 'Folders shows one closed folder per area')
+    pg.click('.acard:has-text("Oak Park") .ahead'); pg.wait_for_selector('.abody'); shot('folders')
+    first = pg.locator('.abody .list').nth(0).locator('.name').all_inner_texts()
+    check(sorted(first)==exp_home and pg.locator('.abody .ghead span:first-child').nth(0).inner_text().startswith('Likely home'), 'an open folder lists likely-home-today first')
+    pg.reload(); pg.wait_for_selector('.acard')
+    check(pg.locator('.atile').count()==0, 'the Folders choice is remembered')
+    pg.click('.vswitch button:has-text("Tiles")'); pg.wait_for_selector('.atile')
     # filter sheet
     pg.click('.fbtn'); pg.wait_for_selector('.wheel'); pg.wait_for_timeout(200); shot('filters')
     check(pg.locator('.wheel').count()==4, 'four picker wheels')

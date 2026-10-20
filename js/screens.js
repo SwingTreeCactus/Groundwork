@@ -268,21 +268,21 @@
       .map(([key, items]) => ({ key, name: key === NO_AREA ? 'No ' + lbl('neighborhood').toLowerCase() : key, items }))
       .sort((a, b) => (a.key === NO_AREA) - (b.key === NO_AREA) || U.cmp(a.name, b.name));
   }
-  // One area: likely home today first, everyone else underneath, each longest since a visit first.
+  // One area's people: likely home today first, everyone else underneath, each longest since a visit first.
+  function areaSections(key, all, now) {
+    const inArea = (i) => (i.rv.neighborhood || NO_AREA) === key;
+    const live = all.filter((i) => i.att.state !== 'closed' && inArea(i)).sort(L.SORTS.oldest);
+    const home = new Set(L.likelyHomeToday(all, now).filter(inArea).map((i) => i.rv.id));
+    const top = live.filter((i) => home.has(i.rv.id)), rest = live.filter((i) => !home.has(i.rv.id));
+    const sec = (title, arr) => arr.length ? [h('div', { class: 'ghead' }, h('span', null, title), h('span', null, String(arr.length))), listOf(arr, { hideArea: true })] : [];
+    return live.length ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest)) : [];
+  }
   function areaScreen(key) {
     const name = key === NO_AREA ? 'No ' + lbl('neighborhood').toLowerCase() : key;
     const box = h('div');
     function paint() {
-      const now = new Date();
-      const all = ST.items();
-      const inArea = (i) => (i.rv.neighborhood || NO_AREA) === key;
-      const live = all.filter((i) => i.att.state !== 'closed' && inArea(i)).sort(L.SORTS.oldest);
-      const home = new Set(L.likelyHomeToday(all, now).filter(inArea).map((i) => i.rv.id));
-      const top = live.filter((i) => home.has(i.rv.id)), rest = live.filter((i) => !home.has(i.rv.id));
-      const sec = (title, arr) => arr.length ? [h('div', { class: 'ghead' }, h('span', null, title), h('span', null, String(arr.length))), listOf(arr, { hideArea: true })] : [];
-      box.replaceChildren(...(live.length
-        ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest))
-        : [UI.emptyState('users', 'Nobody here yet.')]));
+      const nodes = areaSections(key, ST.items(), new Date());
+      box.replaceChildren(...(nodes.length ? nodes : [UI.emptyState('users', 'Nobody here yet.')]));
     }
     paint();
     return { title: name, back: '#/rvs', fab: true, el: box, update: paint };
@@ -363,19 +363,38 @@
     }
 
     // No search and no filters: one tile per area, then the few people who have gone longest without a visit.
+    // No search and no filters: the areas, as tiles or as folders (remembered).
+    const VIEW_KEY = 'rvapp.rvsView';
+    let view = (() => { try { return localStorage.getItem(VIEW_KEY) === 'folders' ? 'folders' : 'tiles'; } catch (e) { return 'tiles'; } })();
+    const openFolders = new Set();
     function paintTiles(all) {
       const live = all.filter((i) => i.att.state !== 'closed');
       const groups = areaGroups(live);
-      const word = (k) => (k === 1 ? lbl('rv') : lbl('rvs'));
-      metaEl.replaceChildren(h('span', null, live.length + ' ' + word(live.length) + (groups.length ? ' in ' + groups.length + ' ' + (groups.length === 1 ? 'area' : 'areas') : '')));
+      metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, [['tiles', 'Tiles'], ['folders', 'Folders']].map(([v, label]) =>
+        h('button', { type: 'button', class: v === view ? 'on' : '', 'aria-pressed': String(v === view), onclick: () => { view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
       if (!live.length) {
         listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
+        return;
+      }
+      const dueOf = (g) => g.items.filter((i) => i.att.state === 'overdue').length;
+      if (view === 'folders') {
+        const now = new Date();
+        listBox.replaceChildren(...groups.map((g) => {
+          const due = dueOf(g), open = openFolders.has(g.key);
+          const newest = g.items.reduce((m, i) => (i.last > m ? i.last : m), 0);
+          return h('section', { class: 'acard' + (open ? ' open' : '') },
+            h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => { if (open) openFolders.delete(g.key); else openFolders.add(g.key); refresh(); } },
+              h('span', { class: 't' }, h('span', { class: 'nm' }, g.name),
+                h('span', { class: 'sub' }, due ? h('b', null, due + ' due') : null, due ? ' · ' : null, 'last visit there ' + U.relTime(newest))),
+              h('span', { class: 'n' }, String(g.items.length)), icon(open ? 'up' : 'down', 20)),
+            open ? h('div', { class: 'abody' }, areaSections(g.key, all, now)) : null);
+        }));
         return;
       }
       const next = live.slice().sort(L.SORTS.oldest).slice(0, 3);
       listBox.replaceChildren(
         h('div', { class: 'tgrid' }, groups.map((g) => {
-          const due = g.items.filter((i) => i.att.state === 'overdue').length;
+          const due = dueOf(g);
           return h('a', { class: 'atile', href: '#/rvs/area/' + encodeURIComponent(g.key) },
             h('span', { class: 'n' }, String(g.items.length)),
             h('span', { class: 'nm' }, g.name),
