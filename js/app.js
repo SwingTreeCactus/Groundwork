@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.9.2';
+  RV.VERSION = '2.9.3';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -120,7 +120,7 @@
     view.replaceChildren(screen.el);
     fab.hidden = !screen.fab;
     document.body.classList.toggle('has-fab', !!screen.fab);
-    document.title = (screen.title ? screen.title + ' · ' : '') + 'Groundwork';
+    document.title = screen.title && screen.title !== 'Groundwork' ? screen.title + ' · Groundwork' : 'Groundwork';
     renderTabs();
     renderStatus();
     lastHash = hash;
@@ -213,9 +213,18 @@
   function registerSW() {
     if (root.RV_NO_SW || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
     const had = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service worker not registered', e));
+    // Look for a new version every time the app is opened or brought back, and switch to it on its own.
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+      const check = () => { reg.update().catch(() => {}); };
+      check();
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    }).catch((e) => console.warn('Service worker not registered', e));
+    let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (had) UI.toast('App updated.', { seconds: 12, actions: [{ label: 'Reload', fn: () => location.reload() }] });
+      if (!had || reloading) return;
+      // reload straight away unless a form is open; then offer it so nothing typed is lost
+      if (!document.querySelector('.overlay')) { reloading = true; location.reload(); return; }
+      UI.toast('New version ready.', { seconds: 30, actions: [{ label: 'Reload', fn: () => location.reload() }] });
     });
   }
 
