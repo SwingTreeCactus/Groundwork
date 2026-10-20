@@ -6,7 +6,6 @@
   // Home is for planning, not for work lists. The active campaign banner is automatic (not a card).
   const HOME_CARD_NAMES = {
     topics: 'Topics',
-    quickAdd: 'New RV button',
     recent: 'Recently added',
     likelyHome: 'Likely home right now',
   };
@@ -59,7 +58,6 @@
       points: { nh: 1, visit: 3, advance: 5, newRv: 2 },
       homeCards: [
         { id: 'topics', on: true },
-        { id: 'quickAdd', on: true },
         { id: 'recent', on: false },
         { id: 'likelyHome', on: false },
       ],

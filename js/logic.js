@@ -128,8 +128,8 @@
   };
   const SORT_NAMES = {
     attention: 'Needs attention first',
-    oldest: 'Longest since last visit',
-    neighborhood: 'Neighborhood and street',
+    oldest: 'Longest since visit',
+    neighborhood: 'Area',
     name: 'Name',
     newest: 'Newest first',
   };
@@ -317,6 +317,19 @@
     }
     goodToday.sort((a, b) => SORTS.attention(a.item, b.item));
     return { overdue, scheduled, tagged, goodToday, otherDays, nowPart };
+  }
+
+  // Everyone worth trying today (the Today dashboard): active, not snoozed, not visited today, and
+  // either their best day is today, they are usually home on this weekday, or they have no best day set.
+  function todaySet(items, now) {
+    now = now || new Date();
+    const dow = now.getDay();
+    const live = items.filter((i) => i.att.state !== 'closed' && i.att.state !== 'snoozed');
+    const likely = new Set(likelyHomeNow(live, now).map((x) => x.item.rv.id));
+    return live.filter((it) => {
+      if (it.entries.some((e) => e.type === 'visit' && sameDay(e.at, now))) return false;
+      return !dayTagsOf(it.rv).length || !!tagForDay(it.rv, dow) || likely.has(it.rv.id);
+    });
   }
 
   // The next `days` days (starting tomorrow): planned visit dates, plus RVs tagged for that weekday.
@@ -605,7 +618,7 @@
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
     suggestNext,
-    PARTS, validTag, dayTagsOf, bestDaysOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, forecast,
+    PARTS, validTag, dayTagsOf, bestDaysOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, todaySet, forecast,
     campaignStatus, activeCampaign, campaignOverlap, nextCampaign, quickAddFallback,
     funnel, effortEvents, effortSummary, reconsider, stuckInStage,
     IMPORT_FIELDS, guessMapping, parseLooseDate, importRows,

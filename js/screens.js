@@ -16,30 +16,39 @@
       ? h('button', {
         class: 'nhbtn', type: 'button', 'aria-label': lbl('notHome') + ' for ' + rv.name,
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.doNotHome(rv.id); },
-      }, 'Log ' + lbl('notHomeShort'))
+      }, lbl('notHomeShort'))
       : null;
     const addr = [rv.address, rv.neighborhood].filter(Boolean).join(', ');
     const navBtn = o.nh !== false && rv.address && it.att.state !== 'closed'
       ? h('button', {
         class: 'navbtn', type: 'button', 'aria-label': 'Directions to ' + rv.name,
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(addr); },
-      }, icon('navigation', 14), 'Map')
+      }, 'Map')
       : null;
-    const sub = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart) ? [rv.publication, rv.nextStart ? 'Next: ' + rv.nextStart : null].filter(Boolean).join(' · ') : UI.subtitle(rv);
-    return h('a', { class: 'row', href: '#/rv/' + rv.id },
+    const study = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart)
+      ? [rv.publication, rv.nextStart ? 'Next: ' + rv.nextStart : null].filter(Boolean).join(' · ') : '';
+    const area = o.hideArea ? '' : (rv.neighborhood || '');
+    const stage = it.att.state !== 'closed'
+      ? h('span', { class: 'stagebtn', role: 'button', tabindex: '0', 'aria-label': 'Change stage for ' + rv.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); F.stageFlow(rv.id); } }, stageBadge(rv.stage))
+      : stageBadge(rv.stage);
+    return h('a', { class: 'row rv2', href: '#/rv/' + rv.id },
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
-        sub ? h('div', { class: 'line2' }, sub) : null,
-        h('div', { class: 'line3' },
-          it.att.state !== 'closed'
-            ? h('span', { class: 'stagebtn', role: 'button', tabindex: '0', 'aria-label': 'Change stage for ' + rv.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); F.stageFlow(rv.id); } }, stageBadge(rv.stage))
-            : stageBadge(rv.stage),
-          dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null,
-          attBadge(it.att),
-          o.best !== false && L.dayTagsOf(rv).length ? h('span', { class: 'besttag' }, icon('clock', 13), L.tagsShort(rv)) : null,
-          o.noBestHint && !L.dayTagsOf(rv).length ? h('span', { class: 'besttag none' }, 'No best day') : null,
-          o.why ? h('span', { class: 'muted' }, o.why) : h('span', { class: 'muted' }, UI.lastText(it)))),
+        h('div', { class: 'line2' }, area ? h('span', { class: 'area' }, area) : null, area ? h('span', { class: 'sep' }, '·') : null, stage,
+          dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null),
+        o.hit ? h('div', { class: 'line2 hit' }, o.hit) : null,
+        study ? h('div', { class: 'line2' }, study) : null,
+        h('div', { class: 'line3' + (it.att.state === 'overdue' ? ' due' : '') }, UI.lastText(it))),
       (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, nhBtn, navBtn) : null);
+  }
+  // Highlights the first place a search token appears in text: returns a node, or null if none matches.
+  function hitLine(text, q) {
+    const t = String(text || ''), tokens = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+    for (const tok of tokens) {
+      const i = t.toLowerCase().indexOf(tok);
+      if (i >= 0) return h('span', null, t.slice(0, i), h('mark', null, t.slice(i, i + tok.length)), t.slice(i + tok.length));
+    }
+    return null;
   }
   function listOf(items, o) {
     return h('div', { class: 'list' }, items.map((it) => rvRow(it, o)));
@@ -101,8 +110,8 @@
   }
 
   // ---------- Home ----------
-  // Home is for planning: the live campaign, topics to review, and a way to add someone.
-  // The work lists (overdue, scheduled, tagged) live on Today.
+  // Home is for planning: the live campaign and topics to review. Adding someone is the + button;
+  // who to see lives on Today.
   function section(title, body, extra) {
     return h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, title), extra || null), body);
   }
@@ -141,11 +150,6 @@
           h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Add topic', onclick: () => libSheet('topic') }, icon('plus', 18)),
           h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, all.length > shown.length ? 'All ' + all.length : 'Manage')));
       },
-      quickAdd() {
-        return section('Add', h('div', { class: 'btn-row' },
-          h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'New ' + lbl('rv')),
-          h('button', { class: 'btn', type: 'button', onclick: () => F.rvForm(null) }, 'Full form')));
-      },
       recent() {
         const top = L.recentlyAdded(items, now).slice(0, 5);
         return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'None'));
@@ -178,147 +182,202 @@
   }
 
   // ---------- Today ----------
-  // Today = overdue people (good day today first) + RVs whose best day is today. Scheduled visits are on Home.
-  function today() {
+  // A dashboard: one circle per stage with how many people are in it, for today or for everyone.
+  // Today = best day is today, usually home on this weekday, or no best day set (not visited today, not snoozed).
+  const TODAY_KEY = 'rvapp.today';
+  const todayScope = () => { try { return localStorage.getItem(TODAY_KEY) === 'all' ? 'all' : 'today'; } catch (e) { return 'today'; } };
+  const setTodayScope = (v) => { try { localStorage.setItem(TODAY_KEY, v); } catch (e) { /* ignore */ } };
+  function todayPool(scope, now) {
     const items = ST.items();
-    const now = new Date();
-    const plan = L.todayPlan(items, now);
-    const els = [];
-    const dayName = U.DAYS[now.getDay()];
-    const count = (n) => h('span', { class: 'count' }, String(n));
-    // overdue and a good day to find them: their best day is today, or they are usually home on this weekday
-    if (plan.goodToday.length) {
-      const list = h('div', { class: 'list' }, plan.goodToday.map((g) => rvRow(g.item, { why: g.why, best: false })));
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, dayName + ': overdue'), count(plan.goodToday.length)), list));
+    return scope === 'all' ? items.filter((i) => i.att.state !== 'closed') : L.todaySet(items, now);
+  }
+  function seg(options, value, onPick) {
+    return h('div', { class: 'seg2', role: 'tablist' }, options.map(([v, label]) =>
+      h('button', { type: 'button', role: 'tab', class: v === value ? 'on' : '', 'aria-selected': String(v === value), onclick: () => onPick(v) }, label)));
+  }
+  function today(stageId) {
+    if (stageId) return todayStage(stageId);
+    const box = h('div', { class: 'dash' });
+    function paint() {
+      const now = new Date(), scope = todayScope();
+      const pool = todayPool(scope, now);
+      const stages = S.settings.stages.filter((x) => !x.closed);
+      const day = U.DAYS[now.getDay()];
+      box.replaceChildren(
+        seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
+        h('div', { class: 'dsum' }, h('b', null, String(pool.length)), scope === 'all' ? ' ' + (pool.length === 1 ? lbl('rv') : lbl('rvs')) : ' to see on ' + day),
+        h('div', { class: 'cgrid' }, stages.map((x, k) => {
+          const n = pool.filter((i) => i.rv.stage === x.id).length;
+          const wide = k === stages.length - 1 && stages.length % 2 === 1;
+          return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
+            h('span', { class: 'circ' + (n ? '' : ' zero') + (n && L.isStudyStage(S.settings, x.id) ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
+            h('span', { class: 'clab' }, x.name));
+        })));
     }
-    if (plan.tagged.length) {
-      const list = h('div', { class: 'list' }, plan.tagged.map((t) => rvRow(t.item, {
-        best: false,
-        why: [t.nhToday ? lbl('notHome') + ' earlier today' : null, UI.lastText(t.item)].filter(Boolean).join(' · '),
-      })));
-      els.push(h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, dayName + ': also good'), count(plan.tagged.length)), list));
+    paint();
+    return { title: lbl('today'), fab: true, el: box, update: paint };
+  }
+  function todayStage(stageId) {
+    const st = L.stageOf(S.settings, stageId);
+    const box = h('div');
+    function paint() {
+      const now = new Date(), scope = todayScope();
+      const rows = todayPool(scope, now).filter((i) => i.rv.stage === stageId).sort(L.SORTS.oldest);
+      box.replaceChildren(
+        seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
+        h('div', { class: 'dsum' }, h('b', null, String(rows.length)), scope === 'all' ? ' in ' + st.name : ' to see on ' + U.DAYS[now.getDay()]),
+        rows.length ? listOf(rows) : UI.emptyState('check', scope === 'all' ? 'Nobody in this stage.' : 'Nobody in this stage today.'));
     }
-    if (plan.otherDays.length) {
-      els.push(h('details', { class: 'sec fold-sec' },
-        h('summary', { class: 'sec-head' }, h('h2', null, 'Overdue: other days'), count(plan.otherDays.length), icon('down', 18)),
-        listOf(plan.otherDays, { noBestHint: true })));
-    }
-    if (!els.length) {
-      els.push(UI.emptyState('check', 'Nothing on your list today.',
-        h('div', { class: 'small', style: { marginTop: '6px' } }, 'People show up here when they are overdue or their best day is today.')));
-    }
-    return { title: lbl('today'), fab: true, el: h('div', null, els) };
+    paint();
+    return { title: st.name, back: '#/today', fab: true, el: box, update: paint };
   }
 
   // ---------- RV list ----------
+  // Search plus one filter button. Filters live on a separate page, one picker wheel per category.
+  // Default order: longest since the last visit first, so nobody falls through the cracks.
   const LS_KEY = 'rvapp.list';
+  const LIST_SORTS = [['oldest', 'Longest since visit'], ['neighborhood', 'Area'], ['name', 'Name'], ['newest', 'Newest']];
   function loadListState() {
     let st = {};
     try { st = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch (e) { st = {}; }
-    return { stages: Array.isArray(st.stages) ? st.stages : null, sort: L.SORTS[st.sort] ? st.sort : 'attention', neighborhood: st.neighborhood || '', bestDay: st.bestDay || '', q: '' };
+    const stage = typeof st.stage === 'string' ? st.stage : (Array.isArray(st.stages) && st.stages.length === 1 ? st.stages[0] : '');
+    return {
+      sort: LIST_SORTS.some(([k]) => k === st.sort) ? st.sort : 'oldest',
+      stage: S.settings.stages.some((x) => x.id === stage && !x.closed) ? stage : '',
+      neighborhood: st.neighborhood || '', bestDay: st.bestDay || '', q: '',
+    };
   }
   function saveListState(st) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ stages: st.stages, sort: st.sort, neighborhood: st.neighborhood, bestDay: st.bestDay })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ sort: st.sort, stage: st.stage, neighborhood: st.neighborhood, bestDay: st.bestDay })); } catch (e) { /* ignore */ }
+  }
+  const DAY_OPTS = () => [{ value: '', label: 'Any day' }, { value: 'today', label: 'Today' }]
+    .concat(U.DAYS.map((d, i) => ({ value: String(i), label: d }))).concat([{ value: 'none', label: 'None set' }]);
+  function listFilterFor(st) {
+    const active = S.settings.stages.filter((x) => !x.closed).map((x) => x.id);
+    return { stages: new Set(st.stage ? [st.stage] : active), neighborhood: st.neighborhood, bestDay: st.bestDay };
   }
 
   function list() {
     const st = loadListState();
     let shown = 100;
-    const stages = S.settings.stages;
-    const activeIds = () => stages.filter((s) => !s.closed).map((s) => s.id);
-    const selected = () => new Set(st.stages ? st.stages.filter((id) => stages.some((s) => s.id === id)) : activeIds());
-
     const search = h('input', { type: 'search', placeholder: 'Search name, address, notes…', value: '', autocomplete: 'off', 'aria-label': 'Search' });
     const onSearch = U.debounce(() => { if (st.q === search.value) return; st.q = search.value; shown = 100; refresh(); }, 120);
     ['input', 'search', 'change', 'compositionend', 'keyup'].forEach((ev) => search.addEventListener(ev, onSearch));
-    const chipsBox = h('div', { class: 'chips scroll' });
-    const sortSel = F.select(Object.keys(L.SORT_NAMES).map((k) => ({ value: k, label: L.SORT_NAMES[k] })), st.sort, { 'aria-label': 'Sort' });
-    sortSel.addEventListener('change', () => { st.sort = sortSel.value; saveListState(st); refresh(); });
-    const nbSel = h('select', { 'aria-label': lbl('neighborhood') });
-    const rebuildNb = () => {
-      nbSel.replaceChildren(h('option', { value: '' }, 'All ' + lbl('neighborhood').toLowerCase() + 's'));
-      ST.neighborhoods().forEach((n) => nbSel.appendChild(h('option', { value: n, selected: n === st.neighborhood }, n)));
-    };
-    nbSel.addEventListener('change', () => { st.neighborhood = nbSel.value; saveListState(st); refresh(); });
-    const daySel = F.select([{ value: '', label: 'Any day' }, { value: 'today', label: 'Good today' }]
-      .concat(U.DAYS.map((d, i) => ({ value: String(i), label: d }))).concat([{ value: 'none', label: 'No best day' }]), st.bestDay, { 'aria-label': 'Best day' });
-    daySel.addEventListener('change', () => { st.bestDay = daySel.value; saveListState(st); shown = 100; refresh(); });
-    const viewsBtn = h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Saved views', onclick: () => viewsSheet() }, icon('bookmark'));
-    const countEl = h('div', { class: 'muted small', style: { margin: '2px 2px 8px' } });
+    const filterBtn = h('button', { class: 'fbtn', type: 'button', 'aria-label': 'Filter and sort', onclick: () => filterSheet() }, icon('sliders', 22));
+    const chipsBox = h('div', { class: 'achips' });
+    const metaEl = h('div', { class: 'lmeta' });
     const listBox = h('div');
 
+    const activeCount = () => (st.stage ? 1 : 0) + (st.neighborhood ? 1 : 0) + (st.bestDay ? 1 : 0);
+    const dayLabel = (v) => (DAY_OPTS().find((x) => x.value === v) || {}).label || v;
+    function clearAll() { st.stage = ''; st.neighborhood = ''; st.bestDay = ''; saveListState(st); shown = 100; refresh(); }
+
+    function filterSheet() {
+      const all = ST.items();
+      sheet('Filter and sort', (close) => {
+        const go = h('button', { class: 'btn primary block', type: 'button', onclick: () => close() });
+        const wheels = {};
+        const upd = () => {
+          const n = L.filterItems(all, listFilterFor(st), S.settings).length;
+          go.textContent = 'Show ' + n + ' ' + (n === 1 ? lbl('rv') : lbl('rvs'));
+          saveListState(st); shown = 100; refresh();
+        };
+        const sec = (label, w) => h('div', { class: 'wsec' }, h('div', { class: 'wlab' }, label), w);
+        wheels.sort = UI.wheel(LIST_SORTS.map(([value, label]) => ({ value, label })), st.sort, (v) => { st.sort = v; upd(); }, { label: 'Sort' });
+        wheels.stage = UI.wheel([{ value: '', label: 'Any stage' }].concat(S.settings.stages.filter((x) => !x.closed).map((x) => ({ value: x.id, label: x.name }))), st.stage, (v) => { st.stage = v; upd(); }, { label: 'Stage', neutral: '' });
+        wheels.area = UI.wheel([{ value: '', label: 'Any ' + lbl('neighborhood').toLowerCase() }].concat(ST.neighborhoods().map((x) => ({ value: x, label: x }))), st.neighborhood, (v) => { st.neighborhood = v; upd(); }, { label: lbl('neighborhood'), neutral: '' });
+        wheels.day = UI.wheel(DAY_OPTS(), st.bestDay, (v) => { st.bestDay = v; upd(); }, { label: 'Best day', neutral: '' });
+        const reset = h('button', { class: 'link-quiet', type: 'button', onclick: () => {
+          st.sort = 'oldest'; st.stage = ''; st.neighborhood = ''; st.bestDay = '';
+          wheels.sort.setValue('oldest'); wheels.stage.setValue(''); wheels.area.setValue(''); wheels.day.setValue('');
+          upd();
+        } }, 'Reset');
+        upd();
+        return h('div', { class: 'fsheet' },
+          h('div', { class: 'fsheet-top' }, reset),
+          sec('Sort', wheels.sort), sec('Stage', wheels.stage), sec(lbl('neighborhood'), wheels.area), sec('Best day', wheels.day),
+          h('div', { class: 'actions' }, go),
+          h('button', { class: 'link-quiet saved', type: 'button', onclick: () => { close(); viewsSheet(); } }, 'Saved views'));
+      }, { noFocus: true });
+    }
+
     function applyView(v) {
-      st.stages = v.stages; st.sort = v.sort; st.neighborhood = v.neighborhood || '';
+      st.sort = LIST_SORTS.some(([k]) => k === v.sort) ? v.sort : 'oldest';
+      st.stage = v.stage || (Array.isArray(v.stages) && v.stages.length === 1 ? v.stages[0] : '');
+      st.neighborhood = v.neighborhood || ''; st.bestDay = v.bestDay || '';
       saveListState(st);
-      RV.app.render();
+      shown = 100; refresh();
     }
     function viewsSheet() {
       sheet('Saved views', (close) => {
         const box = h('div');
         const views = S.settings.savedViews;
-        if (!views.length) box.appendChild(h('p', { class: 'muted', style: { marginTop: 0 } }, 'Save the current stages, sort and ' + lbl('neighborhood').toLowerCase() + ' as a one-tap view.'));
+        if (!views.length) box.appendChild(h('p', { class: 'muted', style: { marginTop: 0 } }, 'Save the current filters and sort as a one-tap view.'));
         views.forEach((v) => box.appendChild(h('div', { class: 'row plain' },
           h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => { close(); applyView(v); } },
-            h('div', { class: 'name' }, v.name), h('div', { class: 'line2' }, L.SORT_NAMES[v.sort] + (v.neighborhood ? ' · ' + v.neighborhood : ''))),
+            h('div', { class: 'name' }, v.name),
+            h('div', { class: 'line2' }, [(LIST_SORTS.find(([k]) => k === v.sort) || [0, 'Longest since visit'])[1], v.stage ? L.stageOf(S.settings, v.stage).name : null, v.neighborhood, v.bestDay ? dayLabel(v.bestDay) : null].filter(Boolean).join(' · '))),
           h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Delete view ' + v.name, onclick: () => { ST.saveSettings((s) => { s.savedViews = s.savedViews.filter((x) => x.id !== v.id); }); close(); viewsSheet(); } }, icon('trash')))));
         box.appendChild(h('div', { class: 'actions' }, h('button', {
           class: 'btn primary', type: 'button',
           onclick: async () => {
             close();
-            const name = await UI.textPrompt({ title: 'Save current view', label: 'Name', placeholder: 'e.g. Overdue return visits by street' });
-            if (name && name.trim()) ST.saveSettings((s) => { s.savedViews.push({ id: U.uuid(), name: name.trim(), stages: st.stages ? st.stages.slice() : null, sort: st.sort, neighborhood: st.neighborhood }); });
+            const name = await UI.textPrompt({ title: 'Save current view', label: 'Name', placeholder: 'e.g. Oak Park studies' });
+            if (name && name.trim()) ST.saveSettings((s) => { s.savedViews.push({ id: U.uuid(), name: name.trim(), sort: st.sort, stage: st.stage, stages: st.stage ? [st.stage] : null, neighborhood: st.neighborhood, bestDay: st.bestDay }); });
           },
         }, 'Save current view')));
         return box;
       });
     }
 
-    function groupKey(it) {
-      if (st.sort === 'neighborhood') return it.rv.neighborhood || 'No ' + lbl('neighborhood').toLowerCase();
-      if (st.sort === 'attention') return { overdue: 'Overdue', soon: 'Coming up', ok: 'Up to date', snoozed: 'Snoozed', closed: 'Archived' }[it.att.state];
-      return '';
-    }
-
     function refresh() {
       const all = ST.items();
-      const sel = selected();
-      // chips
-      chipsBox.replaceChildren();
-      stages.forEach((s) => {
-        const n = all.filter((i) => i.rv.stage === s.id).length;
-        chipsBox.appendChild(h('button', {
-          class: 'chip', type: 'button', 'aria-pressed': String(sel.has(s.id)),
-          onclick: () => {
-            const cur = selected();
-            if (cur.has(s.id)) cur.delete(s.id); else cur.add(s.id);
-            st.stages = Array.from(cur); saveListState(st); shown = 100; refresh();
-          },
-        }, s.name, h('span', { class: 'n' }, n)));
-      });
       if (st.neighborhood && !ST.neighborhoods().includes(st.neighborhood)) st.neighborhood = '';
-      rebuildNb();
-      sortSel.value = st.sort;
-      // a search looks through everyone: the stage chips, best day and neighborhood filters only apply when not searching
       const searching = !!String(st.q || '').trim();
-      const filtered = searching ? { stages: new Set(activeIds()), q: st.q } : { stages: sel, neighborhood: st.neighborhood, bestDay: st.bestDay, q: st.q };
-      const rows = L.filterItems(all, filtered, S.settings).sort(L.SORTS[st.sort]);
-      countEl.textContent = rows.length + ' ' + (rows.length === 1 ? lbl('rv') : lbl('rvs')) + (searching ? ' found (searching all, filters ignored)' : '');
+      const n = activeCount();
+      filterBtn.classList.toggle('on', n > 0);
+      filterBtn.replaceChildren(...[icon('sliders', 22), n ? h('span', { class: 'b' }, String(n)) : null].filter(Boolean));
+      // a search looks through everyone; the filters only apply when not searching
+      chipsBox.replaceChildren(...(searching ? [] : [
+        st.stage ? ['stage', L.stageOf(S.settings, st.stage).name] : null,
+        st.neighborhood ? ['neighborhood', st.neighborhood] : null,
+        st.bestDay ? ['bestDay', 'Best day: ' + dayLabel(st.bestDay)] : null,
+      ].filter(Boolean).map(([k, label]) => h('button', { class: 'achip', type: 'button', 'aria-label': 'Remove ' + label, onclick: () => { st[k] = ''; saveListState(st); shown = 100; refresh(); } }, label, icon('x', 14)))));
+      chipsBox.hidden = !chipsBox.firstChild;
+      const filter = searching ? { stages: new Set(S.settings.stages.filter((x) => !x.closed).map((x) => x.id)), q: st.q } : Object.assign(listFilterFor(st), { q: '' });
+      const rows = L.filterItems(all, filter, S.settings).sort(L.SORTS[st.sort] || L.SORTS.oldest);
+      const total = all.filter((i) => i.att.state !== 'closed').length;
+      const word = (k) => (k === 1 ? lbl('rv') : lbl('rvs'));
+      metaEl.replaceChildren(...[
+        h('span', null, searching ? rows.length + ' found' : n ? rows.length + ' of ' + total + ' ' + word(total) : rows.length + ' ' + word(rows.length)),
+        !searching && n ? h('button', { class: 'link-quiet', type: 'button', onclick: clearAll }, 'Clear all') : null].filter(Boolean));
       listBox.replaceChildren();
       if (!rows.length) {
         const none = !S.rvs.some((r) => !r.deletedAt);
-        listBox.appendChild(UI.emptyState('users', none ? 'No ' + lbl('rvs') + ' yet.' : 'No matches for these filters.',
-          none ? h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, 'Add ' + lbl('rv'))
-            : h('button', { class: 'btn', type: 'button', onclick: () => { st.stages = null; st.neighborhood = ''; st.bestDay = ''; daySel.value = ''; st.q = ''; search.value = ''; saveListState(st); refresh(); } }, 'Reset filters')));
+        listBox.appendChild(UI.emptyState('users', none ? 'No ' + lbl('rvs') + ' yet.' : searching ? 'Nobody matches that search.' : 'Nobody matches these filters.',
+          none ? null : !searching ? h('button', { class: 'btn', type: 'button', onclick: clearAll }, 'Clear filters') : null));
         return;
       }
-      let lastGroup = null;
-      const frag = h('div', { class: 'list' });
-      rows.slice(0, shown).forEach((it) => {
-        const g = groupKey(it);
-        if (g && g !== lastGroup) { frag.appendChild(h('div', { class: 'group-head' }, g)); lastGroup = g; }
-        frag.appendChild(rvRow(it));
-      });
-      listBox.appendChild(frag);
+      const grouped = st.sort === 'neighborhood' && !searching;
+      const rowOf = (it) => {
+        // the address is not on the row, so show it when that is what the search matched
+        const hit = searching && it.rv.address && !String(it.rv.name).toLowerCase().includes(String(st.q).trim().toLowerCase()) ? hitLine(it.rv.address, st.q) : null;
+        return rvRow(it, { hideArea: grouped, hit });
+      };
+      const slice = rows.slice(0, shown);
+      if (grouped) {
+        let i = 0;
+        while (i < slice.length) {
+          const g = slice[i].rv.neighborhood || 'No ' + lbl('neighborhood').toLowerCase();
+          const members = [];
+          while (i < slice.length && (slice[i].rv.neighborhood || 'No ' + lbl('neighborhood').toLowerCase()) === g) members.push(slice[i++]);
+          const count = rows.filter((r) => (r.rv.neighborhood || 'No ' + lbl('neighborhood').toLowerCase()) === g).length;
+          listBox.appendChild(h('div', { class: 'ghead' }, h('span', null, g), h('span', null, String(count))));
+          listBox.appendChild(h('div', { class: 'list' }, members.map(rowOf)));
+        }
+      } else {
+        listBox.appendChild(h('div', { class: 'list' }, slice.map(rowOf)));
+      }
       if (rows.length > shown) {
         listBox.appendChild(h('div', { style: { textAlign: 'center', marginTop: '12px' } },
           h('button', { class: 'btn', type: 'button', onclick: () => { shown += 100; refresh(); } }, 'Show ' + Math.min(100, rows.length - shown) + ' more')));
@@ -327,11 +386,9 @@
 
     const el = h('div', null,
       h('div', { class: 'sticky-filters' },
-        h('div', { class: 'searchbox', style: { marginBottom: '8px' } }, icon('search', 18), search),
-        chipsBox,
-        h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' } },
-          h('div', { style: { flex: 1, minWidth: 0 } }, sortSel), h('div', { style: { flex: 1, minWidth: 0 } }, daySel), h('div', { style: { flex: 1, minWidth: 0 } }, nbSel), viewsBtn)),
-      countEl, listBox);
+        h('div', { class: 'sbar2' }, h('div', { class: 'searchbox' }, icon('search', 18), search), filterBtn),
+        chipsBox),
+      metaEl, listBox);
     refresh();
     return { title: lbl('rvs'), el, fab: true, update: refresh };
   }
@@ -373,12 +430,6 @@
       els.push(h('div', { class: 'banner info' }, icon('archive'), h('div', { class: 'body' }, 'Archived' + (reason ? ': ' + reason.name : '') + '.',
         reason && reason.restorable ? h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.restoreFlow(rv.id) }, 'Restore')) : null)));
     }
-    if (!closed && (it.att.state === 'overdue' || it.att.state === 'soon')) {
-      const why = it.att.reason === 'visit' ? 'Based on the next visit date.' : 'Flagged after ' + it.att.threshold + ' days in ' + L.stageOf(S.settings, rv.stage).name + '.';
-      els.push(h('div', { class: 'banner ' + (it.att.state === 'overdue' ? 'warn' : 'info') }, icon(it.att.state === 'overdue' ? 'alert' : 'clock'),
-        h('div', { class: 'body' }, h('strong', null, L.attentionText(it.att) + '. '), UI.lastText(it) + '. ' + why,
-          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.snoozeSheet(rv.id) }, 'Snooze')))));
-    }
     const pattern = L.notHomePattern(it, S.settings, new Date());
     if (pattern) {
       els.push(h('div', { class: 'banner warn' }, icon('clock'),
@@ -418,7 +469,7 @@
           : null)
       : null;
     const head = h('section', { class: 'card' },
-      h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), attBadge(it.att)),
+      h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
       rv.address ? h('div', null, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')) : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
       rv.phone ? h('div', { class: 'muted' }, rv.phone) : null,
       rv.notes ? h('div', { class: 'household' }, rv.notes) : null,
@@ -493,7 +544,7 @@
         return h('div', null,
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Snooze needs-attention', () => F.snoozeSheet(rv.id)) : null,
+          !closed ? act('Snooze', () => F.snoozeSheet(rv.id)) : null,
           act('Delete this ' + lbl('rv') + ' permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }

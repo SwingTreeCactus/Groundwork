@@ -800,3 +800,72 @@ details.fold-sec[open] > summary .icon { transform: rotate(180deg); }
 /* v2.9: New RV form, More details */
 .more-btn { width: 100%; justify-content: center; color: var(--muted); margin: 2px 0 6px; }
 .more-fields { animation: up .15s ease-out; }
+
+/* v2.11: calmer rows */
+.row.rv2 { padding: 12px 12px 12px 18px; gap: 10px; }
+.row.rv2 .name { font-size: 1.2rem; font-weight: 700; line-height: 1.25; }
+.row.rv2 .line2 { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: .88rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.row.rv2 .line2 .area { overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 45%; }
+.row.rv2 .line2 .sep { opacity: .6; }
+.row.rv2 .line2 .stagebtn { padding: 0; min-width: 0; }
+.row.rv2 .line2 .badge { background: none; padding: 0; color: var(--muted); font-size: .88rem; font-weight: 400; text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.rv2 .line2 .badge.flag-overdue { color: var(--danger); font-weight: 500; }
+.row.rv2 .line2.hit { color: var(--fg); }
+.row.rv2 .line2.hit mark { background: var(--accent-soft); color: var(--red); border-radius: 3px; padding: 0 1px; }
+.row.rv2 .line3 { font-size: .88rem; color: var(--muted); margin-top: 2px; }
+.row.rv2 .line3.due { color: var(--red); font-weight: 500; }
+.row.rv2 .row-acts { width: 60px; gap: 6px; }
+.row.rv2 .row-acts .nhbtn, .row.rv2 .navbtn { width: 60px; min-width: 60px; height: 34px; font-size: .8rem; }
+
+/* v2.11: Today dashboard */
+.seg2 { display: flex; background: var(--surface2); border-radius: 999px; padding: 4px; margin: 2px 0 12px; }
+.seg2 button { flex: 1; border: 0; background: none; font: inherit; font-size: .95rem; min-height: 42px; border-radius: 999px; color: var(--muted); cursor: pointer; }
+.seg2 button.on { background: var(--surface); color: var(--fg); font-weight: 600; }
+.dsum { color: var(--muted); font-size: .95rem; margin: 0 4px 14px; }
+.dsum b { color: var(--fg); font-weight: 600; }
+.cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; justify-items: center; padding-bottom: 8px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
+.cell.wide { grid-column: 1 / -1; }
+.circ { width: min(124px, 34vw); aspect-ratio: 1; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; transition: transform .1s; }
+.cell:active .circ { transform: scale(.96); }
+.circ .num { font-family: var(--font-dot); font-weight: 700; font-size: 3.2rem; line-height: 1; letter-spacing: .02em; }
+.circ.zero { opacity: .45; }
+.circ.study { background: var(--accent); color: var(--accent-fg); }
+.clab { font-size: 1rem; font-weight: 500; text-align: center; }
+
+/* v2.11: RVs search bar, filter button, active filter chips */
+.sbar2 { display: flex; gap: 8px; align-items: center; }
+.sbar2 .searchbox { flex: 1; min-width: 0; }
+.sbar2 .searchbox input { border-radius: 999px; border: 0; background: var(--surface); }
+.fbtn { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+.fbtn.on { background: var(--accent); color: var(--accent-fg); }
+.fbtn .b { position: absolute; top: -3px; right: -3px; background: var(--red); color: var(--bg); font-size: .7rem; font-weight: 700; border-radius: 9px; min-width: 18px; height: 18px; line-height: 18px; text-align: center; padding: 0 4px; }
+.achips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.achip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--accent-soft); color: var(--red); border-radius: 999px; padding: 6px 10px 6px 12px; font: inherit; font-size: .88rem; font-weight: 500; cursor: pointer; }
+.lmeta { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: .88rem; margin: 0 6px 8px; min-height: 28px; }
+.lmeta .link-quiet { font-size: .88rem; padding: 4px 0; }
+.ghead { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; font-weight: 500; margin: 16px 8px 8px; }
+.ghead:first-child { margin-top: 4px; }
+
+/* v2.11: filter page with picker wheels */
+.fsheet-top { display: flex; justify-content: flex-end; margin: -8px 0 -4px; }
+.wsec { margin-top: 12px; }
+.wlab { font-size: .9rem; color: var(--muted); margin: 0 4px 6px; }
+.wheel { position: relative; height: 52px; background: var(--surface2); border-radius: 999px; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; outline: none; }
+.wheel:focus-visible { box-shadow: 0 0 0 2px var(--fg); }
+.wpad { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 188px; margin-left: -94px; border-radius: 999px; background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.wheel.on .wpad { box-shadow: inset 0 0 0 2px var(--red), 0 1px 3px rgba(0, 0, 0, .12); }
+.wstrip { position: absolute; inset: 0; will-change: transform; }
+.wopt { position: absolute; top: 0; bottom: 0; left: 50%; width: 138px; margin-left: -69px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: .9rem; cursor: pointer; }
+.wopt span { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wopt.sel span { max-width: 178px; color: var(--fg); font-weight: 700; font-size: .98rem; }
+.wheel.on .wopt.sel span { color: var(--red); }
+.wheel::before, .wheel::after { content: ""; position: absolute; top: 0; bottom: 0; width: 24px; z-index: 2; pointer-events: none; }
+.wheel::before { left: 0; background: linear-gradient(90deg, var(--surface2) 25%, transparent); }
+.wheel::after { right: 0; background: linear-gradient(-90deg, var(--surface2) 25%, transparent); }
+.fsheet .actions { margin-top: 18px; }
+.fsheet .actions .btn { width: 100%; justify-content: center; }
+.fsheet .saved { display: block; margin: 8px auto 0; font-size: .92rem; }
+button.link-quiet { background: none; border: 0; font: inherit; color: var(--muted); cursor: pointer; }
+.fsheet .link-quiet { font-size: .92rem; }
+.wopt.sel { width: 188px; margin-left: -94px; }

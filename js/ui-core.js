@@ -202,9 +202,76 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
+  // ---------- picker wheel ----------
+  // A sideways, circular picker: the choice sits centred on a raised pill, neighbours fade at the edges.
+  // Swipe to move (it snaps to the nearest option), tap a neighbour to jump to it, or use the arrow keys.
+  // opts: [{ value, label }]. o.neutral: the value that means "no filter" (the wheel is marked when it is off it).
+  function wheel(opts, value, onChange, o) {
+    o = o || {};
+    const n = opts.length, SLOT = 138;
+    let idx = Math.max(0, opts.findIndex((x) => x.value === value));
+    const strip = h('div', { class: 'wstrip' });
+    const el = h('div', { class: 'wheel', role: 'listbox', tabindex: '0', 'aria-label': o.label || '' }, h('div', { class: 'wpad' }), strip);
+    let dx = 0, startX = 0, startY = 0, dragging = false, moved = false, animating = false;
+    const at = (d) => opts[((idx + d) % n + n) % n];
+    function paint() {
+      const near = Math.round(-dx / SLOT);
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateX(' + dx + 'px)';
+      strip.replaceChildren(...[-3, -2, -1, 0, 1, 2, 3].map((d) => {
+        const x = d * SLOT;
+        const dist = Math.abs(x + dx) / SLOT;
+        return h('div', {
+          class: 'wopt' + (d === near ? ' sel' : ''), role: 'option', 'aria-selected': String(d === 0),
+          style: { transform: 'translateX(' + x + 'px)', opacity: String(Math.max(0, 1 - Math.max(0, dist - 0.4) * 0.75)) },
+          onclick: () => { if (!moved && d) go(d); },
+        }, h('span', null, at(d).label));
+      }));
+      el.classList.toggle('on', o.neutral !== undefined && opts[idx].value !== o.neutral);
+      el.setAttribute('aria-valuetext', opts[idx].label);
+    }
+    function go(steps) {
+      if (animating) return;
+      animating = true;
+      strip.style.transition = 'transform .18s ease-out';
+      void strip.offsetWidth; // start the slide from where the strip is now
+      strip.style.transform = 'translateX(' + (-steps * SLOT) + 'px)';
+      const done = () => {
+        if (!animating) return;
+        animating = false; dx = 0;
+        if (steps) idx = ((idx + steps) % n + n) % n;
+        paint();
+        if (steps) { vibrate(); onChange(opts[idx].value); }
+      };
+      strip.addEventListener('transitionend', done, { once: true });
+      setTimeout(done, 260);
+    }
+    el.addEventListener('pointerdown', (e) => { if (animating) return; dragging = true; moved = false; startX = e.clientX; startY = e.clientY; });
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const mx = e.clientX - startX, my = e.clientY - startY;
+      if (!moved && Math.abs(mx) > 6 && Math.abs(mx) > Math.abs(my)) { moved = true; try { el.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ } }
+      if (moved) { dx = mx; paint(); }
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      if (moved) { go(Math.round(-dx / SLOT)); setTimeout(() => { moved = false; }, 0); }
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    });
+    el.setValue = (v) => { const k = opts.findIndex((x) => x.value === v); if (k >= 0) { idx = k; dx = 0; paint(); } };
+    paint();
+    return el;
+  }
+
   RV.ui = {
     lbl, sheet, confirmDialog, pick, textPrompt, toast, stageBadge, attBadge, campaignName, subtitle, lastText, toggle, field, emptyState,
-    doNotHome, editEntrySheet, dateTimeLocal, parseLocalDT, vibrate,
+    doNotHome, editEntrySheet, dateTimeLocal, parseLocalDT, vibrate, wheel,
     download(name, text, mime) {
       const blob = new Blob([text], { type: mime || 'text/plain' });
       const url = URL.createObjectURL(blob);
