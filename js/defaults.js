@@ -32,7 +32,7 @@
         bibleStudy: 'Bible study',
       },
       stages: [
-        { id: 'yet', name: 'Yet to Contact', days: null, closed: false },
+        { id: 'yet', name: 'Potential', days: null, closed: false },
         { id: 'initial', name: 'Initial Call', days: 30, closed: false },
         { id: 'cultivating', name: 'Cultivating Interest', days: 30, closed: false },
         { id: 'return', name: 'Return Visit', days: 30, closed: false },
@@ -90,6 +90,8 @@
     out.version = d.version;
     if (!Array.isArray(out.stages) || !out.stages.length) out.stages = d.stages;
     if (!out.stages.some((s) => s.closed)) out.stages.push(d.stages[d.stages.length - 1]);
+    // 2.12: the first stage "Yet to Contact" became "Potential" (a name set by hand stays)
+    out.stages = out.stages.map((st) => (st.id === 'yet' && st.name === 'Yet to Contact' ? Object.assign({}, st, { name: 'Potential' }) : st));
     // 2.9: "Door" became "House to house" (the default for new contacts)
     if (out.lists && Array.isArray(out.lists.howMet)) out.lists.howMet = out.lists.howMet.map((x) => (x === 'Door' ? 'House to house' : x));
     // 2.7.2: overdue after 30 days by default. Move old untouched defaults (7, 7, 14, 14) once; values set by hand stay.
