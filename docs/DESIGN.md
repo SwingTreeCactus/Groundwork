@@ -290,3 +290,4 @@ Informed by research on top CRMs (Pipedrive, Badger Maps, Outfield, Less Annoyin
 - Tests: tests/drive_folder.py (fake Drive, 23 checks). Note: tests/logic.test.js and tests/smoke.py in the repo predate v2.7.2 and fail against the current code; refresh them from the latest release.
 - VERSION 2.10.0, cache rvapp-v26.
 - v2.10.1: Today's first two sections are headed by the weekday ("Tuesday: overdue", "Tuesday: also good") instead of "Overdue: good day today" and "Also good today". Cache rvapp-v27.
+- About page (about.html): public description for Google's brand review, linked from the privacy policy; use https://mygroundwork.app/about.html as the consent screen home page.
