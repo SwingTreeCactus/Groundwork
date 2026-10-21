@@ -195,8 +195,16 @@
             data.campaignId = tagged ? tagged.id : null;
             // the note from meeting them is the first visit; for someone not yet contacted it goes to household notes
             if (text && isFirstStage) data.notes = [data.notes, text].filter(Boolean).join('\n');
+            // garden: created as Initial Call, this first conversation is link 1 of the chain; created at a
+            // later stage, that stage's chain starts empty (no credit for the stage it was created in)
+            const plantedAt = new Date(Date.now() - 1).toISOString();
+            if (!isFirstStage && RV.garden && RV.garden.kindFor(S.settings, data.stage) !== 'first') data.garden = { since: plantedAt };
             saved = ST.addRv(data);
-            if (!isFirstStage) ST.addEntry(saved.id, 'visit', { text, campaignId: tagged ? tagged.id : null });
+            if (!isFirstStage) {
+              const first = ST.addEntry(saved.id, 'visit', { text, campaignId: tagged ? tagged.id : null, plan: !!data.whatsNext });
+              const initialId = (S.settings.stages.filter((x) => !x.closed)[1] || {}).id;
+              if (data.stage !== initialId) ST.updateRv(saved.id, { garden: { since: first.at } });
+            }
             toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
           } else {
             saved = ST.updateRv(rv.id, data);
@@ -253,8 +261,8 @@
     prog.addEventListener('input', () => { if (!nextTouched) nextStart.value = L.suggestNext(prog.value); });
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
-    const autoStage = rv.stage === 'yet' && S.settings.stages.some((s) => s.id === 'initial') ? 'initial' : rv.stage;
-    const stage = select(stageOptions(), autoStage);
+    // the stage is left alone unless changed here; the garden grows Potential into Initial Call on its own
+    const stage = select(stageOptions(), rv.stage);
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
     const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
@@ -289,7 +297,7 @@
             publication: study ? pub.value : undefined,
             progress: study ? prog.value : undefined,
             nextStart: study ? nextStart.value : undefined,
-            stage: stage.value,
+            stage: stage.value !== rv.stage ? stage.value : undefined,
             tags: U.splitList(tags.value),
             at: d ? d.toISOString() : undefined,
           });

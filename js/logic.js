@@ -609,7 +609,7 @@
       const last = parseLooseDate(get(row, 'lastVisit'));
       if (last) {
         last.setHours(12, 0, 0, 0);
-        entries.push({ id: U.uuid(), rvId: rv.id, type: 'visit', at: last.toISOString(), text: 'Imported last visit date', scriptures: [], updatedAt: nowIso, deletedAt: null });
+        entries.push({ id: U.uuid(), rvId: rv.id, type: 'visit', at: last.toISOString(), text: 'Imported last visit date', scriptures: [], imported: true, updatedAt: nowIso, deletedAt: null });
       }
       rvs.push(rv);
     });

@@ -51,7 +51,7 @@
       const stamps = visits.map((v) => v.at).concat([iso(first(person, 'LstTry')), iso(first(person, 'Date'))]).filter(Boolean).sort();
       const createdAt = stamps[0] || new Date().toISOString();
       visits.forEach((v) => {
-        result.entries.push({ id: uuid(), rvId, type: 'visit', at: v.at || createdAt, text: v.text, scriptures: v.scriptures, updatedAt: v.at || createdAt, deletedAt: null });
+        result.entries.push({ id: uuid(), rvId, type: 'visit', at: v.at || createdAt, text: v.text, scriptures: v.scriptures, imported: true, updatedAt: v.at || createdAt, deletedAt: null });
         result.notes++;
       });
       // best day: the weekday they were last actually home, from the newest note that is not a not-home

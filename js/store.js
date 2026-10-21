@@ -189,11 +189,12 @@
     const from = rv.stage;
     const target = L.stageOf(S.settings, to);
     const at = opts.at || U.nowISO();
-    const entry = mkEntry(rvId, 'stage', { from, to, reason: opts.reason || null, text: opts.text || '' }, at);
+    const entry = mkEntry(rvId, 'stage', Object.assign({ from, to, reason: opts.reason || null, text: opts.text || '' }, opts.grew ? { grew: true } : {}), at);
     S.entries.push(entry);
     persist('entries', entry);
     rv.stage = to;
     rv.stageChangedAt = at;
+    if (rv.garden) rv.garden = Object.assign({}, rv.garden, { since: at }); // the next bar starts empty
     if (target.closed) {
       rv.archiveReason = opts.reason || 'other';
       rv.prevStage = L.stageOf(S.settings, from).closed ? snap.prevStage : from;
@@ -212,7 +213,12 @@
     const rv = rvById(rvId);
     if (!rv) return null;
     const snap = clone(rv);
-    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress || o.nextStart ? { progress: (o.progress || '').trim(), nextStart: (o.nextStart || '').trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
+    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress || o.nextStart || o.study ? { study: true, progress: (o.progress || '').trim(), nextStart: (o.nextStart || '').trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
+    // garden: did this visit leave a plan, and did a follow-up date carry the chain past its gap?
+    const G = RV.garden;
+    const before = S.entries.filter((e) => e.rvId === rvId);
+    if (G && G.heldLink(rv, before, S.settings, entry.at)) entry.chainHeld = true;
+    entry.plan = entry.study ? !!entry.nextStart : !!String(typeof o.whatsNext === 'string' ? o.whatsNext : rv.whatsNext || '').trim();
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
@@ -224,11 +230,17 @@
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
     touch(rv);
     persist('rvs', rv);
-    let stageRes = null;
-    if (o.stage && o.stage !== rv.stage) stageRes = setStage(rvId, o.stage);
+    let stageRes = null, grew = null;
+    if (o.stage && o.stage !== rv.stage) stageRes = setStage(rvId, o.stage); // a manual move earns no growth
+    else if (G && !o.imported) {
+      // grows one stage at a time when this live visit completes the step
+      const from = rv.stage;
+      const to = G.growth(rv, S.entries.filter((e) => e.rvId === rvId), S.settings, new Date(entry.at) > new Date() ? new Date(entry.at) : new Date());
+      if (to) { stageRes = setStage(rvId, to, { grew: true, at: entry.at }); grew = { from, to }; }
+    }
     emit();
     return {
-      entry, stageEntry: stageRes && stageRes.entry,
+      entry, stageEntry: stageRes && stageRes.entry, grew,
       undo: () => { if (stageRes) purgeEntry(stageRes.entry.id); purgeEntry(entry.id); restoreRvSnapshot(snap); emit(); },
     };
   }
