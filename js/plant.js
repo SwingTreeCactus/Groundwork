@@ -66,25 +66,26 @@
       : '<g class="e-happy" stroke-width="' + sw + '"><path d="M22.6 82 Q25 78.4 27.4 82"/><path d="M32.6 82 Q35 78.4 37.4 82"/></g>' +
         '<g class="e-drowsy"><path d="M22.7 81 A2.3 2.3 0 0 0 27.3 81 Z"/><path d="M32.7 81 A2.3 2.3 0 0 0 37.3 81 Z"/></g>' +
         '<g class="e-sleep" stroke-width="1.6"><path d="M23 81.5 H27"/><path d="M33 81.5 H37"/></g>';
-    const need = small
-      ? '<g class="need"><circle cx="50" cy="9" r="9" class="acc"/><path d="M44 14 L39.5 20 L47.5 16 Z" class="acc"/><path d="M50 3.6 C52.9 7.4 53.9 9.3 53.9 11 a3.9 3.9 0 0 1 -7.8 0 C46.1 9.3 47.1 7.4 50 3.6Z" class="acc-ic"/></g>'
-      : '<g class="need"><circle cx="50" cy="9" r="8" class="acc"/><path d="M44.5 13.5 L40.5 19 L47.5 15.5 Z" class="acc"/><path d="M50 4.2 C52.6 7.6 53.5 9.3 53.5 10.8 a3.5 3.5 0 0 1 -7 0 C46.5 9.3 47.4 7.6 50 4.2Z" class="acc-ic"/></g>';
+    // the soil at the top of the pot (and the mound when planted in the ground): dark and moist when
+    // cared for; pale and cracked when thirsty (one crack) or wilting (more cracks)
+    const soil = '<g class="soilg"><ellipse cx="30" cy="69.5" rx="15" ry="3.2" class="soil"/>' +
+      '<g class="cracks"><path d="M24 68.6 l1.6 1.2 -1 1.3"/><path class="ck2" d="M33 68.3 l-1.2 1.4 1.4 1"/><path class="ck2" d="M38.5 69.4 l-1.6 .9"/><path class="ck2" d="M20 69.8 l1.8 .4"/></g></g>';
     return '<svg class="pot-svg" aria-hidden="true" viewBox="0 0 60 92">' +
       (small ? '' : '<ellipse cx="30" cy="91" rx="17" ry="1.6" class="shadow"/>') +
-      '<rect x="11" y="68" width="38" height="6" rx="3" class="rim"/><path d="M14 74 H46 L43 90 H17 Z" class="pot"/>' +
+      '<rect x="11" y="68" width="38" height="6" rx="3" class="rim"/><path d="M14 74 H46 L43 90 H17 Z" class="pot"/>' + soil +
       '<g class="face"><g class="e-open"><circle cx="25" cy="81" r="' + r + '"/><circle cx="35" cy="81" r="' + r + '"/>' +
       '<g class="e-shine"><circle cx="' + (small ? 25.9 : 25.8) + '" cy="' + (small ? 80.1 : 80.2) + '" r="' + (small ? 0.9 : 0.8) + '"/><circle cx="' + (small ? 35.9 : 35.8) + '" cy="' + (small ? 80.1 : 80.2) + '" r="' + (small ? 0.9 : 0.8) + '"/></g></g>' +
-      eyes + '</g>' + '<g class="needpos">' + need + '</g>' +
+      eyes + '</g>' +
       '<g class="spark"><circle cx="7" cy="34" r="1.5"/><circle cx="53" cy="44" r="1.3"/><circle cx="12" cy="12" r="1.1"/><circle cx="50" cy="60" r="1.1"/></g></svg>';
   }
 
   // ---------- CSS (ported from the boards; colours as tokens per accent and theme) ----------
   const CSS = `
-:root{--pl-5:#43297E;--pl-4:#5B3E96;--pl-3:#8471B4;--pl-2:#A69AC0;--pl-1:#AEAAB4;--pl-pot:#DED8EA;--pl-rim:#CDC4DE;--pl-eye:#0E0E10;--pl-acc:#5B3E96;--pl-acc-ic:#FFFFFF;--pl-off:#E1DDE8}
+:root{--pl-soil:#8C7A70;--pl-dry:#E2D3BC;--pl-crack:#A8937A;--pl-5:#43297E;--pl-4:#5B3E96;--pl-3:#8471B4;--pl-2:#A69AC0;--pl-1:#AEAAB4;--pl-pot:#DED8EA;--pl-rim:#CDC4DE;--pl-eye:#0E0E10;--pl-acc:#5B3E96;--pl-acc-ic:#FFFFFF;--pl-off:#E1DDE8}
 :root[data-accent="blue"]{--pl-5:#12407A;--pl-4:#1F5FAF;--pl-3:#5D86C4;--pl-2:#93ABCF;--pl-1:#AEAAB4;--pl-pot:#D6E0EE;--pl-rim:#C3D0E3;--pl-acc:#1F5FAF;--pl-off:#DDE3EC}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
 :root:not([data-theme="light"])[data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-1:#64616B;--pl-pot:#2E3A4E;--pl-rim:#3E4C63;--pl-acc:#8DB2EE;--pl-off:#33404F}}
-:root[data-theme="dark"]{--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
+:root[data-theme="dark"]{--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
 :root[data-theme="dark"][data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-pot:#2E3A4E;--pl-rim:#3E4C63;--pl-acc:#8DB2EE;--pl-off:#33404F}
 .pl{position:relative;flex:none;color:var(--pl-4);transform-origin:50% 100%;display:inline-block}
 .pl svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
@@ -92,21 +93,22 @@
 .pl .rim{fill:var(--pl-rim)}.pl .pot{fill:var(--pl-pot)}.pl .shadow{fill:var(--pl-eye);opacity:.08}
 .pl .e-open circle{fill:var(--pl-eye)}.pl .e-shine circle{fill:var(--pl-pot)}
 .pl .e-happy,.pl .e-sleep{stroke:var(--pl-eye);fill:none;stroke-linecap:round}.pl .e-drowsy{fill:var(--pl-eye)}
+.pl .soil{fill:var(--pl-soil)}.pl.h2 .soil,.pl.h1 .soil{fill:var(--pl-dry)}.pl .cracks path{fill:none;stroke:var(--pl-crack);stroke-width:.9;stroke-linecap:round;stroke-linejoin:round}.pl.rw .cracks path,.pl.tl .cracks path,.pl.sm .cracks path{stroke-width:1.3}
 .pl .acc{fill:var(--pl-acc)}.pl .acc-ic{fill:var(--pl-acc-ic)}.pl .spark{fill:var(--pl-acc)}
 .pl .body,.pl .sway,.pl .lean{transform-box:view-box;transform-origin:30px 70px;transition:transform .35s}
-.pl .g3,.pl .g4,.pl .g5,.pl .fall,.pl .fall2,.pl .need,.pl .spark,.pl .e-happy,.pl .e-drowsy,.pl .e-sleep,.pl .e-shine,.pl .bud{display:none}
-.pl.h3 .g3,.pl.h4 .g3,.pl.h5 .g3,.pl.h4 .g4,.pl.h5 .g4,.pl.h5 .g5,.pl.h1 .fall,.pl.h1 .fall2,.pl.h2 .fall2,.pl.h1 .need,.pl.h2 .need,.pl.h5 .spark,.pl.h4 .e-shine{display:inline}
+.pl .g3,.pl .g4,.pl .g5,.pl .fall,.pl .fall2,.pl .cracks,.pl .ck2,.pl .spark,.pl .e-happy,.pl .e-drowsy,.pl .e-sleep,.pl .e-shine,.pl .bud{display:none}
+.pl.h3 .g3,.pl.h4 .g3,.pl.h5 .g3,.pl.h4 .g4,.pl.h5 .g4,.pl.h5 .g5,.pl.h1 .fall,.pl.h1 .fall2,.pl.h2 .fall2,.pl.h1 .cracks,.pl.h2 .cracks,.pl.h1 .ck2,.pl.h5 .spark,.pl.h4 .e-shine{display:inline}
 .pl.h4 .lt4,.pl.h5 .lt4,.pl.h1 .nb1{display:none}
 .pl.u1 .b1,.pl.u2 .b1,.pl.u2 .b2,.pl.u3 .b1,.pl.u3 .b2,.pl.u3 .b3{display:inline}
 .pl.h5{color:var(--pl-5)}.pl.h4{color:var(--pl-4)}.pl.h3{color:var(--pl-3)}.pl.h2{color:var(--pl-2)}.pl.h1{color:var(--pl-1)}
-.pl.h2 .body{transform:rotate(-7deg)}.pl.h1 .body{transform:rotate(-17deg)}
+.pl.h2 .body{transform:rotate(-10deg) scaleY(.95)}.pl.h1 .body{transform:rotate(-22deg) scaleY(.9)}
 .pl.s1 .body{transform:none}.pl.s5.h2 .body,.pl.s5.h1 .body{transform:rotate(-3deg)}
 .pl.h5 .e-open,.pl.h2 .e-open,.pl.h1 .e-open{display:none}
 .pl.h5 .e-happy,.pl.h2 .e-drowsy,.pl.h1 .e-sleep{display:inline}
 .pl.joy .e-open,.pl.joy .e-drowsy,.pl.joy .e-sleep{display:none}.pl.joy .e-happy{display:inline}
 /* bare: planted straight in the ground (garden scene): no pot or face, the bubble and shimmer stay */
 .pl.bare .rim,.pl.bare .pot,.pl.bare .face,.pl.bare .shadow{display:none}
-.pl.ghost{color:var(--pl-off)}.pl.ghost .face,.pl.ghost .need,.pl.ghost .spark,.pl.ghost .fall,.pl.ghost .fall2{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
+.pl.ghost{color:var(--pl-off)}.pl.ghost .face,.pl.ghost .soilg,.pl.ghost .spark,.pl.ghost .fall,.pl.ghost .fall2{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
 @keyframes pl-sway{0%,100%{transform:rotate(-2.6deg)}50%{transform:rotate(2.6deg)}}
 @keyframes pl-swayS{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(.6deg)}}
 .pl .sway{animation:pl-sway 3.6s ease-in-out infinite}
@@ -116,7 +118,6 @@
 .pl .e-open{transform-box:fill-box;transform-origin:center;animation:pl-blink 5.4s infinite}
 .pl.d2 .e-open{animation-delay:-2.1s}.pl.d3 .e-open{animation-delay:-3.7s}.pl.d4 .e-open{animation-delay:-1.3s}.pl.d5 .e-open{animation-delay:-4.4s}
 @keyframes pl-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
-.pl .need{animation:pl-bob 1.8s ease-in-out infinite}
 @keyframes pl-twinkle{0%,100%{opacity:0}50%{opacity:1}}
 .pl .spark circle{animation:pl-twinkle 2.8s ease-in-out infinite}
 .pl .spark circle:nth-child(2){animation-delay:-.9s}.pl .spark circle:nth-child(3){animation-delay:-1.7s}.pl .spark circle:nth-child(4){animation-delay:-2.3s}
@@ -143,7 +144,7 @@
 @keyframes pl-chip{0%{transform:translateY(10px) scale(.9);opacity:0}60%{transform:translateY(-2px) scale(1.04);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
 .grow-ov .gchip{height:36px;display:flex;align-items:center}
 .grow-ov .gchip span{background:var(--fg);color:var(--bg);border-radius:18px;padding:7px 16px;font-size:15px;font-weight:600;animation:pl-chip .5s cubic-bezier(.3,1.4,.5,1) forwards}
-@media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .need,.pl .spark circle,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .spark circle,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
 `;
   let styled = false;
   function ensureStyle() {

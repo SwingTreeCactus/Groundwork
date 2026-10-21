@@ -115,6 +115,7 @@
   const svgEl = (html, cls, style) => { const d = document.createElement('div'); d.innerHTML = html; const el = d.firstChild; if (cls) el.setAttribute('class', cls); if (style) el.setAttribute('style', style); return el; };
   const FLY = '<svg aria-hidden="true" viewBox="0 0 16 14"><g class="w"><ellipse cx="4.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="11.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="5" cy="10.5" rx="3" ry="3" class="f2"/><ellipse cx="11" cy="10.5" rx="3" ry="3" class="f2"/></g><rect x="7.3" y="3" width="1.4" height="10" rx=".7" class="fb"/></svg>';
   const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
+  const CAN = '<svg aria-hidden="true" viewBox="0 0 26 20"><path d="M5 7 H17 V17 C17 18.1 16.1 19 15 19 H7 C5.9 19 5 18.1 5 17 Z" class="cb"/><path d="M17 10 L24 5 L25 6.4 L18.6 13" class="cs"/><path d="M7 7 C7 2.5 15 2.5 15 7" fill="none" class="ch"/><path d="M24.6 4.4 l1 -1.2 M25.6 6 l1.2 -.6" class="cd"/></svg>';
   function skySvg(t) {
     const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
     const sun = t === 'night' ? '<circle cx="304" cy="52" r="20" class="sun"/><circle cx="314" cy="46" r="18" class="skyf"/>' : '<circle cx="304" cy="52" r="22" class="sun"/>';
@@ -170,6 +171,13 @@
         el.addEventListener('click', () => pick(el, x));
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });
         bed.appendChild(el);
+        // a watering can beside thirsty and wilting plants: tap it to record a visit
+        if (x.st.care && x.st.care <= G.CARE.DRY) {
+          const can = h('button', { class: 'gcan', type: 'button', 'aria-label': 'Water ' + x.it.rv.name + ': record a visit', style: { left: (left + 50) + 'px', top: (top + 74) + 'px' },
+            onclick: (e) => { e.stopPropagation(); RV.forms.visitDialog(x.it.rv.id); } });
+          can.innerHTML = CAN;
+          bed.appendChild(can);
+        }
         if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
         if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
       });
