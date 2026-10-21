@@ -153,7 +153,11 @@ with sync_playwright() as p:
     pg.evaluate("document.documentElement.setAttribute('data-theme','light'); document.documentElement.setAttribute('data-accent','blue')")
     pg.goto(base+'#/today'); pg.wait_for_selector('.cgrid'); pg.wait_for_timeout(100); shot('today-blue')
     pg.evaluate("document.documentElement.setAttribute('data-accent','purple')")
+    pg.evaluate("() => RV.store.saveSettings(s => { const t = new Date().toISOString(); s.exhibits = { 'first-study': t, rv25: t, area: t, studies3: t, rv50: t, streak26: t, first10: t, streak52: t }; })")
     pg.goto(base+'#/insights'); pg.wait_for_selector('.gscene'); pg.wait_for_timeout(200)
+    pg.locator('.gsquare').screenshot(path=f'{OUT}/b-exhibits.png')
+    pg.evaluate("() => RV.store.saveSettings(s => { const t = new Date().toISOString(); s.exhibits = { 'first-study': t, rv25: t, area: t }; })")
+    pg.click('.exrow'); pg.wait_for_selector('.exgrid'); pg.wait_for_timeout(200); shot('exhibit-sheet'); pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     check(pg.locator('.gscene .gp').count() >= 10 and pg.locator('.gscene .gsign').count() >= 3, 'garden scene: plants in beds with area signs')
     for t in ['morning', 'day', 'dusk', 'night']:
         pg.evaluate("t => document.querySelector('.gscene').setAttribute('data-t', t)", t)

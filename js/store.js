@@ -336,7 +336,7 @@
 
   RV.store = {
     S, subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
-    load, items, itemFor, rvById, saveSettings, blankRv, addRv, updateRv, deleteRv, restoreRvSnapshot,
+    load, items, itemFor, rvById, saveSettings, persistRv: (rv) => { touch(rv); persist('rvs', rv); }, blankRv, addRv, updateRv, deleteRv, restoreRvSnapshot,
     addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze,
     libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags, publications,
     flush: () => pending, clearError: () => { S.error = ''; emit(); },

@@ -235,4 +235,39 @@ test('sky follows the clock', () => {
   assert.deepEqual([3, 7, 12, 18, 21].map((h) => G.skyOf(new Date(2026, 9, 21, h))), ['night', 'morning', 'day', 'dusk', 'night']);
 });
 
+test('map: restyle uses Groundwork colours and drops shops, bus stops and house numbers', () => {
+  const M = require('../js/gmap.js');
+  const st = { version: 8, sources: {}, layers: [
+    { id: 'background', type: 'background', paint: { 'background-color': '#fff' } },
+    { id: 'water', type: 'fill', 'source-layer': 'water', paint: { 'fill-color': '#00f' } },
+    { id: 'park', type: 'fill', 'source-layer': 'park', paint: {} },
+    { id: 'highway_minor', type: 'line', 'source-layer': 'transportation', paint: {} },
+    { id: 'highway_major_casing', type: 'line', 'source-layer': 'transportation', paint: {} },
+    { id: 'poi_label', type: 'symbol', 'source-layer': 'poi', paint: {} },
+    { id: 'housenumber', type: 'symbol', 'source-layer': 'housenumber', paint: {} },
+    { id: 'road_label', type: 'symbol', 'source-layer': 'transportation_name', paint: {} },
+    { id: 'building-3d', type: 'fill-extrusion', 'source-layer': 'building', paint: {} }] };
+  const out = M.restyle(st, false), T = M.THEMES.light;
+  const by = Object.fromEntries(out.layers.map((l) => [l.id, l]));
+  assert.ok(!by.poi_label && !by.housenumber);
+  assert.equal(by.background.paint['background-color'], T.bg);
+  assert.equal(by.water.paint['fill-color'], T.water);
+  assert.equal(by.park.paint['fill-color'], T.park);
+  assert.equal(by.highway_minor.paint['line-color'], T.minor);
+  assert.equal(by.highway_major_casing.paint['line-color'], T.roadCase);
+  assert.equal(by.road_label.paint['text-color'], T.text);
+  assert.equal(by['building-3d'].type, 'fill');
+  assert.equal(st.layers[1].paint['fill-color'], '#00f'); // the original is untouched
+  assert.equal(M.restyle(st, true).layers[0].paint['background-color'], M.THEMES.dark.bg);
+});
+test('map placement: geotag first, else the looked-up address, looked up again when the address changes', () => {
+  const GEO = require('../js/geo.js');
+  assert.deepEqual(GEO.pointOf({ address: '1 A St', geo: { lat: 1, lng: 2 }, approx: { q: '1 a st', lat: 5, lng: 6 } }), { lat: 1, lng: 2, approx: false });
+  assert.deepEqual(GEO.pointOf({ address: '1 A St', approx: { q: '1 a st', lat: 5, lng: 6 } }), { lat: 5, lng: 6, approx: true });
+  assert.equal(GEO.pointOf({ address: '2 B St', approx: { q: '1 a st', lat: 5, lng: 6 } }), null);
+  assert.equal(GEO.needsLookup({ address: '2 B St', approx: { q: '1 a st', lat: 5, lng: 6 } }), true);
+  assert.equal(GEO.needsLookup({ address: '1 A St', approx: { q: '1 a st', fail: true } }), false);
+  assert.equal(GEO.needsLookup({ address: '' }), false);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

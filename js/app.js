@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.17.7';
+  RV.VERSION = '2.18.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -102,6 +102,7 @@
     const hash = location.hash || '#/home';
     const y = lastHash === hash ? root.scrollY : (scrollPos[hash] || 0);
     let screen;
+    if (current && current.destroy) { try { current.destroy(); } catch (e) { /* ignore */ } }
     try {
       screen = buildScreen();
     } catch (e) {

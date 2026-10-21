@@ -136,7 +136,7 @@
     }
     return box;
   }
-  function gardenScene(plots, now) {
+  function gardenScene(plots, now, earned) {
     const t = G.skyOf(now);
     const card = h('div', { class: 'gcard', hidden: true });
     let selEl = null;
@@ -180,17 +180,47 @@
     });
     return h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
-      h('div', { class: 'gground' }, tufts(), svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds)),
+      h('div', { class: 'gground' }, tufts(), svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
       card);
   }
 
+  // ---------- exhibits: earned milestones stand in the garden as objects ----------
+  const STONE = 'class="o1"', STONE2 = 'class="o2"', ACC = 'class="oa"', WATER = 'class="ow"';
+  const EXH_ART = {
+    'first-study': '<svg viewBox="0 0 30 64" aria-hidden="true"><rect x="13.5" y="22" width="3" height="40" rx="1.5" ' + STONE2 + '/><rect x="8" y="10" width="14" height="15" rx="4" ' + STONE + '/><rect x="11" y="13" width="8" height="9" rx="2" ' + ACC + '/><path d="M6 10 L15 3 L24 10 Z" ' + STONE2 + '/><rect x="9" y="60" width="12" height="3" rx="1.5" ' + STONE2 + '/></svg>',
+    rv25: '<svg viewBox="0 0 64 36" aria-hidden="true"><rect x="4" y="8" width="56" height="5" rx="2.5" ' + STONE2 + '/><rect x="4" y="17" width="56" height="6" rx="3" ' + STONE + '/><rect x="9" y="23" width="4" height="11" rx="2" ' + STONE2 + '/><rect x="51" y="23" width="4" height="11" rx="2" ' + STONE2 + '/></svg>',
+    area: '<svg viewBox="0 0 60 56" aria-hidden="true"><path d="M8 38 H52 L48 52 H12 Z" ' + STONE + '/><rect x="6" y="34" width="48" height="6" rx="3" ' + STONE2 + '/><rect x="27" y="14" width="6" height="22" rx="3" ' + STONE2 + '/><path d="M18 18 C22 10 38 10 42 18" stroke-width="4" fill="none" stroke-linecap="round" class="o2s"/><g ' + WATER + '><circle cx="30" cy="8" r="3"/><circle cx="22" cy="24" r="2"/><circle cx="38" cy="24" r="2"/><circle cx="30" cy="30" r="2"/></g></svg>',
+    studies3: '<svg viewBox="0 0 50 50" aria-hidden="true"><ellipse cx="25" cy="14" rx="21" ry="6" ' + STONE + '/><ellipse cx="25" cy="13" rx="16" ry="3.6" ' + WATER + '/><path d="M20 18 H30 L28 44 H22 Z" ' + STONE2 + '/><rect x="14" y="44" width="22" height="5" rx="2.5" ' + STONE + '/><ellipse cx="34" cy="7" rx="4" ry="3" ' + ACC + '/><circle cx="37" cy="5" r="2" ' + ACC + '/></svg>',
+    rv50: '<svg viewBox="0 0 60 70" aria-hidden="true"><path d="M8 68 V30 C8 12 52 12 52 30 V68" stroke-width="5" fill="none" class="o2s"/><path d="M8 40 C4 36 4 30 8 28 M52 40 C56 36 56 30 52 28 M14 18 C10 14 12 10 16 12 M46 18 C50 14 48 10 44 12 M30 12 C28 8 32 6 32 10" stroke-width="3" fill="none" stroke-linecap="round" class="oas"/><g ' + ACC + '><circle cx="12" cy="24" r="3"/><circle cx="48" cy="24" r="3"/><circle cx="30" cy="11" r="3"/><circle cx="21" cy="14" r="2.5"/><circle cx="39" cy="14" r="2.5"/></g></svg>',
+    streak26: '<svg viewBox="0 0 50 50" aria-hidden="true"><rect x="19" y="20" width="12" height="26" rx="2" ' + STONE2 + '/><rect x="12" y="44" width="26" height="5" rx="2.5" ' + STONE + '/><ellipse cx="25" cy="18" rx="20" ry="7" ' + STONE + '/><path d="M25 18 L25 6 L33 18 Z" ' + ACC + '/></svg>',
+    first10: '<svg viewBox="0 0 64 50" aria-hidden="true"><rect x="4" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><rect x="53" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><path d="M11 18 H53 M11 40 H53" stroke-width="3" class="o2s"/><path d="M17 16 V46 M24 15 V46 M32 14 V46 M40 15 V46 M47 16 V46" stroke-width="3" stroke-linecap="round" class="o1s"/><circle cx="7.5" cy="7" r="4" ' + ACC + '/><circle cx="56.5" cy="7" r="4" ' + ACC + '/></svg>',
+    streak52: '<svg viewBox="0 0 70 84" aria-hidden="true"><rect x="31" y="44" width="8" height="38" rx="3" ' + STONE2 + '/><path d="M35 58 L22 46 M35 52 L48 42" stroke-width="4" stroke-linecap="round" class="o2s"/><g ' + ACC + '><circle cx="35" cy="22" r="18"/><circle cx="18" cy="36" r="14"/><circle cx="52" cy="34" r="14"/><circle cx="35" cy="40" r="12"/></g><g class="ofr"><circle cx="26" cy="26" r="2.6"/><circle cx="44" cy="20" r="2.6"/><circle cx="52" cy="38" r="2.6"/><circle cx="18" cy="40" r="2.6"/><circle cx="35" cy="34" r="2.6"/></g></svg>',
+  };
+  function exhibitObj(id, name, locked) {
+    const d = h('div', { class: 'gobj o-' + id + (locked ? ' locked' : ''), role: 'img', 'aria-label': name + (locked ? ' (not yet)' : '') });
+    d.innerHTML = EXH_ART[id] || '';
+    return d;
+  }
+  // the earned ones, standing together at the foot of the garden
+  function exhibitSquare(earned) {
+    const got = G.EXHIBITS.filter(([id]) => earned[id]);
+    if (!got.length) return null;
+    return h('div', { class: 'gsquare' }, got.map(([id, , name]) => exhibitObj(id, name, false)));
+  }
+  function exhibitSheet(earned) {
+    UI.sheet('Exhibits', (close) => h('div', null,
+      h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
+        exhibitObj(id, name, !earned[id]),
+        h('b', null, name),
+        h('span', null, earned[id] ? U.fmtDate(new Date(earned[id])) : 'Not yet')))),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+  }
   function exhibitCard(earned) {
     const n = G.EXHIBITS.filter(([id]) => earned[id]).length;
-    return h('section', { class: 'icard' },
-      h('div', { class: 'ih' }, h('h2', null, 'Exhibits'), h('span', { class: 'muted' }, n + ' of ' + G.EXHIBITS.length)),
-      h('div', { class: 'exh' }, G.EXHIBITS.map(([id, mark, name]) =>
-        h('div', { class: earned[id] ? 'on' : '', title: earned[id] ? 'Earned ' + U.fmtDate(new Date(earned[id])) : 'Not yet' }, h('b', null, mark), name))));
+    return h('button', { class: 'exrow', type: 'button', onclick: () => exhibitSheet(earned) },
+      h('span', { class: 'n' }, n + ' of ' + G.EXHIBITS.length), h('span', { class: 't' }, 'Exhibits in the garden'), icon('right', 18));
   }
+
   function goingCard(items, now) {
     const r = G.rates(items, now);
     const grid = G.activityGrid(items, now);
@@ -221,7 +251,7 @@
     }
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
+    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now, earned) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.
@@ -286,10 +316,26 @@
   }
   RV.gardenRecap = { maybeShow: maybeRecap };
 
+  // Garden or Map at the top of Insights (remembered on this device).
+  const VIEW_KEY = 'rvapp.insView';
+  const insView = () => { try { return localStorage.getItem(VIEW_KEY) === 'map' ? 'map' : 'garden'; } catch (e) { return 'garden'; } };
+  function viewSwitch(cur) {
+    const go = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } RV.app.render(); };
+    return h('div', { class: 'seg2 gview', role: 'tablist', 'aria-label': 'Garden or map' }, [['garden', 'Garden'], ['map', 'Map']].map(([v, label]) =>
+      h('button', { type: 'button', role: 'tab', class: v === cur ? 'on' : '', 'aria-selected': String(v === cur), onclick: () => { if (v !== cur) go(v); } }, label)));
+  }
+  function mapScreen() {
+    const mv = RV.gmap.view(ST.items());
+    return { title: 'Insights', el: h('div', null, viewSwitch('map'), mv.el), update: () => mv.refresh(), destroy: () => mv.destroy() };
+  }
+
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();
     if (sub === 'plot') return plotScreen(key || '-');
-    return garden();
+    if (insView() === 'map' && RV.gmap) return mapScreen();
+    const g = garden();
+    g.el.prepend(viewSwitch('garden'));
+    return g;
   }
   RV.screens.insights = insights;
 })(window);

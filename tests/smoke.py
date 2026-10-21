@@ -385,7 +385,7 @@ with sync_playwright() as p:
     page.locator('.gscene .gp').first.click(); time.sleep(0.2)
     check(page.locator('.gcard').is_visible() and page.locator('.gcard a:has-text("Open")').count() == 1, 'tapping a plant shows its card')
     check('Due this week' in page.locator('.ring').inner_text() and 'coming due by Saturday' in page.locator('.ring').inner_text(), 'ring says only RVs coming due count')
-    check(page.locator('.exh > div').count() == 8, 'eight exhibits')
+    check(page.locator('.exrow').count() == 1 and 'of 8' in page.locator('.exrow').inner_text(), 'exhibits row: N of 8')
     check(page.locator('.rates > div').count() == 2 and page.locator('.dgrid i').count() == 84, 'found-home and prepared rates, 84-day dot grid')
     page.click('.gsign >> nth=0'); page.wait_for_selector('.plotbed')
     check(page.locator('.plotbed .pl').count() == page.locator('.list .row').count() > 0, 'an area plot shows every plant and the list')
@@ -720,6 +720,45 @@ with sync_playwright() as p:
     page.goto(URL + '#/insights'); page.wait_for_selector('.ring'); shot('34-garden-insights')
     page.click('.gsign:has-text("Plotville")'); page.wait_for_selector('.plotbed')
     check(page.locator('.plotbed .pl').count() == 1, 'Plotville plot has one plant')
+    # v2.18: exhibits stand in the garden; the map
+    ev('''() => RV.store.saveSettings(s => { s.exhibits = Object.assign({}, s.exhibits, { 'first-study': new Date().toISOString(), rv25: new Date().toISOString() }); })''')
+    page.goto(URL + '#/insights'); page.wait_for_selector('.gscene')
+    nex = ev('Object.keys(RV.store.S.settings.exhibits).filter(k => RV.garden.EXHIBITS.some(e => e[0] === k)).length')
+    check(page.locator('.gsquare .gobj').count() == nex and nex >= 2, 'earned exhibits stand in the garden (%d)' % nex)
+    page.click('.exrow'); page.wait_for_selector('.exgrid')
+    check(page.locator('.exitem').count() == 8 and page.locator('.exitem.locked').count() == 8 - nex, 'Exhibits sheet: all eight, the rest greyed')
+    page.keyboard.press('Escape'); time.sleep(0.2)
+    style = json.dumps({'version': 8, 'sources': {}, 'layers': [{'id': 'background', 'type': 'background', 'paint': {'background-color': '#ffffff'}}, {'id': 'poi_label', 'type': 'symbol', 'source-layer': 'poi', 'paint': {}}]})
+    page.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body=style))
+    searches = []
+    def fake_search(route):
+        searches.append(route.request.url)
+        k = len(searches)
+        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body=json.dumps([{'lat': str(37.955 + 0.004 * (k % 4)), 'lon': str(-121.31 + 0.005 * (k // 4 % 4))}]))
+    page.route('https://nominatim.openstreetmap.org/search**', fake_search)
+    page.click('.gview button:has-text("Map")'); page.wait_for_selector('.gmap')
+    try:
+        page.wait_for_selector('.gmap .gpin', timeout=15000); ok_map = True
+    except Exception:
+        ok_map = False
+    msg = page.locator('.gmap-msg').inner_text() if page.locator('.gmap-msg:visible').count() else ''
+    check(ok_map, 'map shows plants as pins (%s)' % msg)
+    if ok_map:
+        time.sleep(3.5)  # a few addresses are looked up, one a second
+        placed = ev("RV.store.S.rvs.filter(r => r.approx && !r.approx.fail).length")
+        check(len(searches) >= 1 and placed >= 1 and page.locator('.gmap .gpin.approx').count() >= 1, 'RVs without a geotag are placed from their address (%d looked up)' % len(searches))
+        shot('36-map')
+        page.locator('.gmap .gpin').first.dispatch_event('click'); time.sleep(0.2)
+        check(page.locator('.gcard:visible button:has-text("Directions")').count() == 1, 'tapping a pin shows Open and Directions')
+        n_all = page.locator('.gmap .gpin').count()
+        page.click('.gmap-chip'); time.sleep(0.3)
+        n_dry = page.locator('.gmap .gpin').count()
+        ndue = ev("[...document.querySelectorAll('.gmap .gpin')].filter(b => /Thirsty|Wilting/.test(b.getAttribute('aria-label'))).length")
+        check(n_dry == ndue and n_dry <= n_all and 'Thirsty only' in page.locator('.gmap-chip').inner_text(), 'thirsty-only filter keeps only thirsty and wilting (%d of %d)' % (n_dry, n_all))
+    page.reload(); page.wait_for_selector('.gmap')
+    check(page.locator('.gview button.on').inner_text() == 'Map', 'Insights remembers the map view')
+    page.click('.gview button:has-text("Garden")'); page.wait_for_selector('.gscene')
+    page.unroute('https://tiles.openfreemap.org/**'); page.unroute('https://nominatim.openstreetmap.org/search**')
     # week's-end recap: once, after the week ends
     ev('''() => RV.store.saveSettings(s => { s.gardenSince = new Date(Date.now() - 30*864e5).toISOString(); s.recapSeen = null; })''')
     page.goto(URL + '#/home'); page.wait_for_selector('.home')

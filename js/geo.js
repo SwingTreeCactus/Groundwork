@@ -64,9 +64,44 @@
   }
   // Suggested full address for a point, or ''.
   const suggest = async (pt) => fullOf(await lookup(pt));
+  // Map placement for a record: its geotag, else a point looked up once from its saved address
+  // (rv.approx, kept with the address it was found for, so a changed address is looked up again).
+  const addrKey = (rv) => String(rv.address || '').trim().toLowerCase();
+  function pointOf(rv) {
+    if (rv.geo && typeof rv.geo.lat === 'number') return { lat: rv.geo.lat, lng: rv.geo.lng, approx: false };
+    const a = rv.approx;
+    if (a && !a.fail && a.q === addrKey(rv) && typeof a.lat === 'number') return { lat: a.lat, lng: a.lng, approx: true };
+    return null;
+  }
+  const needsLookup = (rv) => !!addrKey(rv) && !(rv.geo && typeof rv.geo.lat === 'number') && !(rv.approx && rv.approx.q === addrKey(rv));
+  // Address to point (OpenStreetMap Nominatim), kept near `near` ({lat, lng}) when given so a street name
+  // shared by many towns lands in the right one. Resolves {lat, lng} or null.
+  async function forward(address, near) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+    let url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(address);
+    if (near) {
+      const d = 0.35;
+      url += '&bounded=1&viewbox=' + [near.lng - d, near.lat + d, near.lng + d, near.lat - d].map((v) => v.toFixed(4)).join(',');
+    }
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), 8000) : null;
+    try {
+      const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: ctl ? ctl.signal : undefined });
+      if (!r.ok) return undefined; // service trouble: try again another time
+      const j = await r.json();
+      const hit = Array.isArray(j) && j[0];
+      return hit ? { lat: +(+hit.lat).toFixed(6), lng: +(+hit.lon).toFixed(6) } : null;
+    } catch (e) { return undefined; } finally { if (t) clearTimeout(t); }
+  }
+  // Middle of the geotagged records, to keep address lookups local.
+  function centerOf(rvs) {
+    const pts = rvs.filter((r) => r.geo && typeof r.geo.lat === 'number');
+    if (!pts.length) return null;
+    return { lat: pts.reduce((s, r) => s + r.geo.lat, 0) / pts.length, lng: pts.reduce((s, r) => s + r.geo.lng, 0) / pts.length };
+  }
   const label = (g) => (g ? g.lat.toFixed(5) + ', ' + g.lng.toFixed(5) + (g.acc ? ' (±' + g.acc + ' m)' : '') : '');
 
-  const api = { here, lookup, suggest, streetOf, fullOf, completeAddress, label };
+  const api = { here, lookup, suggest, streetOf, fullOf, completeAddress, label, addrKey, pointOf, needsLookup, forward, centerOf };
   RV.geo = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

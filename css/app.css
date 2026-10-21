@@ -1144,3 +1144,41 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .gcard .gct > span.gword { color: var(--red); font-weight: 600; }
 .gplot { transform: none !important; } .gplot.small:nth-child(odd) { transform: translateX(-8px) !important; } .gplot.small:nth-child(even) { transform: translateX(8px) !important; }
 .gscene { max-width: 100%; } .gbed { max-width: 100%; }
+
+/* v2.18: the garden map */
+.gview { margin: 0 0 12px; }
+.gmap { position: relative; height: calc(100dvh - 230px - env(safe-area-inset-bottom)); min-height: 420px; border-radius: 24px; overflow: hidden; background: var(--surface2); }
+.gmap-canvas { position: absolute !important; inset: 0; width: 100%; height: 100%; }
+.gmap-chip { position: absolute; left: 12px; top: 12px; z-index: 5; border: 0; border-radius: 999px; height: 38px; padding: 0 14px; font: inherit; font-size: .85rem; font-weight: 600; background: var(--surface); color: var(--fg); box-shadow: 0 2px 8px rgba(14, 14, 16, .12); cursor: pointer; }
+.gmap-chip.on { background: var(--red); color: var(--accent-fg); }
+.gmap-loc { position: absolute; right: 12px; top: 12px; z-index: 5; width: 42px; height: 42px; border: 0; border-radius: 50%; background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(14, 14, 16, .12); cursor: pointer; }
+.gmap-msg { position: absolute; left: 24px; right: 24px; top: 45%; z-index: 5; text-align: center; color: var(--muted); font-size: .95rem; }
+.gmap-msg[hidden] { display: none; }
+.gpin { border: 0; padding: 0; background: transparent; cursor: pointer; position: relative; display: block; -webkit-tap-highlight-color: transparent; }
+.gpin .pl { display: block; }
+.gpin.approx::before { content: ""; position: absolute; left: 6px; right: 6px; bottom: -3px; height: 9px; border-radius: 50%; border: 1.5px dashed var(--pl-3); }
+.gpin.sel::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: -5px; height: 9px; border-radius: 50%; background: var(--red); opacity: .4; }
+.gyou { width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 10px rgba(91, 62, 150, .15); }
+.gyou i { width: 12px; height: 12px; border-radius: 50%; background: var(--red); }
+.gmap .maplibregl-ctrl-attrib { font-size: 10px; }
+.gcard .btn.sm { min-height: 40px; }
+/* v2.18: exhibits as objects in the garden */
+.gobj svg { display: block; width: 100%; height: 100%; }
+.gobj .o1 { fill: #DCD5E6; } .gobj .o2 { fill: #C3B8D6; } .gobj .o1s { stroke: #DCD5E6; } .gobj .o2s { stroke: #C3B8D6; }
+.gobj .oa { fill: var(--pl-4); } .gobj .oas { stroke: var(--pl-3); } .gobj .ow { fill: #8FB7E6; } .gobj .ofr { fill: var(--pl-5); }
+:root[data-theme="dark"] .gobj .o1 { fill: #4A4458; } :root[data-theme="dark"] .gobj .o2 { fill: #5C5570; } :root[data-theme="dark"] .gobj .o1s { stroke: #4A4458; } :root[data-theme="dark"] .gobj .o2s { stroke: #5C5570; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gobj .o1 { fill: #4A4458; } :root:not([data-theme="light"]) .gobj .o2 { fill: #5C5570; } :root:not([data-theme="light"]) .gobj .o1s { stroke: #4A4458; } :root:not([data-theme="light"]) .gobj .o2s { stroke: #5C5570; } }
+.gobj.locked .o1, .gobj.locked .o2, .gobj.locked .oa, .gobj.locked .ow, .gobj.locked .ofr { fill: var(--line); }
+.gobj.locked .o1s, .gobj.locked .o2s, .gobj.locked .oas { stroke: var(--line); }
+.gsquare { position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 18px 22px; margin-top: 70px; padding: 0 6px; }
+.gsquare .gobj { width: 56px; height: 56px; }
+.gsquare .o-rv25 { width: 70px; height: 40px; } .gsquare .o-first-study { width: 26px; height: 56px; } .gsquare .o-rv50 { width: 58px; height: 68px; } .gsquare .o-first10 { width: 66px; height: 52px; } .gsquare .o-streak52 { width: 76px; height: 90px; }
+.exrow { display: flex; align-items: center; gap: 12px; width: 100%; background: var(--surface); border: 0; border-radius: 20px; padding: 14px 16px; margin-bottom: 12px; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.exrow .n { font-family: var(--font-dot); font-weight: 700; font-size: 1.4rem; color: var(--red); }
+.exrow .t { flex: 1; font-weight: 600; } .exrow .icon { color: var(--muted); }
+.exgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.exitem { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; background: var(--surface2); border-radius: 18px; padding: 14px 8px 12px; }
+.exitem .gobj { width: 64px; height: 64px; display: flex; align-items: flex-end; justify-content: center; }
+.exitem .gobj svg { width: auto; max-width: 100%; height: 100%; }
+.exitem b { font-size: .9rem; } .exitem span { font-size: .78rem; color: var(--muted); }
+.exitem.locked b { color: var(--muted); font-weight: 500; }
