@@ -122,6 +122,20 @@
     return '<svg class="gsky" aria-hidden="true" viewBox="0 0 366 170" preserveAspectRatio="xMidYMax slice"><rect width="366" height="170" class="skyf"/>' + stars + sun + clouds +
       '<path d="M0 150 C60 118 120 120 180 140 C240 160 300 116 366 132 L366 170 L0 170 Z" class="hill"/><path d="M0 162 C80 146 160 152 230 160 C290 166 330 154 366 156 L366 170 L0 170 Z" class="hill2"/></svg>';
   }
+  // grass tufts and pebbles scattered over the ground (same spots every time)
+  function tufts() {
+    const box = h('div', { class: 'gdecor', 'aria-hidden': 'true' });
+    let r = 7;
+    const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    for (let i = 0; i < 22; i++) {
+      const x = (rnd() * 92 + 2).toFixed(1), y = (rnd() * 94 + 2).toFixed(1);
+      const html = i % 4 === 3
+        ? '<svg viewBox="0 0 14 8"><ellipse cx="5" cy="5" rx="4.5" ry="3" class="peb"/><ellipse cx="11" cy="6" rx="2.6" ry="2" class="peb"/></svg>'
+        : '<svg viewBox="0 0 16 12"><path d="M3 12 C3 8 2 5 0 3 M7 12 C7 7 7 4 8 0 M11 12 C11 8 12 5 15 3" class="tuft"/></svg>';
+      box.appendChild(svgEl(html, i % 4 === 3 ? 'gpeb' : 'gtuft', 'left:' + x + '%;top:' + y + '%'));
+    }
+    return box;
+  }
   function gardenScene(plots, now) {
     const t = G.skyOf(now);
     const card = h('div', { class: 'gcard', hidden: true });
@@ -139,23 +153,23 @@
     };
     let seed = 0, flies = 0, birds = 0;
     const beds = plots.map((p) => {
-      const PER = 7, SP = 40;
+      const PER = 4, SP = 80;
       const cols = Math.min(p.plants.length, PER);
       const rows = Math.ceil(p.plants.length / PER);
-      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 20 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 30 + 16) + 'px' } });
+      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 40 + 26) + 'px' } });
       p.plants.forEach((x, i) => {
         const r = Math.floor(i / PER), c = i % PER;
-        const el = SC.plantOf(x.st, 'tl', { seed: seed++, bare: true });
+        const el = SC.plantOf(x.st, 'lg', { seed: seed++, bare: true });
         el.classList.add('gp');
         el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
         el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.stageOf(S.settings, x.it.rv.stage).name));
-        const left = 8 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 30 - 40;
+        const left = 6 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 40 - 78;
         el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
         el.addEventListener('click', () => pick(el, x));
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });
         bed.appendChild(el);
-        if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 26) + 'px;top:' + (top + 4) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
-        if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 6) + 'px;top:' + (top + 4) + 'px')); }
+        if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
+        if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
       });
       const due = p.wilting + p.thirsty;
       return h('div', { class: 'gplot' },
@@ -164,7 +178,7 @@
     });
     return h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
-      h('div', { class: 'gground' }, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds)),
+      h('div', { class: 'gground' }, tufts(), svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds)),
       card);
   }
 

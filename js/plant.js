@@ -74,7 +74,7 @@
       '<rect x="11" y="68" width="38" height="6" rx="3" class="rim"/><path d="M14 74 H46 L43 90 H17 Z" class="pot"/>' +
       '<g class="face"><g class="e-open"><circle cx="25" cy="81" r="' + r + '"/><circle cx="35" cy="81" r="' + r + '"/>' +
       '<g class="e-shine"><circle cx="' + (small ? 25.9 : 25.8) + '" cy="' + (small ? 80.1 : 80.2) + '" r="' + (small ? 0.9 : 0.8) + '"/><circle cx="' + (small ? 35.9 : 35.8) + '" cy="' + (small ? 80.1 : 80.2) + '" r="' + (small ? 0.9 : 0.8) + '"/></g></g>' +
-      eyes + '</g>' + need +
+      eyes + '</g>' + '<g class="needpos">' + need + '</g>' +
       '<g class="spark"><circle cx="7" cy="34" r="1.5"/><circle cx="53" cy="44" r="1.3"/><circle cx="12" cy="12" r="1.1"/><circle cx="50" cy="60" r="1.1"/></g></svg>';
   }
 
