@@ -282,7 +282,7 @@
     if (!r) return;
     ST.saveSettings((s) => { s.recapSeen = r.key; });
     const close = () => ov.remove();
-    const mk = (stageId, care) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true });
+    const mk = (stageId, care, vid) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true, vid });
     const fmt = (d) => U.MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
     const sat = U.addDays(r.ws, 6);
     const ring = r.ring.due
@@ -301,7 +301,7 @@
         h('section', { class: 'rcard pop' }, ringBox, h('div', null, h('b', null, ring[0]), h('div', { class: 'muted' }, ring[1]))),
         r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Grew'),
           r.grew.slice(0, 4).map((g) => h('div', { class: 'rgrew' },
-            h('div', { class: 'pair' }, mk(g.from, 4), icon('right', 16), mk(g.to, 4)),
+            h('div', { class: 'pair' }, mk(g.from, 4, g.rv.id), icon('right', 16), mk(g.to, 4, g.rv.id)),
             h('div', null, h('b', null, g.rv.name), h('div', { class: 'acc' }, L.stageOf(S.settings, g.to).name)))),
           r.grew.length > 4 ? h('div', { class: 'muted small' }, '+' + (r.grew.length - 4) + ' more') : null) : null,
         h('div', { class: 'rtwo' },
@@ -318,7 +318,8 @@
 
   // Garden or Map at the top of Insights (remembered on this device).
   const VIEW_KEY = 'rvapp.insView';
-  const insView = () => { try { return localStorage.getItem(VIEW_KEY) === 'map' ? 'map' : 'garden'; } catch (e) { return 'garden'; } };
+  // the map is the default; the garden scene is one tap away
+  const insView = () => { try { return localStorage.getItem(VIEW_KEY) === 'garden' ? 'garden' : 'map'; } catch (e) { return 'map'; } };
   function viewSwitch(cur) {
     const go = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } RV.app.render(); };
     return h('div', { class: 'seg2 gview', role: 'tablist', 'aria-label': 'Garden or map' }, [['garden', 'Garden'], ['map', 'Map']].map(([v, label]) =>

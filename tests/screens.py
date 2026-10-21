@@ -44,6 +44,7 @@ with sync_playwright() as p:
     shot=lambda n: pg.screenshot(path=f'{OUT}/b-{n}.png')
     pg.goto(base+'#/home'); pg.wait_for_selector('.tabbar .tab')
     pg.evaluate(SEED); pg.reload(); pg.wait_for_selector('.tabbar .tab'); pg.wait_for_timeout(300)
+    pg.evaluate("localStorage.setItem('rvapp.insView', 'garden')")
     shot('home')
     check(pg.locator('text=New RV').count()==0, 'Home has no New RV card')
     # Today dashboard

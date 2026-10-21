@@ -371,3 +371,17 @@ Mockups: canvas row "The garden as a place" (Garden, Map, Week's-end recap). Ins
 - Privacy page: Garden map section (map tiles from OpenFreeMap; street addresses without names sent once to Nominatim).
 - Tests: garden 33 (restyle, placement), smoke 233 (map with a faked style and lookups, pins, card, filter, remembered view; exhibits), screens 42. VERSION 2.18.0, cache rvapp-v52.
 - Next: the four care levels (Lush, Healthy, Thirsty, Wilting; Steady folds into Healthy) with the new postures, and plant variety per person (canvas boards "Care as posture" and "Variety").
+
+## 30. v2.19.0 care as posture, a plant for each person, the map first (built 2026-10-21)
+
+Mockups: canvas boards "Care as posture" and "Variety".
+- Four care levels shown (Mark: five were too close to tell apart): Lush, Healthy, Thirsty, Wilting. Steady folds into Healthy (`G.care` never returns 3; a Not Home or a visit with no plan is Healthy). The time rules are unchanged.
+- Plants are drawn from geometry in js/plant.js (`plantSvg`), no transparency: the stem is the spine, leaves are arms (each pivots where it joins the stem), the top is the head.
+  - Lush: taller, arms up, leaves about a third longer and half again as wide, more of them, big open flower, full crown and fruit, small twinkling sparkles; bounces gently.
+  - Healthy: upright, arms out level, modest foliage; easy sway.
+  - Thirsty: slouched forward, head bowed, arms hanging, leaves narrow and curled (fold line), losing lower leaves, dry cracked soil, a leaf or two on the ground; barely moves.
+  - Wilting: collapsed over the pot, one or two shrivelled leaves with dry brown tips, more fallen leaves; just breathes.
+  - The fruit tree keeps its stance; its crown and fruit thin instead. Seed and sprout top out at Healthy.
+- Variety: each person gets their own plant from their record ID (`P.variant`): leaf shape (round, pointed, paddle, long), arrangement (pairs or alternating), stem curve, flower (five petals, daisy, bell), crown (round, tall oval, wide umbrella), fruit (berries, pears) and shade (the accent or a neighbouring hue either side), in purple or blue, light or dark. Stage silhouette and posture stay readable.
+- Map: Insights opens on the Map (the Garden scene is one tap away; the choice is remembered). The base map is restyled more strongly (cream ground, sage parks, blue water, white streets, purple-grey labels; buildings, shops, bus stops and house numbers hidden), and each area is drawn under the streets as a lavender plot with a dashed edge around its RVs, with the area's name on a pill (tap for the area plot).
+- Tests: garden 33, smoke 235, screens 42. VERSION 2.19.0, cache rvapp-v53.

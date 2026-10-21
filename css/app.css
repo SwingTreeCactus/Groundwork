@@ -1182,3 +1182,4 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .exitem .gobj svg { width: auto; max-width: 100%; height: 100%; }
 .exitem b { font-size: .9rem; } .exitem span { font-size: .78rem; color: var(--muted); }
 .exitem.locked b { color: var(--muted); font-weight: 500; }
+.gplotname { display: inline-block; background: var(--surface); color: var(--fg); border-radius: 999px; padding: 3px 10px; font-size: .75rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 4px rgba(14, 14, 16, .14); white-space: nowrap; }

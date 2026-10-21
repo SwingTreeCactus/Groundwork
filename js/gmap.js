@@ -11,14 +11,14 @@
 
   // Groundwork colours for the base map. Light and dark.
   const THEMES = {
-    light: { bg: '#F4F1EA', water: '#D9E3F0', park: '#E3EAD9', land: '#EEEAE1', building: '#E6E1D8', road: '#FFFFFF', roadCase: '#DCD6E6', minor: '#FBFAF7', rail: '#D6D0DF', text: '#5E5A66', halo: '#F4F1EA', boundary: '#C9C2D3' },
-    dark: { bg: '#1C1A22', water: '#232B3A', park: '#22291F', land: '#201E26', building: '#26232D', road: '#3A3644', roadCase: '#2B2833', minor: '#302D38', rail: '#34303E', text: '#A9A3B6', halo: '#1C1A22', boundary: '#3E3A48' },
+    light: { bg: '#EFEAE0', water: '#CFE0F2', park: '#D9E7CF', land: '#ECE6DA', building: '#E5DED2', road: '#FFFFFF', roadCase: '#D9D0E6', minor: '#F8F6F1', rail: '#D6D0DF', text: '#6A5E86', halo: '#EFEAE0', boundary: '#C9C2D3', plot: '#E4DAF2', plotLine: '#B9A7DA' },
+    dark: { bg: '#1C1A22', water: '#22304A', park: '#1F2A1E', land: '#201E26', building: '#26232D', road: '#3A3644', roadCase: '#2B2833', minor: '#302D38', rail: '#34303E', text: '#B7ADCF', halo: '#1C1A22', boundary: '#3E3A48', plot: '#2E2740', plotLine: '#5C4E80' },
   };
   // Restyle any OpenMapTiles-schema style: our colours, shops and bus stops hidden, street names kept.
   function restyle(style, dark) {
     const c = THEMES[dark ? 'dark' : 'light'];
     const out = JSON.parse(JSON.stringify(style));
-    out.layers = (out.layers || []).filter((l) => !/^(poi|aerodrome|airport)/.test(l['source-layer'] || '') && !/poi|housenumber|aeroway/i.test(l.id));
+    out.layers = (out.layers || []).filter((l) => !/^(poi|aerodrome|airport|building)/.test(l['source-layer'] || '') && !/poi|housenumber|aeroway|building/i.test(l.id));
     for (const l of out.layers) {
       const id = l.id.toLowerCase(), sl = (l['source-layer'] || '').toLowerCase();
       l.paint = l.paint || {};
@@ -50,6 +50,32 @@
       }
     }
     return out;
+  }
+
+  // ---------- area plots: each area's beds drawn on the map under the streets ----------
+  // A rounded shape around an area's RVs (a hull of small circles round each point), and its name.
+  function hull(points) {
+    const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (p.length < 3) return p;
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+    for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  }
+  function plotShapes(groups) {
+    const feats = [];
+    for (const [name, pts] of groups) {
+      if (!name || !pts.length) continue;
+      const ring = [];
+      for (const p of pts) {
+        const r = 0.0009, k = Math.cos((p.lat * Math.PI) / 180);
+        for (let i = 0; i < 16; i++) { const a = (i / 16) * 2 * Math.PI; ring.push([p.lng + (Math.cos(a) * r) / k, p.lat + Math.sin(a) * r]); }
+      }
+      const h = hull(ring); h.push(h[0]);
+      feats.push({ type: 'Feature', properties: { name }, geometry: { type: 'Polygon', coordinates: [h] } });
+    }
+    return { type: 'FeatureCollection', features: feats };
   }
 
   // Load MapLibre once, on first use.
@@ -109,7 +135,7 @@
     const box = h('div', { class: 'gmap', role: 'region', 'aria-label': 'Map of your ' + UI.lbl('rvs') });
     const msg = h('div', { class: 'gmap-msg', hidden: true });
     const card = h('div', { class: 'gcard', hidden: true });
-    let dryOnly = false, map = null, open = true, markers = new Map(), you = null, sel = null;
+    let dryOnly = false, map = null, open = true, markers = new Map(), you = null, sel = null, labels = new Map();
     const live = () => RV.store.items().filter((i) => i.att.state !== 'closed').map((it) => ({ it, st: G.forItem(it, S.settings, new Date()) })).filter((x) => x.st.form);
     const chip = h('button', { class: 'gmap-chip', type: 'button', 'aria-pressed': 'false', onclick: () => { dryOnly = !dryOnly; paintChip(); paintMarkers(); } });
     const locate = h('button', { class: 'gmap-loc', type: 'button', 'aria-label': 'Show where I am', onclick: () => findMe() }, icon('navigation', 18));
@@ -130,7 +156,7 @@
     }
     function markerEl(x, pt) {
       const b = h('button', { class: 'gpin' + (pt.approx ? ' approx' : ''), type: 'button', 'aria-label': x.it.rv.name + ', ' + (x.st.word || L.stageOf(S.settings, x.it.rv.stage).name) + (pt.approx ? ', placed from the address' : '') });
-      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, still: false }));
+      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, still: false, vid: x.it.rv.id }));
       b.addEventListener('click', (e) => { e.stopPropagation(); pick(x); });
       return b;
     }
@@ -148,6 +174,7 @@
         markers.set(x.it.rv.id, new lib.Marker({ element: markerEl(x, pt), anchor: 'bottom' }).setLngLat([pt.lng, pt.lat]).addTo(map));
       }
       for (const [id, m] of markers) if (!want.has(id)) { m.remove(); markers.delete(id); }
+      paintPlots();
       paintChip();
       if (fit && pts.length) {
         if (pts.length === 1) map.jumpTo({ center: [pts[0].lng, pts[0].lat], zoom: 15 });
@@ -157,6 +184,36 @@
         }
       }
       if (!pts.length && !dryOnly) { msg.textContent = 'Geotag an ' + UI.lbl('rv') + ' or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
+    }
+    // the areas as plots of ground under the streets, each with its name
+    function paintPlots() {
+      if (!map || !map.isStyleLoaded()) return;
+      const groups = new Map();
+      for (const x of live()) {
+        const pt = RV.geo.pointOf(x.it.rv), name = (x.it.rv.neighborhood || '').trim();
+        if (!pt || !name) continue;
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(pt);
+      }
+      const data = plotShapes(groups);
+      const c = THEMES[isDark() ? 'dark' : 'light'];
+      if (map.getSource('plots')) map.getSource('plots').setData(data);
+      else {
+        map.addSource('plots', { type: 'geojson', data });
+        const before = (map.getStyle().layers || []).find((l) => l['source-layer'] === 'transportation' || /road|highway|street/i.test(l.id));
+        map.addLayer({ id: 'plots-fill', type: 'fill', source: 'plots', paint: { 'fill-color': c.plot } }, before && before.id);
+        map.addLayer({ id: 'plots-line', type: 'line', source: 'plots', paint: { 'line-color': c.plotLine, 'line-width': 1.5, 'line-dasharray': [2, 2] } }, before && before.id);
+      }
+      const want = new Set();
+      for (const [name, pts] of groups) {
+        want.add(name);
+        const top = pts.reduce((m, p) => (p.lat > m.lat ? p : m), pts[0]);
+        const lng = pts.reduce((sum, p) => sum + p.lng, 0) / pts.length, lat = top.lat + 0.0011;
+        if (labels.has(name)) { labels.get(name).setLngLat([lng, lat]); continue; }
+        const a = h('a', { class: 'gplotname', href: '#/insights/plot/' + encodeURIComponent(name) }, name);
+        labels.set(name, new root.maplibregl.Marker({ element: a, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map));
+      }
+      for (const [name, m] of labels) if (!want.has(name)) { m.remove(); labels.delete(name); }
     }
     function findMe() {
       if (!navigator.geolocation || !map) return;
@@ -187,6 +244,6 @@
     return { el: box, refresh() { paintMarkers(false); }, destroy() { open = false; if (map) { map.remove(); map = null; } } };
   }
 
-  RV.gmap = { view, restyle, THEMES };
+  RV.gmap = { view, restyle, THEMES, plotShapes, hull };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.gmap;
 })(typeof window !== 'undefined' ? window : globalThis);

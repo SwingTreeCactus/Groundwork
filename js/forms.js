@@ -290,7 +290,7 @@
       const to = L.stageOf(S.settings, res.grew.to);
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
-      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, to.name);
+      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, to.name, rvId);
     } else if (on) P.pendingWater = rvId;
     toast(msg, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }

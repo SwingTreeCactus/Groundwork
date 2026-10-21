@@ -11,7 +11,7 @@
   const G = RV.garden, P = RV.plant;
   const gardenOn = () => S.settings.garden !== false;
   const gstate = (it) => G.forItem(it, S.settings, new Date());
-  const plantOf = (st, size, o) => P.make(st.form, st.care, Object.assign({ size, buds: st.buds }, o || {}));
+  const plantOf = (st, size, o) => P.make(st.form, st.care, Object.assign({ size, buds: st.buds, vid: st.vid }, o || {}));
   // One segment per step needed; faded when the chain is about to break; a calendar mark while a follow-up holds it.
   function miniBar(st) {
     const bar = h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need + ' toward ' + st.nextName },
@@ -563,7 +563,7 @@
       h('div', { class: 'gl' }, 'Growth path'),
       h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) =>
         h('span', { class: f === st.form ? 'cur' : '' },
-          P.make(f, f === st.form ? st.care : 4, { size: 'sm', ghost: f > st.form, still: f !== st.form, seed: f })))));
+          P.make(f, f === st.form ? st.care : 4, { size: 'sm', ghost: f > st.form, still: f !== st.form, seed: f, vid: st.vid })))));
     path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
     return h('div', null,
       h('div', { class: 'ghero' }, big,

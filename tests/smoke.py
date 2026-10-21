@@ -374,6 +374,7 @@ with sync_playwright() as p:
       const r = ST.addRv({name: 'Neverhome', stage: 'initial', createdAt: d(30), snoozedUntil: fut});
       [7, 14, 21].forEach(n => ST.addEntry(r.id, 'nh', {}, d(n)));
       ST.addRv({name: 'Stuckguy', stage: 'initial', createdAt: d(60), stageChangedAt: d(60), snoozedUntil: fut}); }''')
+    ev("localStorage.setItem('rvapp.insView', 'garden')")
     page.goto(URL + '#/insights'); page.wait_for_selector('.funnel')
     check(page.locator('.frow').count() == 5, 'funnel shows the five active stages')
     check(page.locator('.effort').count() == 0, 'effort points are gone (the garden replaces them)')
@@ -736,7 +737,9 @@ with sync_playwright() as p:
         k = len(searches)
         route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body=json.dumps([{'lat': str(37.955 + 0.004 * (k % 4)), 'lon': str(-121.31 + 0.005 * (k // 4 % 4))}]))
     page.route('https://nominatim.openstreetmap.org/search**', fake_search)
-    page.click('.gview button:has-text("Map")'); page.wait_for_selector('.gmap')
+    ev("localStorage.removeItem('rvapp.insView')")
+    page.goto(URL + '#/home'); page.goto(URL + '#/insights'); page.wait_for_selector('.gmap')
+    check(page.locator('.gview button.on').inner_text() == 'Map', 'Insights opens on the map by default')
     try:
         page.wait_for_selector('.gmap .gpin', timeout=15000); ok_map = True
     except Exception:
@@ -755,9 +758,10 @@ with sync_playwright() as p:
         n_dry = page.locator('.gmap .gpin').count()
         ndue = ev("[...document.querySelectorAll('.gmap .gpin')].filter(b => /Thirsty|Wilting/.test(b.getAttribute('aria-label'))).length")
         check(n_dry == ndue and n_dry <= n_all and 'Thirsty only' in page.locator('.gmap-chip').inner_text(), 'thirsty-only filter keeps only thirsty and wilting (%d of %d)' % (n_dry, n_all))
-    page.reload(); page.wait_for_selector('.gmap')
-    check(page.locator('.gview button.on').inner_text() == 'Map', 'Insights remembers the map view')
+        check(page.locator('.gplotname').count() >= 1 and ev("!!document.querySelector('.gmap-canvas') && RV.store.items().length > 0"), 'areas are drawn as plots with their names')
     page.click('.gview button:has-text("Garden")'); page.wait_for_selector('.gscene')
+    page.reload(); page.wait_for_selector('.gscene')
+    check(page.locator('.gview button.on').inner_text() == 'Garden', 'Insights remembers the garden view')
     page.unroute('https://tiles.openfreemap.org/**'); page.unroute('https://nominatim.openstreetmap.org/search**')
     # week's-end recap: once, after the week ends
     ev('''() => RV.store.saveSettings(s => { s.gardenSince = new Date(Date.now() - 30*864e5).toISOString(); s.recapSeen = null; })''')

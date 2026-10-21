@@ -138,10 +138,10 @@ test('wilted at 2x the window, thirsty when due, never dies', () => {
   assert.equal(G.stateOf(r, [v(r, 31)], S, NOW).word, 'Thirsty');
   assert.equal(G.stateOf(r, [v(r, 400)], S, NOW).form, 4);
 });
-test('steady when the last touch was a Not Home or the visit left no plan; healthy with a plan', () => {
+test('healthy after a Not Home or a visit with no plan (steady folded into healthy, v2.19)', () => {
   const r = rv({ stage: 'return' });
-  assert.equal(G.care(r, [v(r, 10, { plan: true }), nh(r, 3)], S, NOW), G.CARE.STEADY);
-  assert.equal(G.care(r, [v(r, 3, { plan: false })], S, NOW), G.CARE.STEADY);
+  assert.equal(G.care(r, [v(r, 10, { plan: true }), nh(r, 3)], S, NOW), G.CARE.HEALTHY);
+  assert.equal(G.care(r, [v(r, 3, { plan: false })], S, NOW), G.CARE.HEALTHY);
   assert.equal(G.care(r, [v(r, 3, { plan: true })], S, NOW), G.CARE.HEALTHY);
   assert.equal(G.care(Object.assign({}, r, { whatsNext: 'Bring the brochure' }), [v(r, 3)], S, NOW), G.CARE.HEALTHY); // older entry: reads the record
 });
@@ -158,10 +158,10 @@ test('a study is lush when sessions are on time and each records what was covere
   assert.equal(G.care(r, [st(40), st(20), st(2)], S, NOW), G.CARE.LUSH);
   assert.equal(G.care(r, [st(40), st(20, { progress: '' }), st(2)], S, NOW), G.CARE.HEALTHY);
 });
-test('imported visits count toward care; Potential with no conversation is steady; archived has no plant', () => {
+test('imported visits count toward care; Potential with no conversation is healthy; archived has no plant', () => {
   const r = rv({ stage: 'return' });
   assert.equal(G.care(r, [v(r, 3, { imported: true, plan: true })], S, NOW), G.CARE.HEALTHY);
-  assert.equal(G.care(rv({ stage: 'yet', createdAt: ago(5) }), [], S, NOW), G.CARE.STEADY);
+  assert.equal(G.care(rv({ stage: 'yet', createdAt: ago(5) }), [], S, NOW), G.CARE.HEALTHY);
   assert.deepEqual(G.stateOf(rv({ stage: 'archived' }), [], S, NOW), { form: 0, care: 0 });
 });
 

@@ -7,7 +7,8 @@
   const U = RV.util || (typeof require !== 'undefined' ? require('./util.js') : null);
   const L = RV.logic || (typeof require !== 'undefined' ? require('./logic.js') : null);
 
-  // Care levels, wilted to lush. 0 = no plant (archived / Do not call).
+  // Care levels, wilted to lush. 0 = no plant (archived / Do not call). Four are shown (v2.19): Lush,
+  // Healthy, Thirsty, Wilting; the old Steady folded into Healthy, so care() never returns 3.
   const CARE = { WILTED: 1, DRY: 2, STEADY: 3, HEALTHY: 4, LUSH: 5 };
   const CARE_NAMES = { 1: 'Wilting', 2: 'Thirsty', 3: 'Steady', 4: 'Healthy', 5: 'Lush' };
   const FORM_NAMES = { 1: 'seed', 2: 'sprout', 3: 'leafy plant', 4: 'flowering shrub', 5: 'fruit tree' };
@@ -164,10 +165,11 @@
       if (days >= 2 * window) return CARE.WILTED;
       if (days >= window) return CARE.DRY;
     }
-    if (!lastConv) return CARE.STEADY;
+    if (!lastConv) return CARE.HEALTHY;
     const touches = live(entries).filter((e) => e.type === 'visit' || e.type === 'nh').sort((a, b) => ms(b.at) - ms(a.at));
-    if (touches[0] && touches[0].type === 'nh') return CARE.STEADY;
-    if (!planned(lastConv, rv, true)) return CARE.STEADY;
+    // a Not Home or a visit with no plan still counts as healthy; only a run of planned visits makes it lush
+    if (touches[0] && touches[0].type === 'nh') return CARE.HEALTHY;
+    if (!planned(lastConv, rv, true)) return CARE.HEALTHY;
     // Seeds and sprouts (Potential, Initial Call) top out at Healthy: too early to flourish.
     if (formOf(settings, rv.stage) <= 2) return CARE.HEALTHY;
     // Lush: a run of consistent visits, each leaving a plan (studies: each recording covered and next).
@@ -190,7 +192,7 @@
     const c = care(rv, entries, settings, now);
     const p = progress(rv, entries, settings, now);
     const word = c === CARE.WILTED ? CARE_NAMES[1] : c === CARE.DRY ? CARE_NAMES[2] : '';
-    return Object.assign({ care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, studied: studyCount(entries) > 0 }, p);
+    return Object.assign({ vid: rv.id, care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, studied: studyCount(entries) > 0 }, p);
   }
 
   // State for a list item ({rv, entries}), memoised on the item (store items are rebuilt each minute or edit).

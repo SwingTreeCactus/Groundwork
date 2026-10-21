@@ -1,60 +1,168 @@
-/* RV app: garden characters (v2.16). The potted plants, their care poses, eyes and motion, and the
+/* RV app: garden characters (v2.16; drawn poses and variety v2.19). The potted plants, their care poses, eyes and motion, and the
    growth moment. Art and CSS ported from the "Groundwork garden insights" canvas (boards: Characters,
    Characters in lists, Growing up). viewBox 0 0 60 92 per plant, pot at the bottom. */
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
 
-  // ---------- art ----------
-  // Seed and sprout have no lush parts: Potential and Initial Call top out at Healthy.
-  const SEED = '<ellipse cx="30" cy="63" rx="5.5" ry="6.5" fill="currentColor"/>' +
-    '<path class="fall" d="M27 58 L31 62 L28 67" stroke="var(--pl-pot)" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
-    '<path class="g3" d="M30 56.5 C30 54 31 52.5 32.5 51.5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
-    '<path class="g4" d="M32.5 51.5 C33.5 48 35 46.5 37 46" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
-  const SPROUT = '<path d="M30 70 V46" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
-    '<path d="M30 60 C23 60 19 56 19 50 C25 50 30 54 30 60Z" fill="currentColor"/>' +
-    '<path class="nb1" d="M30 55 C37 55 41 51 41 45 C35 45 30 49 30 55Z" fill="currentColor"/>' +
-    '<path class="g4" d="M30 50 C24 50 21 47 21 42 C26 42 30 45 30 50Z" fill="currentColor"/>';
-  const LEAFY = '<path d="M30 70 V26" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
-    '<path d="M30 66 C22 66 18 61 18 55 C25 55 30 59 30 66Z" fill="currentColor"/>' +
-    '<path class="nb1" d="M30 62 C38 62 42 57 42 51 C35 51 30 55 30 62Z" fill="currentColor"/>' +
-    '<path class="g3" d="M30 54 C22 54 18 49 18 43 C25 43 30 47 30 54Z" fill="currentColor"/>' +
-    '<path class="g3" d="M30 50 C38 50 42 45 42 39 C35 39 30 43 30 50Z" fill="currentColor"/>' +
-    '<path class="g4" d="M30 42 C23 42 20 38 20 33 C26 33 30 36 30 42Z" fill="currentColor"/>' +
-    '<path class="g4" d="M30 38 C37 38 40 34 40 29 C34 29 30 32 30 38Z" fill="currentColor"/>' +
-    '<path class="g5" d="M30 30 C26 30 23 27 23 23 C27 23 30 25 30 30Z" fill="currentColor"/>' +
-    '<path class="g5" d="M30 28 C34 28 37 25 37 21 C33 21 30 23 30 28Z" fill="currentColor"/>';
-  const SHRUB = '<path d="M30 70 V20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
-    '<path class="g3" d="M30 46 L19 36 M30 40 L42 30" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>' +
-    '<path d="M30 64 C22 64 18 59 18 53 C25 53 30 57 30 64Z" fill="currentColor"/>' +
-    '<path class="nb1" d="M30 60 C38 60 42 55 42 49 C35 49 30 53 30 60Z" fill="currentColor"/>' +
-    '<path class="g3" d="M30 54 C23 54 20 50 20 45 C26 45 30 48 30 54Z" fill="currentColor"/>' +
-    '<path class="g4" d="M30 34 C37 34 40 30 40 25 C34 25 30 28 30 34Z" fill="currentColor"/>' +
-    '<path class="lt4" d="M30 7 C35 11 35 17 30 21 C25 17 25 11 30 7Z" fill="currentColor"/>' +
-    '<g class="g4"><circle cx="30" cy="7" r="5" fill="currentColor" opacity=".55"/><circle cx="36" cy="11.5" r="5" fill="currentColor" opacity=".55"/><circle cx="34" cy="18" r="5" fill="currentColor" opacity=".55"/><circle cx="26" cy="18" r="5" fill="currentColor" opacity=".55"/><circle cx="24" cy="11.5" r="5" fill="currentColor" opacity=".55"/><circle cx="30" cy="13" r="3.6" fill="currentColor"/></g>' +
-    '<g class="g5"><circle cx="17" cy="34" r="4" fill="currentColor" opacity=".55"/><circle cx="17" cy="34" r="1.8" fill="currentColor"/><circle cx="44" cy="28" r="4" fill="currentColor" opacity=".55"/><circle cx="44" cy="28" r="1.8" fill="currentColor"/></g>' +
-    // one small fruit bud per study session logged (up to three)
-    '<circle class="bud b1" cx="21" cy="47" r="2.4" fill="currentColor"/><circle class="bud b2" cx="40" cy="42" r="2.4" fill="currentColor"/><circle class="bud b3" cx="25" cy="27" r="2.4" fill="currentColor"/>';
-  const TREE = '<path d="M30 70 V38" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" fill="none"/>' +
-    '<path d="M30 50 L18 38 M30 45 L43 34 M30 40 L30 26" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
-    '<circle class="nb1" cx="30" cy="30" r="10" fill="currentColor" opacity=".35"/>' +
-    '<circle class="g3" cx="19" cy="37" r="9" fill="currentColor" opacity=".35"/><circle class="g3" cx="41" cy="34" r="9" fill="currentColor" opacity=".35"/>' +
-    '<circle class="g4" cx="23" cy="23" r="9" fill="currentColor" opacity=".35"/><circle class="g4" cx="37" cy="22" r="9" fill="currentColor" opacity=".35"/>' +
-    '<circle class="g5" cx="30" cy="14" r="10" fill="currentColor" opacity=".35"/><circle class="g5" cx="11" cy="29" r="7" fill="currentColor" opacity=".35"/><circle class="g5" cx="49" cy="27" r="7" fill="currentColor" opacity=".35"/>' +
-    '<circle class="g3" cx="27" cy="33" r="2.8" fill="currentColor"/><circle class="g3" cx="40" cy="37" r="2.8" fill="currentColor"/>' +
-    '<circle class="g4" cx="19" cy="40" r="2.8" fill="currentColor"/><circle class="g4" cx="34" cy="24" r="2.8" fill="currentColor"/><circle class="g4" cx="44" cy="30" r="2.8" fill="currentColor"/>' +
-    '<circle class="g5" cx="28" cy="16" r="2.8" fill="currentColor"/><circle class="g5" cx="13" cy="30" r="2.8" fill="currentColor"/><circle class="g5" cx="48" cy="25" r="2.8" fill="currentColor"/><circle class="g5" cx="22" cy="24" r="2.8" fill="currentColor"/>';
-  const FORMS = { 1: SEED, 2: SPROUT, 3: LEAFY, 4: SHRUB, 5: TREE };
-  // dropped leaves under wilting plants
-  const FALLEN = {
-    1: '',
-    2: '<ellipse class="fall2" cx="6" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/>',
-    3: '<ellipse class="fall2" cx="6" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/><ellipse class="fall" cx="54" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/>',
-    4: '<ellipse class="fall2" cx="6" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/><ellipse class="fall" cx="54" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/>',
-    5: '<ellipse class="fall2" cx="5" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/><ellipse class="fall" cx="55" cy="89.5" rx="3.5" ry="1.5" fill="currentColor" opacity=".7"/><ellipse class="fall" cx="9" cy="90.5" rx="3" ry="1.3" fill="currentColor" opacity=".7"/>',
+  // ---------- art (v2.19: care as posture, a plant of their own for each person) ----------
+  // Drawn, not stored: the stem is the spine, the leaves are the arms, the top is the head. Care levels:
+  // 5 lush (arms up, big foliage, open flower, sparkle), 4 healthy (upright, arms level), 2 thirsty
+  // (slouched, head bowed, curled leaves, losing some), 1 wilting (collapsed, few shrivelled leaves).
+  // (3 = old "steady" draws as healthy.) The fruit tree keeps its stance: its crown and fruit thin instead.
+  // Each person gets a variant from their ID: leaf shape, arrangement, stem curve, flower, crown, fruit, shade.
+  const ARM = { 5: 46, 4: 86, 2: 132, 1: 168 };
+  const BEND = { 5: -2, 4: 0, 2: 70, 1: 165 };
+  const HEAD = { 5: -4, 4: 0, 2: 55, 1: 60 };
+  const LEN = { 5: 1.12, 4: 0.98, 2: 0.92, 1: 0.86 };
+  const LW = { 5: 1.5, 4: 0.95, 2: 0.62, 1: 0.42 };
+  const f = (v) => String(Math.round(v * 100) / 100);
+  const rad = (d) => (d * Math.PI) / 180;
+  function variant(id) {
+    let n = 0; const sid = String(id || '');
+    for (let i = 0; i < sid.length; i++) n = (n * 31 + sid.charCodeAt(i)) >>> 0;
+    return { leaf: ['round', 'point', 'paddle', 'long'][n % 4], arr: ['opp', 'alt'][(n >>> 2) % 2], curve: [0, 8, -7][(n >>> 3) % 3],
+      flower: ['five', 'daisy', 'bell'][(n >>> 5) % 3], canopy: ['round', 'oval', 'umbrella'][(n >>> 7) % 3], fruit: ['berry', 'pear'][(n >>> 9) % 2], shade: (n >>> 10) % 3 };
+  }
+  function spine(L, bend, n, x0, y0) {
+    n = n || 12; x0 = x0 == null ? 30 : x0; y0 = y0 == null ? 70 : y0;
+    const pts = [[x0, y0]], angs = [0]; const seg = L / n; let x = x0, y = y0;
+    for (let i = 1; i <= n; i++) { const a = bend * Math.pow(i / n, 1.8); x += Math.sin(rad(a)) * seg; y -= Math.cos(rad(a)) * seg; pts.push([x, y]); angs.push(a); }
+    return { pts, angs };
+  }
+  const at = (sp, t) => { const i = Math.min(sp.pts.length - 1, Math.max(0, Math.round(t * (sp.pts.length - 1)))); return [sp.pts[i][0], sp.pts[i][1], sp.angs[i]]; };
+  function pathD(pts) {
+    let d = 'M' + f(pts[0][0]) + ' ' + f(pts[0][1]);
+    for (let i = 1; i < pts.length - 1; i++) d += ' Q' + f(pts[i][0]) + ' ' + f(pts[i][1]) + ' ' + f((pts[i][0] + pts[i + 1][0]) / 2) + ' ' + f((pts[i][1] + pts[i + 1][1]) / 2);
+    return d + ' L' + f(pts[pts.length - 1][0]) + ' ' + f(pts[pts.length - 1][1]);
+  }
+  const stemP = (sp, w) => '<path d="' + pathD(sp.pts) + '" stroke="currentColor" stroke-width="' + w + '" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+  const cpath = (W, L, a, b, c, d2, e, g) => 'M0 0 C' + f(W * a) + ' ' + f(-L * b) + ' ' + f(W * c) + ' ' + f(-L * d2) + ' 0 ' + f(-L * e) + ' C' + f(-W * c) + ' ' + f(-L * d2) + ' ' + f(-W * a) + ' ' + f(-L * b) + ' 0 0Z';
+  function leaf(ctx, x, y, ang, L, W, plain) {
+    const c = ctx.care;
+    if (!plain) W *= LW[c];
+    const shape = plain ? 'round' : ctx.v.leaf;
+    if (shape === 'long') { L *= 1.22; W *= 0.62; }
+    const d = shape === 'point' ? cpath(W, L, 1.05, 0.25, 0.35, 0.7, 1.05, 0) : shape === 'paddle' ? cpath(W, L, 0.5, 0.1, 1.2, 1.0, 0.95, 0) : cpath(W, L, 0.9, 0.3, 0.6, 0.8, 1, 0);
+    let out = '<path d="' + d + '" fill="currentColor"/>';
+    if (!plain && c <= 2) {
+      out += '<path d="M0 -1 L0 ' + f(-L * 0.85) + '" class="fold" stroke-width=".7"/>';
+      if (c === 1) out += '<path d="M0 ' + f(-L * .62) + ' C' + f(W * .5) + ' ' + f(-L * .7) + ' ' + f(W * .4) + ' ' + f(-L * .9) + ' 0 ' + f(-L) + ' C' + f(-W * .4) + ' ' + f(-L * .9) + ' ' + f(-W * .5) + ' ' + f(-L * .7) + ' 0 ' + f(-L * .62) + 'Z" class="tip"/>';
+    }
+    return '<g transform="translate(' + f(x) + ' ' + f(y) + ') rotate(' + f(ang) + ')">' + out + '</g>';
+  }
+  const keep = (spec, care, counts) => { const n = counts[care]; return n < spec.length ? spec.slice(spec.length - n) : spec; };
+  function arms(ctx, sp, spec) {
+    const c = ctx.care; let out = '';
+    for (let [t, side, L, W] of spec) {
+      if (ctx.v.arr === 'alt' && side > 0) t = Math.min(0.9, t + 0.07);
+      const [x, y, a] = at(sp, t);
+      out += leaf(ctx, x, y, side * ARM[c] + a * (c >= 4 ? 0.6 : 0.25), L * (c <= 2 ? 0.92 : c === 5 ? 1.32 : 1), W);
+    }
+    return out;
+  }
+  const fallen = (n) => [[7, 89.5], [53, 89.5], [11, 90.6]].slice(0, n).map(([x, y]) => '<ellipse cx="' + x + '" cy="' + y + '" rx="3.4" ry="1.4" class="tip"/>').join('');
+  const bendOf = (ctx) => BEND[ctx.care] + (ctx.care >= 4 ? ctx.v.curve : ctx.v.curve * 0.4);
+  function seed(ctx) {
+    const c = ctx.care, lift = { 5: 0, 4: 0, 2: 1, 1: 2 }[c], tilt = { 5: 0, 4: 0, 2: 14, 1: 34 }[c];
+    let out = '<g transform="rotate(' + tilt + ' 30 69)"><ellipse cx="30" cy="' + (63 + lift) + '" rx="' + (c > 1 ? 5.5 : 5) + '" ry="' + (c > 1 ? 6.5 : 5.6) + '" fill="currentColor"/>';
+    const sp = spine(9 * LEN[c], BEND[c] * 1.6 + 6, 6, 30, 57 + lift);
+    out += stemP(sp, 2.2);
+    const [x, y, a] = [sp.pts[6][0], sp.pts[6][1], sp.angs[6]];
+    if (c >= 4) out += leaf(ctx, x, y, a + 40, 5.5, 3.2);
+    return out + '</g>';
+  }
+  function sprout(ctx) {
+    const c = ctx.care, sp = spine(24 * LEN[c], bendOf(ctx));
+    let out = stemP(sp, 2.6) + arms(ctx, sp, keep([[0.55, -1, 12, 6.5], [0.55, 1, 12, 6.5]], c, { 5: 2, 4: 2, 2: 1, 1: 1 }));
+    const e = sp.pts.length - 1, x = sp.pts[e][0], y = sp.pts[e][1], a = sp.angs[e], k = c === 5 ? 1.3 : 1;
+    out += leaf(ctx, x, y, a + HEAD[c] * 0.5 - 8, 9 * k, 5) + leaf(ctx, x, y, a + HEAD[c] * 0.5 + 22, 7 * k, 4);
+    return out + (c === 1 ? fallen(2) : c === 2 ? fallen(1) : '');
+  }
+  function leafy(ctx) {
+    const c = ctx.care, sp = spine(44 * LEN[c], bendOf(ctx));
+    let out = stemP(sp, 2.6) + arms(ctx, sp, keep([[0.12, 1, 12, 6.5], [0.18, -1, 13, 7], [0.3, 1, 13, 7], [0.45, -1, 12, 6.5], [0.58, 1, 12, 6.5], [0.74, -1, 10, 5.5], [0.84, 1, 10, 5.5]], c, { 5: 7, 4: 4, 2: 3, 1: 2 }));
+    const e = sp.pts.length - 1, x = sp.pts[e][0], y = sp.pts[e][1], a = sp.angs[e], k = c === 5 ? 1.35 : 1;
+    out += leaf(ctx, x, y, a + HEAD[c] * 0.5 - 14, 8 * k, 4.5) + leaf(ctx, x, y, a + HEAD[c] * 0.5 + 14, 8 * k, 4.5);
+    return out + (c === 1 ? fallen(3) : c === 2 ? fallen(2) : '');
+  }
+  function shrub(ctx) {
+    const c = ctx.care, sp = spine(48 * LEN[c], bendOf(ctx));
+    let out = stemP(sp, 2.8) + arms(ctx, sp, keep([[0.1, 1, 12, 6.5], [0.15, -1, 13, 7], [0.28, 1, 13, 7], [0.5, -1, 11, 6], [0.62, 1, 11, 6]], c, { 5: 5, 4: 3, 2: 2, 1: 1 }));
+    const e = sp.pts.length - 1, x = sp.pts[e][0], y = sp.pts[e][1], ha = sp.angs[e] + HEAD[c];
+    const r = { 5: 7.6, 4: 4.4, 2: 3.6, 1: 3 }[c], spread = { 5: 9.4, 4: 5.2, 2: 3.8, 1: 3 }[c];
+    const cx = x + Math.sin(rad(ha)) * 6, cy = y - Math.cos(rad(ha)) * 6;
+    if (ctx.v.flower === 'daisy') {
+      const n = { 5: 12, 4: 10, 2: 7, 1: 4 }[c];
+      for (let k = 0; k < n; k++) out += '<ellipse cx="0" cy="' + f(-spread * .95) + '" rx="' + f(r * .42) + '" ry="' + f(spread * .62) + '" class="tint" transform="translate(' + f(cx) + ' ' + f(cy) + ') rotate(' + f(ha + k * 360 / n) + ')"/>';
+      out += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r * .62) + '" fill="currentColor"/>';
+    } else if (ctx.v.flower === 'bell') {
+      out += '<g transform="translate(' + f(cx) + ' ' + f(cy + 3) + ') rotate(' + f(c <= 2 ? ha + 180 : ha) + ') scale(' + f(r / 3.3) + ')"><path d="M-5 0 C-5 -7 -3 -9 0 -9 C3 -9 5 -7 5 0 L3 -1.6 1.5 .4 0 -1.4 -1.5 .4 -3 -1.6 Z" class="tint"/></g>';
+    } else {
+      for (let k = 0; k < (c > 1 ? 5 : 3); k++) out += '<circle cx="' + f(cx + Math.sin(rad(ha + k * 72)) * spread) + '" cy="' + f(cy - Math.cos(rad(ha + k * 72)) * spread) + '" r="' + f(r) + '" class="tint"/>';
+      out += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r * .72) + '" fill="currentColor"/>';
+    }
+    // one small fruit bud per study session logged (up to three), on the healthy stem
+    for (let k = 0; k < Math.min(3, ctx.buds || 0) && c >= 4; k++) { const [bx, by] = at(sp, [0.35, 0.55, 0.72][k]); out += '<circle cx="' + f(bx + (k % 2 ? -5 : 5)) + '" cy="' + f(by) + '" r="2.4" fill="currentColor"/>'; }
+    return out + (c === 1 ? fallen(2) : c === 2 ? fallen(1) : '');
+  }
+  function tree(ctx) {
+    const c = ctx.care, sp = spine(30, { 5: 0, 4: 0, 2: 3, 1: 6 }[c]);
+    let out = stemP(sp, 4.4), blobs = '';
+    const e = sp.pts.length - 1, x = sp.pts[e][0], y = sp.pts[e][1], a = sp.angs[e];
+    let arm = { 5: 56, 4: 60, 2: 70, 1: 76 }[c], spots;
+    if (ctx.v.canopy === 'oval') { spots = [[0, 16, 9], [0, 26, 8], [-1, 8, 8], [1, 8, 8], [0, 6, 8], [-1, 14, 6], [1, 14, 6]]; arm *= 0.4; }
+    else if (ctx.v.canopy === 'umbrella') { spots = [[0, 10, 9], [-1, 15, 9], [1, 15, 9], [-1, 24, 7.5], [1, 24, 7.5], [-1, 7, 7], [1, 7, 7]]; arm *= 1.35; }
+    else spots = [[0, 14, 10], [-1, 16, 9], [1, 16, 9], [-1, 9, 8], [1, 9, 8], [-1, 22, 7], [1, 22, 7]];
+    const n = { 5: 7, 4: 4, 2: 3, 1: 2 }[c], fruit = { 5: 6, 4: 2, 2: 1, 1: 0 }[c];
+    spots.forEach(([side, L, r], k) => {
+      const ang = a + side * arm * (L > 10 ? 1 : 0.6) + (L > 20 ? side * 8 : 0);
+      const bx = x + Math.sin(rad(ang)) * L, by = y - Math.cos(rad(ang)) * L;
+      if (k < n || L <= 16) out += '<path d="M' + f(x) + ' ' + f(y + 6) + ' L' + f(bx) + ' ' + f(by) + '" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
+      if (k < n) {
+        blobs += '<circle cx="' + f(bx) + '" cy="' + f(by) + '" r="' + f(r * (c === 5 ? 1.32 : 1)) + '" class="tint"/>';
+        if (k < fruit) blobs += ctx.v.fruit === 'pear'
+          ? '<path d="M0 -3.6 C1.4 -3.6 1.2 -1.4 2.4 .4 C3.2 2 2 3.4 0 3.4 C-2 3.4 -3.2 2 -2.4 .4 C-1.2 -1.4 -1.4 -3.6 0 -3.6Z" fill="currentColor" transform="translate(' + f(bx + 2) + ' ' + f(by + 3) + ')"/>'
+          : '<circle cx="' + f(bx + 2) + '" cy="' + f(by + 2) + '" r="2.6" fill="currentColor"/>';
+      }
+    });
+    return out + blobs + (c === 1 ? fallen(3) : c === 2 ? fallen(2) : '');
+  }
+  const DRAW = { 1: seed, 2: sprout, 3: leafy, 4: shrub, 5: tree };
+  const STAR = (x, y, s) => '<path d="M0 -3.4 L.9 -.9 3.4 0 .9 .9 0 3.4 -.9 .9 -3.4 0 -.9 -.9Z" class="star" transform="translate(' + x + ' ' + y + ') scale(' + s + ')"/>';
+  // care 3 (the old "steady") draws as healthy; seeds and sprouts top out at healthy
+  const careOf = (form, care) => { let c = care === 3 ? 4 : care || 4; if (c === 5 && form <= 2) c = 4; return c; };
+  function plantSvg(form, care, v, buds) {
+    const ctx = { care: careOf(form, care), v, buds };
+    const stars = ctx.care === 5 ? '<g class="stars">' + STAR(8, 30, 1) + STAR(52, 22, 1.2) + STAR(14, 8, .8) + STAR(49, 52, .8) + '</g>' : '';
+    return '<svg class="plant-svg" aria-hidden="true" viewBox="0 0 60 92"><g class="lean"><g class="body"><g class="sway">' + DRAW[form](ctx) + '</g></g></g>' + stars + '</svg>';
+  }
+  // Colours: four care shades per accent and theme, and two neighbouring hues for variety.
+  const PAL = {
+    'purple-light': { c: { 5: '#43297E', 4: '#5B3E96', 2: '#7E6BAE', 1: '#8C84A0' }, t: { 5: '#9E87D6', 4: '#B3A2DE', 2: '#C9C0DE', 1: '#CFCBD8' } },
+    'purple-dark': { c: { 5: '#D4C4FF', 4: '#B49BF5', 2: '#8F82B6', 1: '#77718A' }, t: { 5: '#8C73D1', 4: '#7A68B2', 2: '#5E5578', 1: '#4C4858' } },
+    'blue-light': { c: { 5: '#12407A', 4: '#1F5FAF', 2: '#5D7FB0', 1: '#8590A2' }, t: { 5: '#7FA6DB', 4: '#9CB8E2', 2: '#BCCBE0', 1: '#CCD1DA' } },
+    'blue-dark': { c: { 5: '#C4D8FF', 4: '#8DB2EE', 2: '#7189B3', 1: '#6C7384' }, t: { 5: '#5E86C8', 4: '#4E6E9E', 2: '#465772', 1: '#424853' } },
   };
-  const plantSvg = (form) => '<svg class="plant-svg" aria-hidden="true" viewBox="0 0 60 92">' + FALLEN[form] +
-    '<g class="lean"><g class="body"><g class="sway">' + FORMS[form] + '</g></g></g></svg>';
+  function hueShift(hex, deg) {
+    const n = parseInt(hex.slice(1), 16); let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s2 = 0; const l = (mx + mn) / 2;
+    if (mx !== mn) { const d = mx - mn; s2 = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; }
+    h = (h + deg / 360 + 1) % 1;
+    const q = l < .5 ? l * (1 + s2) : l + s2 - l * s2, p = 2 * l - q;
+    const tc = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    const to = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
+    return '#' + to(s2 ? tc(h + 1 / 3) : l) + to(s2 ? tc(h) : l) + to(s2 ? tc(h - 1 / 3) : l);
+  }
+  function colours(care, shade) {
+    const de = typeof document !== 'undefined' ? document.documentElement : null;
+    const accent = de && de.getAttribute('data-accent') === 'blue' ? 'blue' : 'purple';
+    const t = de && de.getAttribute('data-theme');
+    const dark = t === 'dark' || (t !== 'light' && !!(root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches));
+    const P = PAL[accent + '-' + (dark ? 'dark' : 'light')];
+    const deg = [0, -14, 14][shade || 0];
+    return { c: deg ? hueShift(P.c[care], deg) : P.c[care], t: deg ? hueShift(P.t[care], deg) : P.t[care] };
+  }
   // The pot is the character: two dot eyes by care, a water-drop bubble when thirsty, shimmer when lush.
   // small = list/tile geometry (bigger eyes and bubble so they read at row size), else the large one.
   function potSvg(small) {
@@ -96,29 +204,29 @@
 .pl .soil{fill:var(--pl-soil)}.pl.h2 .soil,.pl.h1 .soil{fill:var(--pl-dry)}.pl .cracks path{fill:none;stroke:var(--pl-crack);stroke-width:.9;stroke-linecap:round;stroke-linejoin:round}.pl.rw .cracks path,.pl.tl .cracks path,.pl.sm .cracks path{stroke-width:1.3}
 .pl .acc{fill:var(--pl-acc)}.pl .acc-ic{fill:var(--pl-acc-ic)}.pl .spark{fill:var(--pl-acc)}
 .pl .body,.pl .sway,.pl .lean{transform-box:view-box;transform-origin:30px 70px;transition:transform .35s}
-.pl .g3,.pl .g4,.pl .g5,.pl .fall,.pl .fall2,.pl .cracks,.pl .ck2,.pl .spark,.pl .e-happy,.pl .e-drowsy,.pl .e-sleep,.pl .e-shine,.pl .bud{display:none}
-.pl.h3 .g3,.pl.h4 .g3,.pl.h5 .g3,.pl.h4 .g4,.pl.h5 .g4,.pl.h5 .g5,.pl.h1 .fall,.pl.h1 .fall2,.pl.h2 .fall2,.pl.h1 .cracks,.pl.h2 .cracks,.pl.h1 .ck2,.pl.h5 .spark,.pl.h4 .e-shine{display:inline}
-.pl.h4 .lt4,.pl.h5 .lt4,.pl.h1 .nb1{display:none}
-.pl.u1 .b1,.pl.u2 .b1,.pl.u2 .b2,.pl.u3 .b1,.pl.u3 .b2,.pl.u3 .b3{display:inline}
-.pl.h5{color:var(--pl-5)}.pl.h4{color:var(--pl-4)}.pl.h3{color:var(--pl-3)}.pl.h2{color:var(--pl-2)}.pl.h1{color:var(--pl-1)}
-.pl.h2 .body{transform:rotate(-10deg) scaleY(.95)}.pl.h1 .body{transform:rotate(-22deg) scaleY(.9)}
-.pl.s1 .body{transform:none}.pl.s5.h2 .body,.pl.s5.h1 .body{transform:rotate(-3deg)}
+.pl .cracks,.pl .ck2,.pl .spark,.pl .e-happy,.pl .e-drowsy,.pl .e-sleep,.pl .e-shine{display:none}
+.pl.h1 .cracks,.pl.h2 .cracks,.pl.h1 .ck2,.pl.h4 .e-shine{display:inline}
+.pl .tint,.pl .star{fill:var(--pl-tint,#B3A2DE)}.pl .tip{fill:#8C7A62}.pl .fold{stroke:var(--pl-pot);fill:none}
 .pl.h5 .e-open,.pl.h2 .e-open,.pl.h1 .e-open{display:none}
 .pl.h5 .e-happy,.pl.h2 .e-drowsy,.pl.h1 .e-sleep{display:inline}
 .pl.joy .e-open,.pl.joy .e-drowsy,.pl.joy .e-sleep{display:none}.pl.joy .e-happy{display:inline}
 /* bare: planted straight in the ground (garden scene): no pot or face, the bubble and shimmer stay */
 .pl.bare .rim,.pl.bare .pot,.pl.bare .face,.pl.bare .shadow{display:none}
-.pl.ghost{color:var(--pl-off)}.pl.ghost .face,.pl.ghost .soilg,.pl.ghost .spark,.pl.ghost .fall,.pl.ghost .fall2{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
-@keyframes pl-sway{0%,100%{transform:rotate(-2.6deg)}50%{transform:rotate(2.6deg)}}
-@keyframes pl-swayS{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(.6deg)}}
+.pl.ghost{color:var(--pl-off)}.pl.ghost .tint,.pl.ghost .tip{fill:var(--pl-off)}.pl.ghost .face,.pl.ghost .soilg,.pl.ghost .stars{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
+/* the idle motion follows the mood: lush bounces, healthy sways, thirsty barely moves, wilting just breathes */
+@keyframes pl-cheer{0%,100%{transform:rotate(-3deg) translateY(0)}25%{transform:rotate(0) translateY(-1.6px)}50%{transform:rotate(3deg) translateY(0)}75%{transform:rotate(0) translateY(-1.6px)}}
+@keyframes pl-sway{0%,100%{transform:rotate(-2.4deg)}50%{transform:rotate(2.4deg)}}
+@keyframes pl-droop{0%,100%{transform:rotate(-.5deg)}50%{transform:rotate(.6deg)}}
+@keyframes pl-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.975)}}
 .pl .sway{animation:pl-sway 3.6s ease-in-out infinite}
-.pl.h3 .sway{animation-duration:4.6s}.pl.h2 .sway{animation:pl-swayS 7s ease-in-out infinite}.pl.h1 .sway{animation:none}
+.pl.h5 .sway{animation:pl-cheer 2.6s ease-in-out infinite}.pl.h2 .sway{animation:pl-droop 7s ease-in-out infinite}.pl.h1 .sway{animation:pl-breathe 6s ease-in-out infinite}
+.pl .stars path{animation:pl-twinkle 2.4s ease-in-out infinite}.pl .stars path:nth-child(2){animation-delay:-.8s}.pl .stars path:nth-child(3){animation-delay:-1.6s}
 .pl.d1 .sway{animation-delay:-.7s}.pl.d2 .sway{animation-delay:-1.9s}.pl.d3 .sway{animation-delay:-2.6s}.pl.d4 .sway{animation-delay:-1.2s}.pl.d5 .sway{animation-delay:-3.1s}
 @keyframes pl-blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
 .pl .e-open{transform-box:fill-box;transform-origin:center;animation:pl-blink 5.4s infinite}
 .pl.d2 .e-open{animation-delay:-2.1s}.pl.d3 .e-open{animation-delay:-3.7s}.pl.d4 .e-open{animation-delay:-1.3s}.pl.d5 .e-open{animation-delay:-4.4s}
 @keyframes pl-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
-@keyframes pl-twinkle{0%,100%{opacity:0}50%{opacity:1}}
+@keyframes pl-twinkle{0%,100%{opacity:.25}50%{opacity:1}}
 .pl .spark circle{animation:pl-twinkle 2.8s ease-in-out infinite}
 .pl .spark circle:nth-child(2){animation-delay:-.9s}.pl .spark circle:nth-child(3){animation-delay:-1.7s}.pl .spark circle:nth-child(4){animation-delay:-2.3s}
 @keyframes pl-pop{0%{transform:scale(1,1)}18%{transform:scale(1.1,.86)}42%{transform:scale(.93,1.12)}68%{transform:scale(1.03,.97)}100%{transform:scale(1,1)}}
@@ -144,7 +252,7 @@
 @keyframes pl-chip{0%{transform:translateY(10px) scale(.9);opacity:0}60%{transform:translateY(-2px) scale(1.04);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
 .grow-ov .gchip{height:36px;display:flex;align-items:center}
 .grow-ov .gchip span{background:var(--fg);color:var(--bg);border-radius:18px;padding:7px 16px;font-size:15px;font-weight:600;animation:pl-chip .5s cubic-bezier(.3,1.4,.5,1) forwards}
-@media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .spark circle,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .spark circle,.pl .stars path,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
 `;
   let styled = false;
   function ensureStyle() {
@@ -173,9 +281,12 @@
     const small = size === 'rw' || size === 'tl' || size === 'sm';
     const el = document.createElement('span');
     const buds = form === 4 ? Math.max(0, Math.min(3, o.buds || 0)) : 0;
-    el.className = 'pl ' + size + ' s' + form + ' h' + (care || 4) + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (buds ? ' u' + buds : '') + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '');
+    const c = careOf(form, care);
+    const v = variant(o.vid != null ? o.vid : 'base');
+    el.className = 'pl ' + size + ' s' + form + ' h' + c + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '');
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = plantSvg(form) + (o.potless ? '' : potSvg(small));
+    if (!o.ghost) { const col = colours(c, v.shade); el.style.color = col.c; el.style.setProperty('--pl-tint', col.t); }
+    el.innerHTML = plantSvg(form, c, o.ghost ? variant('base') : v, buds) + (o.potless ? '' : potSvg(small));
     if (!o.still) watch(el);
     return el;
   }
@@ -195,7 +306,7 @@
   const reduced = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // The growth moment: about 1.6 s, plays once, tap to skip, light haptic, then a chip naming the new stage.
-  function grow(fromForm, toForm, care, stageName) {
+  function grow(fromForm, toForm, care, stageName, vid) {
     ensureStyle();
     return new Promise((resolve) => {
       const ov = document.createElement('div');
@@ -204,11 +315,11 @@
       ov.setAttribute('aria-label', 'Grew into ' + stageName);
       const chip = document.createElement('div'); chip.className = 'gchip';
       const wrap = document.createElement('div'); wrap.className = 'stagewrap';
-      const out = make(fromForm, care, { size: 'xl', potless: true, still: true, seed: 0 }); out.classList.add('joy');
-      const inn = make(toForm, care, { size: 'xl', potless: true, still: true, seed: 0 }); inn.classList.add('joy');
+      const out = make(fromForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid }); out.classList.add('joy');
+      const inn = make(toForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid }); inn.classList.add('joy');
       const lo = document.createElement('div'); lo.className = 'lay out'; lo.appendChild(out);
       const li = document.createElement('div'); li.className = 'lay in'; li.appendChild(inn);
-      const pot = make(toForm, care, { size: 'xl', still: true, seed: 0 }); pot.classList.add('joy');
+      const pot = make(toForm, care, { size: 'xl', still: true, seed: 0, vid }); pot.classList.add('joy');
       pot.querySelector('.plant-svg').remove();
       const pw = document.createElement('div'); pw.className = 'potl dip'; pw.appendChild(pot);
       const fx = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -231,5 +342,5 @@
   }
 
   ensureStyle(); // tokens (--pl-*) are also used by bars and dots in app.css
-  RV.plant = { make, water, leanOnTouch, grow, css: CSS };
+  RV.plant = { make, water, leanOnTouch, grow, css: CSS, variant, plantSvg, careOf };
 })(window);
