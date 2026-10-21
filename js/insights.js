@@ -133,7 +133,7 @@
       const word = x.st.word || L.stageOf(S.settings, x.it.rv.stage).name;
       card.replaceChildren(
         h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
-          h('span', null, (x.it.rv.neighborhood || 'No area') + ' · ', h('span', { class: x.st.word ? 'gword' : '' }, word))),
+          h('span', { class: x.st.word ? 'gword' : '' }, word)),
         h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'));
       card.hidden = false;
     };

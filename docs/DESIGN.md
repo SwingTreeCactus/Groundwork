@@ -356,3 +356,4 @@ Mockups: canvas row "The garden as a place" (Garden, Map, Week's-end recap). Ins
 - Next (second release): the themed map (MapLibre with OpenFreeMap vector data and a Groundwork style; all RVs, geotag exact, others placed once from their address with a dashed ring), and exhibits as objects in the garden (fountain, bench, lantern, birdbath, arbor, sundial, gate, big tree for the mockup's eight).
 - Tests: garden 31, logic 48, smoke 226, screens 36. VERSION 2.17.0, cache rvapp-v44.
 - v2.17.1: in the garden scene the plants are planted straight in the soil (no pot or eyes; a soft mound under each; the thirsty bubble and lush shimmer stay; `P.make(..., {bare: true})`). The plant card sits fixed just above the tab bar, so it is on screen wherever the plant is. Cache rvapp-v45.
+- v2.17.2: the garden plant card shows just the name and the stage (or Thirsty/Wilting); the area is already on the bed's sign. Cache rvapp-v46.
