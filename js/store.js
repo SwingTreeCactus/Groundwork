@@ -42,6 +42,9 @@
     await migrateLib();
     await migrateBestDays();
     await migrateNotes();
+    // 2.16: the garden starts today. Care and chains are read from the timeline silently; streaks and
+    // exhibits only count from here.
+    if (!S.settings.gardenSince) { S.settings.gardenSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
     S.ready = true;
     emit();
   }

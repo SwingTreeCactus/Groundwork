@@ -499,7 +499,7 @@
     if (att.state === 'soon') {
       return att.reason === 'visit' ? 'Visit planned ' + U.inDaysText(att.inDays) : 'Due ' + U.inDaysText(att.inDays);
     }
-    if (att.state === 'snoozed') return 'Snoozed until ' + U.fmtDate(att.until);
+    if (att.state === 'snoozed') return 'Follow up on ' + U.fmtDate(att.until);
     return '';
   }
 

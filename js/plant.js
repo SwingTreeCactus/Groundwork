@@ -106,7 +106,7 @@
 .pl.h5 .e-open,.pl.h2 .e-open,.pl.h1 .e-open{display:none}
 .pl.h5 .e-happy,.pl.h2 .e-drowsy,.pl.h1 .e-sleep{display:inline}
 .pl.joy .e-open,.pl.joy .e-drowsy,.pl.joy .e-sleep{display:none}.pl.joy .e-happy{display:inline}
-.pl.ghost{color:var(--pl-off)}.pl.ghost .pot-svg,.pl.ghost .need,.pl.ghost .spark{display:none}
+.pl.ghost{color:var(--pl-off)}.pl.ghost .face,.pl.ghost .need,.pl.ghost .spark,.pl.ghost .fall,.pl.ghost .fall2{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
 @keyframes pl-sway{0%,100%{transform:rotate(-2.6deg)}50%{transform:rotate(2.6deg)}}
 @keyframes pl-swayS{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(.6deg)}}
 .pl .sway{animation:pl-sway 3.6s ease-in-out infinite}
@@ -229,5 +229,6 @@
     });
   }
 
+  ensureStyle(); // tokens (--pl-*) are also used by bars and dots in app.css
   RV.plant = { make, water, leanOnTouch, grow, css: CSS };
 })(window);

@@ -191,10 +191,143 @@
     return Object.assign({ care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, studied: studyCount(entries) > 0 }, p);
   }
 
+  // State for a list item ({rv, entries}), memoised on the item (store items are rebuilt each minute or edit).
+  function forItem(it, settings, now) {
+    if (!it._g) it._g = L.isDNC(settings, it.rv) ? { form: 0, care: 0 } : stateOf(it.rv, it.entries, settings, now);
+    return it._g;
+  }
+  // "Almost growing": one qualifying visit from the next form.
+  function almost(items, settings, now) {
+    return items.map((it) => ({ it, st: forItem(it, settings, now) }))
+      .filter((x) => x.st.form && x.st.need && x.st.next && !x.st.broken && x.st.need - x.st.have === 1)
+      .sort((a, b) => (b.st.fading - a.st.fading) || U.cmp(a.it.rv.name, b.it.rv.name));
+  }
+
+  // ---------- Insights ----------
+  const weekStart = (d) => U.addDays(U.startOfDay(d), -d.getDay()); // Sunday
+  // Due during the week [ws, ws+7): its window ran out by Saturday, counted from the last conversation
+  // before the week (or creation). A follow-up date after Saturday means it is not due this week.
+  function weekCheck(it, settings, ws, now) {
+    const rv = it.rv;
+    const we = U.addDays(ws, 7);
+    if (L.isClosed(settings, rv) || L.isDNC(settings, rv) || new Date(rv.createdAt) >= we) return null;
+    const gap = L.thresholdFor(settings, rv);
+    if (gap == null) return null;
+    const convs = conversations(it.entries);
+    const before = convs.filter((e) => new Date(e.at) < ws);
+    const ref = before.length ? before[before.length - 1].at : rv.createdAt;
+    const due = U.addDays(dayOf(ref), gap);
+    if (due >= we) return null;
+    const isNow = ws <= now && now < we;
+    if (isNow && rv.snoozedUntil) { const f = U.parseDateStr(rv.snoozedUntil); if (f && f >= we) return null; }
+    const seen = convs.some((e) => { const t = new Date(e.at); return t >= ws && t < we; });
+    return { seen };
+  }
+  function weekRing(items, settings, ws, now) {
+    let due = 0, seen = 0;
+    for (const it of items) { const c = weekCheck(it, settings, ws, now); if (c) { due++; if (c.seen) seen++; } }
+    return { due, seen, left: due - seen, perfect: seen === due };
+  }
+  // Weeks in a row with every due RV seen, counted from the garden's start (never backfilled).
+  // A perfect calendar month earns a freeze, which covers one missed week later.
+  function streak(items, settings, now, since) {
+    now = now || new Date();
+    const start = weekStart(since ? new Date(since) : now);
+    const cur = weekStart(now);
+    const weeks = [];
+    let run = 0, best = 0, freezes = 0, monthOk = true, monthWeeks = 0;
+    for (let ws = start; ws < cur; ws = U.addDays(ws, 7)) {
+      const r = weekRing(items, settings, ws, now);
+      let state = r.perfect ? 'ok' : 'miss';
+      if (state === 'miss' && freezes > 0) { freezes--; state = 'frz'; }
+      run = state === 'miss' ? 0 : run + 1;
+      best = Math.max(best, run);
+      weeks.push(state);
+      // a week belongs to the month its Saturday falls in
+      const sat = U.addDays(ws, 6), nextSat = U.addDays(ws, 13);
+      monthWeeks++; if (!r.perfect) monthOk = false;
+      if (nextSat.getMonth() !== sat.getMonth()) {
+        if (monthOk && monthWeeks >= 4) freezes++;
+        monthOk = true; monthWeeks = 0;
+      }
+    }
+    const pad = Math.max(0, 12 - weeks.length);
+    return { weeks: Array(pad).fill('none').concat(weeks.slice(-12)), streak: run, best, freezes, ring: weekRing(items, settings, cur, now) };
+  }
+  // Found home (conversations vs Not Homes) and prepared visits (left a plan), over the last 90 days.
+  function rates(items, now) {
+    now = now || new Date();
+    const from = U.addDays(U.startOfDay(now), -90);
+    let v = 0, n = 0, planOk = 0, planAll = 0;
+    const byDay = Array.from({ length: 7 }, () => ({ v: 0, n: 0 }));
+    for (const it of items) for (const e of it.entries) {
+      if (new Date(e.at) < from || e.imported) continue;
+      const d = new Date(e.at).getDay();
+      if (e.type === 'visit') { v++; byDay[d].v++; if (typeof e.plan === 'boolean') { planAll++; if (e.plan) planOk++; } }
+      else if (e.type === 'nh') { n++; byDay[d].n++; }
+    }
+    let bestDay = null;
+    byDay.forEach((x, i) => { const t = x.v + x.n; if (t >= 3) { const p = x.v / t; if (!bestDay || p > bestDay.pct) bestDay = { day: i, pct: p }; } });
+    return { found: v + n ? v / (v + n) : null, bestDay, prepared: planAll ? planOk / planAll : null };
+  }
+  // Conversations per day for the last 12 weeks (84 days ending today), as levels 0..3.
+  function activityGrid(items, now) {
+    now = now || new Date();
+    const end = U.startOfDay(now), start = U.addDays(end, -83);
+    const counts = new Array(84).fill(0);
+    for (const it of items) for (const e of it.entries) {
+      if (e.type !== 'visit') continue;
+      const i = U.daysBetween(new Date(e.at), start);
+      if (i >= 0 && i < 84) counts[i]++;
+    }
+    return counts.map((c) => (c === 0 ? 0 : c === 1 ? 1 : c <= 3 ? 2 : 3));
+  }
+  // Garden plots: one per area, each plant with its form and care.
+  function plots(items, settings, now) {
+    const map = new Map();
+    for (const it of items) {
+      const st = forItem(it, settings, now);
+      if (!st.form) continue;
+      const k = (it.rv.neighborhood || '').trim();
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push({ it, st });
+    }
+    return Array.from(map, ([name, plants]) => ({
+      name, plants: plants.sort((a, b) => a.st.care - b.st.care || U.cmp(a.it.rv.name, b.it.rv.name)),
+      wilting: plants.filter((p) => p.st.care === CARE.WILTED).length,
+      thirsty: plants.filter((p) => p.st.care === CARE.DRY).length,
+    })).sort((a, b) => (!a.name) - (!b.name) || (b.wilting + b.thirsty) - (a.wilting + a.thirsty) || U.cmp(a.name, b.name));
+  }
+  // Exhibits: one-time milestones, from live activity since the garden started (nothing backfilled).
+  const EXHIBITS = [
+    ['first-study', '1st', 'First study'], ['rv25', '25', '25 return visits'], ['area', 'All', 'Area all watered'], ['streak26', '26', '6-month streak'],
+    ['rv50', '50', '50 return visits'], ['studies3', '3', 'Three studies'], ['first10', '10', '10 first talks'], ['streak52', '1y', 'One-year streak'],
+  ];
+  function exhibitsEarned(items, settings, now, since, best) {
+    const t0 = since ? new Date(since) : new Date(0);
+    const after = (e) => !e.imported && !e.deletedAt && new Date(e.at) >= t0;
+    let visits = 0, firsts = 0;
+    const studied = new Set();
+    for (const it of items) {
+      const live = it.entries.filter((e) => e.type === 'visit' && !e.imported);
+      visits += live.filter(after).length;
+      if (live.some(isStudySession) && live.filter(isStudySession).some(after)) studied.add(it.rv.id);
+      const firstConv = live.reduce((m, e) => (!m || e.at < m.at ? e : m), null);
+      if (firstConv && after(firstConv)) firsts++;
+    }
+    const pl = plots(items, settings, now);
+    return {
+      'first-study': studied.size >= 1, rv25: visits >= 25, rv50: visits >= 50, studies3: studied.size >= 3, first10: firsts >= 10,
+      area: pl.some((p) => p.name && p.plants.length >= 3 && !p.wilting && !p.thirsty),
+      streak26: best >= 26, streak52: best >= 52,
+    };
+  }
+
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, EXHIBITS,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
+    forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned,
   };
   RV.garden = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

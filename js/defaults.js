@@ -65,6 +65,11 @@
       accent: 'purple',
       textScale: 1,
       nhRowButton: true,
+      // v2.16 garden: plants in rows and screens (off = plain rows); when it started (nothing before
+      // counts toward streaks or exhibits); exhibits earned {id: ISO date}.
+      garden: true,
+      gardenSince: null,
+      exhibits: {},
       nhToastSeconds: 6,
       notHomeBanner: { on: true, minAttempts: 2 },
       lists: {

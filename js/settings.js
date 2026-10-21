@@ -65,6 +65,8 @@
           (v) => { save((s) => { s.textScale = v; }); RV.app.applyDisplay(); })),
       h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Show ' + lbl('notHomeShort') + ' button on list rows')),
         UI.toggle(S.settings.nhRowButton, (v) => save((s) => { s.nhRowButton = v; }), 'Show Not Home button on list rows')),
+      h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Garden'), h('div', { class: 'muted small' }, 'Plants show each ' + lbl('rv') + "'s stage and care. Off: plain rows.")),
+        UI.toggle(S.settings.garden !== false, (v) => save((s) => { s.garden = v; }), 'Garden')),
     ], { noRerender: true });
   }
 
@@ -177,6 +179,12 @@
         name.addEventListener('change', () => { const v = name.value.trim(); if (v) save((s) => { s.stages.find((x) => x.id === st.id).name = v; }); else name.value = st.name; });
         const days = st.closed ? null : h('input', { type: 'number', min: '0', max: '365', inputmode: 'numeric', value: st.days == null ? '' : String(st.days), placeholder: 'Default (' + S.settings.defaultStaleDays + ')', 'aria-label': 'Days before flagged' });
         if (days) days.addEventListener('change', () => { const n = days.value.trim() === '' ? null : num(days.value); save((s) => { s.stages.find((x) => x.id === st.id).days = n; }); });
+        // garden: steps needed to grow into the next stage (none for the last active stage)
+        const G = RV.garden;
+        const growKind = st.closed ? 'none' : G.kindFor(S.settings, st.id);
+        const grow = growKind === 'none' ? null : h('input', { type: 'number', min: '1', max: '20', inputmode: 'numeric', value: Number.isInteger(st.grow) ? String(st.grow) : '', placeholder: 'Default (' + (G.GROW_DEFAULTS[st.id] != null ? G.GROW_DEFAULTS[st.id] : 3) + ')', 'aria-label': 'Steps to grow' });
+        if (grow) grow.addEventListener('change', () => { const n = grow.value.trim() === '' ? null : Math.max(1, num(grow.value) || 1); save((s) => { const x = s.stages.find((y) => y.id === st.id); if (n == null) delete x.grow; else x.grow = n; }); });
+        const growLabel = growKind === 'study' ? 'Study sessions to grow' : growKind === 'first' ? 'Conversations to grow' : 'Conversations in a row to grow';
         box.appendChild(h('div', { class: 'card' },
           h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' } },
             h('div', { style: { flex: 1 } }, name),
@@ -186,6 +194,7 @@
             ? h('div', { class: 'muted small' }, 'Closed stage')
             : h('div', null,
               h('div', { class: 'field', style: { marginBottom: '6px' } }, h('label', null, 'Days before flagged'), days),
+              grow ? h('div', { class: 'field', style: { marginBottom: '6px' } }, h('label', null, growLabel), grow) : null,
               h('div', { class: 'btn-row' }, h('button', {
                 class: 'btn sm danger', type: 'button',
                 onclick: async () => {
@@ -324,7 +333,7 @@
     const minTries = h('input', { type: 'number', min: '1', max: '10', inputmode: 'numeric', value: String(S.settings.notHomeBanner.minAttempts) });
     minTries.addEventListener('change', () => { const n = num(minTries.value); if (n == null || n < 1 || n > 10) { minTries.value = String(S.settings.notHomeBanner.minAttempts); return; } save((s) => { s.notHomeBanner.minAttempts = n; }); });
     return page('Needs attention', [
-      hint('An ' + lbl('rv') + ' is flagged by how long it has been since the last logged visit, unless it has a next visit date or is snoozed.'),
+      hint('An ' + lbl('rv') + ' is flagged by how long it has been since the last logged visit, unless it has a follow-up date.'),
       mk('defaultStaleDays', 'Default days before flagged', 'Used for stages with no number of their own.', 1, 365),
       mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days are marked as coming up.', 1, 60),
       mk('soonDays', 'Heads-up before due (days)', 'Flag as coming up this many days before an ' + lbl('rv') + ' is due.', 0, 14),

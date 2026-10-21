@@ -240,12 +240,27 @@
       h('button', { type: 'button', class: 'chip', onclick: () => { input.value = ''; } }, 'Clear'));
   }
 
-  function visitDialog(rvId) {
+  // After a save: the growth moment when the plant grew, else a little water bounce on the record screen.
+  async function afterVisit(rvId, res, msg) {
+    const G = RV.garden, P = RV.plant;
+    const on = S.settings.garden !== false && G && P;
+    if (on && res.grew) {
+      const to = L.stageOf(S.settings, res.grew.to);
+      const it = ST.itemFor(rvId);
+      const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
+      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, to.name);
+    } else if (on) P.pendingWater = rvId;
+    toast(msg, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
+  }
+
+  function visitDialog(rvId, opts) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
-    const study = L.isStudyStage(S.settings, rv.stage);
-    const text = h('textarea', study ? { placeholder: 'Note (optional)', style: { minHeight: '64px' } } : { placeholder: 'What did you discuss?', 'data-autofocus': true, style: { minHeight: '120px' } });
+    const studyStage = L.isStudyStage(S.settings, rv.stage);
+    // "Study session" swaps in Publication, Covered today and Start next time; on by default in the study stage
+    let study = opts && typeof opts.study === 'boolean' ? opts.study : studyStage;
+    const text = h('textarea', { placeholder: 'What did you discuss?', style: { minHeight: '120px' } });
     // Tapping or typing in the note opens a full-screen writing view; "Show other fields" returns.
     const grow = () => { if (text.closest('.writing')) { text.style.height = ''; return; } text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight + 4, Math.round(window.innerHeight * 0.5)) + 'px'; };
     const writing = () => { const sh = text.closest('.sheet'); if (sh && !study) { sh.classList.add('writing'); text.style.height = ''; } };
@@ -254,18 +269,20 @@
     text.addEventListener('cleaned', grow);
     const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-v', autocomplete: 'off', placeholder: 'Publication' });
     // study: what was covered today (starts as what was planned) and where to start next time (suggested, editable)
-    const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, value: rv.nextStart || '', placeholder: rv.progress ? 'Last time: ' + rv.progress : 'e.g. Lesson 3' });
+    const prog = h('input', { type: 'text', autocomplete: 'off', value: rv.nextStart || '', placeholder: rv.progress ? 'Last time: ' + rv.progress : 'e.g. Lesson 3' });
     const nextStart = h('input', { type: 'text', autocomplete: 'off', value: L.suggestNext(rv.nextStart || ''), placeholder: 'e.g. Lesson 4' });
     let nextTouched = false;
     nextStart.addEventListener('input', () => { nextTouched = true; });
     prog.addEventListener('input', () => { if (!nextTouched) nextStart.value = L.suggestNext(prog.value); });
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
-    // the stage is left alone unless changed here; the garden grows Potential into Initial Call on its own
+    // the stage is left alone unless changed here; the garden grows it on its own
     const stage = select(stageOptions(), rv.stage);
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
     const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
+    // Follow up on <date>: optional; quiets the record until then and holds the chain
+    const follow = h('input', { type: 'date', 'aria-label': 'Follow up on', min: U.toDateStr(U.addDays(new Date(), 1)) });
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
     const topics = ST.featuredTopics();
@@ -285,8 +302,41 @@
     stage.addEventListener('change', updateNote);
     updateNote();
 
-    sheet((study ? lbl('logStudy') : lbl('recordVisit')) + ': ' + rv.name, (close) =>
-      h('form', {
+    const studyBox = h('div', null,
+      field('Publication', pub),
+      h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)));
+    const noteBox = h('div', { class: 'field note-field' }, text,
+      h('div', { class: 'note-tools' },
+        cleanupButton(text, whatsNext),
+        h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
+    const noteTools = noteBox.lastChild;
+    const topicBox = topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
+      h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;
+    const nextBox = field('Discuss next time', whatsNext);
+    const campBox = camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null;
+    const studySw = h('div', { class: 'switchrow', style: { marginBottom: '8px' } }, h('div', { class: 'grow' }, 'Study session'),
+      UI.toggle(study, (v) => { study = v; paint(); }, 'Study session'));
+    const title = h('span');
+    const saveBtn = h('button', { class: 'btn primary', type: 'submit' });
+    function paint() {
+      const show = (el, on) => { if (el) el.hidden = !on; };
+      // the publication is asked for only when none is set yet
+      show(studyBox, study);
+      show(studyBox.firstChild, study && !rv.publication);
+      show(topicBox, !study); show(nextBox, !study); show(campBox, !study);
+      // the AI clean-up and full-screen writing belong to a conversation note, not a study note
+      if (study) noteTools.remove(); else if (!noteTools.isConnected) noteBox.appendChild(noteTools);
+      text.placeholder = study ? 'Note (optional)' : 'What did you discuss?';
+      text.style.minHeight = study ? '64px' : '120px';
+      title.textContent = (study ? lbl('logStudy') : lbl('recordVisit')) + ': ' + rv.name;
+      saveBtn.textContent = study ? 'Save study' : 'Save visit';
+      (study ? prog : text).setAttribute('data-autofocus', '');
+      (study ? text : prog).removeAttribute('data-autofocus');
+    }
+    paint();
+
+    sheet(title.textContent, (close) => {
+      const form = h('form', {
         onsubmit: (e) => {
           e.preventDefault();
           const d = UI.parseLocalDT(when.value);
@@ -294,29 +344,27 @@
             text: text.value,
             whatsNext: study ? undefined : whatsNext.value,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
+            study: study || undefined,
             publication: study ? pub.value : undefined,
             progress: study ? prog.value : undefined,
             nextStart: study ? nextStart.value : undefined,
+            snoozedUntil: follow.value || null,
             stage: stage.value !== rv.stage ? stage.value : undefined,
             tags: U.splitList(tags.value),
             at: d ? d.toISOString() : undefined,
           });
           close();
-          toast(study ? 'Study saved' : 'Visit saved', { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
+          afterVisit(rvId, res, study ? 'Study saved' : 'Visit saved');
         },
       },
         tagList, pubList,
-        study && !rv.publication ? field('Publication', pub) : null,
-        study ? h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)) : null,
-        study ? null : h('div', { class: 'field note-field' }, text,
-          h('div', { class: 'note-tools' },
-            cleanupButton(text, whatsNext),
-            h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields'))),
-        !study && topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
-          h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
-        study ? null : field('Discuss next time', whatsNext),
-        study ? field('Note', text) : null,
-        !study && camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
+        studySw,
+        studyBox,
+        noteBox,
+        topicBox,
+        nextBox,
+        field('Follow up on', follow),
+        campBox,
         stageNote,
         h('details', { class: 'more', style: { marginTop: '12px' } },
           h('summary', null, icon('down', 18), 'More details'),
@@ -325,7 +373,11 @@
           field('Tags', tags)),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, study ? 'Save study' : 'Save visit'))));
+          saveBtn));
+      // keep the sheet title in step with the switch
+      setTimeout(() => { const t = form.closest('.sheet') && form.closest('.sheet').querySelector('h2, .sheet-title'); if (t) { t.textContent = ''; t.appendChild(title); } }, 0);
+      return form;
+    });
   }
 
   // ---------- stage, archive, restore, snooze, schedule ----------
@@ -374,25 +426,24 @@
     if (res) toast('Restored to ' + L.stageOf(S.settings, choice).name, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
+  // Follow up on <date>: one action for the old Snooze and next-visit date. Quiet until then; holds the chain.
   function snoozeSheet(rvId) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
-    const date = h('input', { type: 'date', value: rv.snoozedUntil || '' });
+    const date = h('input', { type: 'date', value: rv.snoozedUntil || '', min: U.toDateStr(U.addDays(new Date(), 1)) });
     const apply = (val) => {
       const res = ST.snooze(rvId, val);
-      toast(val ? 'Snoozed until ' + U.fmtDate(val) : 'Snooze cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
+      toast(val ? 'Follow up on ' + U.fmtDate(val) : 'Follow-up date cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
     };
-    sheet('Snooze needs-attention', (close) =>
+    sheet('Follow up on', (close) =>
       h('div', null,
-        [['3 days', 3], ['1 week', 7], ['2 weeks', 14], ['1 month', 30]].map(([t, n]) =>
+        [['In 3 days', 3], ['In 1 week', 7], ['In 2 weeks', 14], ['In 1 month', 30]].map(([t, n]) =>
           h('button', { class: 'opt', type: 'button', onclick: () => { apply(U.toDateStr(U.addDays(new Date(), n))); close(); } }, t)),
         field('Or pick a date', date),
         h('div', { class: 'actions' },
-          rv.snoozedUntil ? h('button', { class: 'btn', type: 'button', onclick: () => { apply(null); close(); } }, 'Clear snooze') : null,
+          rv.snoozedUntil ? h('button', { class: 'btn', type: 'button', onclick: () => { apply(null); close(); } }, 'Clear') : null,
           h('button', { class: 'btn primary', type: 'button', onclick: () => { if (date.value) { apply(date.value); close(); } } }, 'Set date'))));
   }
-
-
 
   // quick edit of what they are studying and where they are
   // Tapping the Studying block only sets where to start next time; the publication is changed in Edit.

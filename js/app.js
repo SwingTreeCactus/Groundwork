@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.15.0';
+  RV.VERSION = '2.16.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -39,7 +39,7 @@
     switch (p[0]) {
       case undefined: case 'home': return SC.home();
       case 'today': return SC.today(p[1]);
-      case 'insights': return SC.insights();
+      case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
       case 'settings':

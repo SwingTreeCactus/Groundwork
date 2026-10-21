@@ -7,6 +7,30 @@
   const S = ST.S;
   const { lbl, field, toast, confirmDialog, sheet, stageBadge, attBadge } = UI;
 
+  // ---------- garden helpers ----------
+  const G = RV.garden, P = RV.plant;
+  const gardenOn = () => S.settings.garden !== false;
+  const gstate = (it) => G.forItem(it, S.settings, new Date());
+  const plantOf = (st, size, o) => P.make(st.form, st.care, Object.assign({ size, buds: st.buds }, o || {}));
+  // One segment per step needed; faded when the chain is about to break; a calendar mark while a follow-up holds it.
+  function miniBar(st) {
+    const bar = h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need + ' toward ' + st.nextName },
+      Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' })));
+    return st.held ? [bar, h('span', { class: 'gcal', title: 'Follow-up date holds this' }, icon('calendar', 14))] : [bar];
+  }
+  // The row's one status line: Thirsty / Wilting, else the growth bar, or where a study starts next.
+  function statusLine(it, st) {
+    const rv = it.rv;
+    if (st.word) return h('span', { class: 'gword' }, st.word);
+    if (st.need && st.next) return miniBar(st);
+    if (rv.nextStart) return h('span', null, 'Next: ' + rv.nextStart);
+    return h('span', null, UI.lastText(it));
+  }
+  const moreText = (st) => {
+    const n = st.need - st.have;
+    return st.kind === 'study' ? n + ' more ' + (n === 1 ? 'study' : 'studies') : n + ' more ' + (n === 1 ? 'talk' : 'talks');
+  };
+
   // ---------- shared row ----------
   function rvRow(it, o) {
     o = o || {};
@@ -25,20 +49,28 @@
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(addr); },
       }, 'Map')
       : null;
-    const study = L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart)
+    const st = gardenOn() ? gstate(it) : null;
+    const garden = !!(st && st.form);
+    const study = !garden && L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart)
       ? [rv.publication, rv.nextStart ? 'Next: ' + rv.nextStart : null].filter(Boolean).join(' · ') : '';
     const area = o.hideArea ? '' : (rv.neighborhood || '');
-    const stage = it.att.state !== 'closed'
+    const stageName = garden ? h('span', { class: 'gstage' }, L.stageOf(S.settings, rv.stage).name) : null;
+    const stage = garden ? stageName : it.att.state !== 'closed'
       ? h('span', { class: 'stagebtn', role: 'button', tabindex: '0', 'aria-label': 'Change stage for ' + rv.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); F.stageFlow(rv.id); } }, stageBadge(rv.stage))
       : stageBadge(rv.stage);
-    return h('a', { class: 'row rv2', href: '#/rv/' + rv.id },
+    let plant = null;
+    if (garden) { plant = plantOf(st, 'rw'); P.leanOnTouch(plant); }
+    return h('a', { class: 'row rv2' + (garden ? ' gd' : ''), href: '#/rv/' + rv.id, 'data-id': rv.id },
+      plant,
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
         h('div', { class: 'line2' }, area ? h('span', { class: 'area' }, area) : null, area ? h('span', { class: 'sep' }, '·') : null, stage,
           dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null),
         o.hit ? h('div', { class: 'line2 hit' }, o.hit) : null,
         study ? h('div', { class: 'line2' }, study) : null,
-        h('div', { class: 'line3' + (it.att.state === 'overdue' ? ' due' : '') }, UI.lastText(it))),
+        garden
+          ? h('div', { class: 'gstat' }, statusLine(it, st))
+          : h('div', { class: 'line3' + (it.att.state === 'overdue' ? ' due' : '') }, UI.lastText(it))),
       (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, nhBtn, navBtn) : null);
   }
   // Highlights the first place a search token appears in text: returns a node, or null if none matches.
@@ -194,6 +226,21 @@
     return h('div', { class: 'seg2', role: 'tablist' }, options.map(([v, label]) =>
       h('button', { type: 'button', role: 'tab', class: v === value ? 'on' : '', 'aria-selected': String(v === value), onclick: () => onPick(v) }, label)));
   }
+  // "Cultivating Interest" -> "Cultivating"; short names fit two tiles across
+  const shortName = (n) => (n === 'Cultivating Interest' ? 'Cultivating' : n);
+  // RVs one qualifying visit from their next form, beside the silhouette of that form.
+  function almostCard(items, now) {
+    const list = G.almost(items, S.settings, now);
+    if (!list.length) return null;
+    const shown = list.slice(0, 4);
+    return h('section', { class: 'almost' },
+      h('h2', null, 'Almost growing'),
+      h('div', { class: 'sub' }, list.length === 1 ? '1 ' + lbl('rv') + ' is one visit from growing' : list.length + ' ' + lbl('rvs') + ' are one visit from growing'),
+      h('div', { class: 'ag' }, shown.map(({ it, st }, k) =>
+        h('a', { href: '#/rv/' + it.rv.id, 'aria-label': it.rv.name + ' grows into ' + st.nextName },
+          h('div', { class: 'pair' }, plantOf(st, 'sm', { seed: k }), icon('right', 16), P.make(G.formOf(S.settings, st.next), 4, { size: 'sm', ghost: true, still: true })),
+          h('div', { class: 'nm' }, it.rv.name)))));
+  }
   function today(stageId) {
     if (stageId) return todayStage(stageId);
     const box = h('div', { class: 'dash' });
@@ -205,13 +252,24 @@
       box.replaceChildren(
         seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
         h('div', { class: 'dsum' }, h('b', null, String(pool.length)), scope === 'all' ? ' ' + (pool.length === 1 ? lbl('rv') : lbl('rvs')) : ' to see on ' + day),
-        h('div', { class: 'cgrid' }, stages.map((x, k) => {
-          const n = pool.filter((i) => i.rv.stage === x.id).length;
-          const wide = k === stages.length - 1 && stages.length % 2 === 1;
-          return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
-            h('span', { class: 'circ' + (n ? '' : ' zero') + (n && L.isStudyStage(S.settings, x.id) ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
-            h('span', { class: 'clab' }, x.name));
-        })));
+        gardenOn()
+          ? h('div', { class: 'cgrid gd' }, stages.map((x, k) => {
+            // five tiles, each with that stage's plant, the count and a short name
+            const n = pool.filter((i) => i.rv.stage === x.id).length;
+            const wide = k === stages.length - 1 && stages.length % 2 === 1;
+            return h('a', { class: 'gtile' + (wide ? ' wide' : '') + (n ? '' : ' zero'), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
+              P.make(G.formOf(S.settings, x.id), 4, { size: 'tl', ghost: !n, seed: k }),
+              h('span', { class: 'num' }, String(n)),
+              h('span', { class: 'clab' }, shortName(x.name)));
+          }))
+          : h('div', { class: 'cgrid' }, stages.map((x, k) => {
+            const n = pool.filter((i) => i.rv.stage === x.id).length;
+            const wide = k === stages.length - 1 && stages.length % 2 === 1;
+            return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
+              h('span', { class: 'circ' + (n ? '' : ' zero') + (n && L.isStudyStage(S.settings, x.id) ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
+              h('span', { class: 'clab' }, x.name));
+          })),
+        (gardenOn() && almostCard(ST.items(), now)) || '');
     }
     paint();
     return { title: lbl('today'), fab: true, el: box, update: paint };
@@ -488,6 +546,32 @@
     return e.type;
   }
 
+  // Record screen: big plant and stage name, the bar toward the next form, the growth path of five forms.
+  function gardenHero(it, st) {
+    const rv = it.rv;
+    const big = plantOf(st, 'xl');
+    P.leanOnTouch(big);
+    if (P.pendingWater === rv.id) { P.pendingWater = null; setTimeout(() => P.water(big), 60); }
+    const stName = L.stageOf(S.settings, rv.stage).name;
+    const bar = st.need && st.next
+      ? h('div', { class: 'gbar' },
+        h('div', { class: 'gt' }, h('b', null, 'Grows into ' + st.nextName),
+          h('span', null, st.held ? icon('calendar', 14) : null, moreText(st))),
+        h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need },
+          Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' }))))
+      : null;
+    const path = h('div', { class: 'gpath' },
+      h('div', { class: 'gl' }, 'Growth path'),
+      h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) =>
+        h('span', { class: f === st.form ? 'cur' : '' },
+          P.make(f, f === st.form ? st.care : 4, { size: 'sm', ghost: f > st.form, still: f !== st.form, seed: f })))));
+    path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
+    return h('div', null,
+      h('div', { class: 'ghero' }, big,
+        h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage', onclick: () => F.stageFlow(rv.id) }, stName, st.word ? h('small', { class: 'gword' }, st.word) : null)),
+      bar, path);
+  }
+
   function detail(id) {
     const it = ST.itemFor(id);
     if (!it) {
@@ -517,6 +601,9 @@
 
     // header card: who they are and what to bring up, then the actions
     const study = !closed && L.isStudyStage(S.settings, rv.stage);
+    const gst = gardenOn() && !closed ? gstate(it) : null;
+    // the Studying block shows from the first study session, whatever the stage
+    const showStudy = !closed && (study || (gst && gst.studied));
     const lastStudy = it.entries.find((e) => e.type === 'visit' && e.progress);
     const lastVisit = study ? null : it.entries.find((e) => e.type === 'visit' && e.text);
     const editNext = async () => {
@@ -525,7 +612,7 @@
     };
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
-        study
+        showStudy
           ? h('button', { class: 'snap-row study2', type: 'button', onclick: () => F.studyEdit(rv.id) },
             h('div', { class: 'snap-k' }, 'Studying'),
             h('div', { class: 'snap-v' + (rv.publication ? ' pub' : ' empty') }, rv.publication || 'Choose a publication'),
@@ -542,8 +629,12 @@
             h('div', { class: 'snap-v' }, lastVisit.text))
           : null)
       : null;
+    const hero = gst && gst.form ? gardenHero(it, gst) : null;
     const head = h('section', { class: 'card' },
-      h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
+      hero,
+      hero
+        ? (it.att.state === 'snoozed' ? h('div', { style: { marginBottom: '8px' } }, attBadge(it.att)) : null)
+        : h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
       rv.address
         ? h('button', { class: 'linkline', type: 'button', 'aria-label': 'Directions to ' + rv.address, onclick: () => UI.openNav([rv.address, rv.neighborhood].filter(Boolean).join(', ')) },
           h('span', { class: 'lt' }, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')), icon('navigation', 18))
@@ -617,7 +708,7 @@
         return h('div', null,
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Snooze', () => F.snoozeSheet(rv.id)) : null,
+          !closed ? act('Follow up on…', () => F.snoozeSheet(rv.id), rv.snoozedUntil ? U.fmtDate(rv.snoozedUntil) : 'Pick a date') : null,
           act('Delete this ' + lbl('rv') + ' permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
@@ -630,5 +721,5 @@
     };
   }
 
-  RV.screens = { home, today, list, detail, libSheet, topicView, campaignSheet, rvRow };
+  RV.screens = { home, today, list, detail, libSheet, topicView, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

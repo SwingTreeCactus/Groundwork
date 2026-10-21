@@ -165,4 +165,51 @@ test('imported visits count toward care; Potential with no conversation is stead
   assert.deepEqual(G.stateOf(rv({ stage: 'archived' }), [], S, NOW), { form: 0, care: 0 });
 });
 
+console.log('almost growing and insights');
+const it = (r, es) => ({ rv: r, entries: es.slice().sort((a, b) => (a.at < b.at ? 1 : -1)) });
+test('almost growing lists RVs one qualifying visit from the next form', () => {
+  const a = rv({ stage: 'cultivating', stageChangedAt: ago(60) });
+  const b = rv({ stage: 'cultivating', stageChangedAt: ago(60) });
+  const c = rv({ stage: 'yet', createdAt: ago(3), stageChangedAt: ago(3) });
+  const items = [it(a, [v(a, 40), v(a, 20)]), it(b, [v(b, 20)]), it(c, [])];
+  assert.deepEqual(G.almost(items, S, NOW).map((x) => x.it.rv.id).sort(), [a.id, c.id].sort());
+});
+test('week ring: due RVs seen this week; a later follow-up date takes one out', () => {
+  const ws = G.weekStart(NOW); // Sun 18 Oct
+  assert.equal(ws.getDay(), 0);
+  const a = rv({ stage: 'return' }), b = rv({ stage: 'return' }), c = rv({ stage: 'return', snoozedUntil: ahead(10) }), d = rv({ stage: 'return' });
+  const items = [it(a, [v(a, 35), v(a, 1)]), it(b, [v(b, 40)]), it(c, [v(c, 40)]), it(d, [v(d, 10)])];
+  const r = G.weekRing(items, S, ws, NOW);
+  assert.deepEqual([r.due, r.seen, r.left], [2, 1, 1]);
+});
+test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
+  const a = rv({ stage: 'return', createdAt: ago(300) });
+  // a visit every 10 days keeps it from ever coming due
+  const es = []; for (let n = 120; n >= 0; n -= 10) es.push(v(a, n));
+  const s1 = G.streak([it(a, es)], S, NOW, ago(120));
+  assert.ok(s1.streak >= 16 && s1.best === s1.streak);
+  assert.ok(s1.freezes >= 1);
+  assert.equal(s1.weeks.length, 12);
+  // since now: nothing counted yet
+  assert.equal(G.streak([it(a, es)], S, NOW, NOW.toISOString()).streak, 0);
+});
+test('rates and the activity grid', () => {
+  const a = rv({ stage: 'return' });
+  const items = [it(a, [v(a, 1, { plan: true }), v(a, 2, { plan: false }), nh(a, 3), v(a, 4), v(a, 4)])];
+  const r = G.rates(items, NOW);
+  assert.equal(r.found, 4 / 5);
+  assert.equal(r.prepared, 0.5);
+  const g = G.activityGrid(items, NOW);
+  assert.equal(g.length, 84);
+  assert.deepEqual(g.slice(-5), [2, 0, 1, 1, 0]);
+});
+test('plots group by area; exhibits count only activity since the garden started', () => {
+  const a = rv({ stage: 'return', neighborhood: 'Oak Park' }), b = rv({ stage: 'study', neighborhood: 'Oak Park' });
+  const items = [it(a, [v(a, 50)]), it(b, [v(b, 3, { progress: 'L1', nextStart: 'L2' })])];
+  const p = G.plots(items, S, NOW);
+  assert.equal(p.length, 1); assert.equal(p[0].thirsty, 1); assert.equal(p[0].plants[0].it.rv.id, a.id);
+  assert.equal(G.exhibitsEarned(items, S, NOW, ago(10), 0)['first-study'], true);
+  assert.equal(G.exhibitsEarned(items, S, NOW, ago(1), 0)['first-study'], false);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

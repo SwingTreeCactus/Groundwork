@@ -943,3 +943,105 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .ahead .nm { font-size: 1.45rem; font-weight: 700; color: var(--red); line-height: 1.2; }
 .ahead .n { color: var(--red); font-size: 2.1rem; }
 .acard.open .ahead { background: var(--accent-soft); }
+
+/* v2.16: the garden. Plants replace stage pips; one status line; growth bars. */
+.row.rv2.gd { padding-left: 8px; gap: 8px; align-items: center; }
+.row.gd .pl.rw { margin: -4px 0 -2px; }
+.row.gd .gstat { margin-top: 4px; min-height: 18px; display: flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); }
+.gword { color: var(--red); font-weight: 600; font-size: .9rem; }
+.mbar { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; width: 96px; }
+.mbar i { height: 6px; border-radius: 3px; background: var(--pl-off); }
+.mbar i.on { background: var(--red); }
+.mbar.fade i.on { opacity: .45; }
+.gcal { color: var(--red); display: inline-flex; }
+.gcal svg { width: 14px; height: 14px; }
+/* record screen */
+.ghero { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 14px; }
+.ghero .gname { font-size: 1.4rem; font-weight: 600; padding-bottom: 8px; border: 0; background: none; color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
+.ghero .gname small { display: block; font-size: .9rem; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.gbar { background: var(--surface2); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.gbar .gt { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gbar .gt b { font-size: .98rem; font-weight: 600; }
+.gbar .gt span { font-size: .85rem; color: var(--red); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.gbar .mbar { width: auto; gap: 6px; }
+.gbar .mbar i { height: 8px; border-radius: 4px; }
+.gpath { margin-bottom: 12px; }
+.gpath .gl { font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
+.gpath .gs { display: flex; justify-content: space-between; align-items: flex-end; }
+.gpath .gs > span { padding: 6px 8px 4px; border-radius: 14px; display: flex; }
+.gpath .gs > span.cur { background: var(--accent-soft); }
+.pl.nf .face { display: none; }
+/* Today tiles with plants */
+.cgrid.gd { gap: 10px; justify-items: stretch; }
+.gtile { background: var(--surface); border-radius: 22px; padding: 12px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-decoration: none; color: inherit; transition: transform .1s; }
+.gtile:active { transform: scale(.97); }
+.gtile.wide { grid-column: 1 / -1; }
+.gtile .num { font-family: var(--font-dot); font-weight: 700; font-size: 2.4rem; line-height: 1.05; }
+.gtile .clab { font-size: .95rem; font-weight: 500; }
+.gtile.zero .num { opacity: .35; }
+/* Almost growing */
+.almost { background: var(--surface); border-radius: 22px; padding: 16px; margin-top: 14px; }
+.almost h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.almost .sub { font-size: .85rem; color: var(--muted); margin: 2px 0 12px; }
+.almost .ag { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.almost a { background: var(--surface2); border-radius: 18px; padding: 10px 8px 8px; display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: inherit; }
+.almost .pair { display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.almost .pair .icon { color: var(--red); margin-bottom: 18px; flex: none; }
+.almost .nm { font-size: .9rem; font-weight: 600; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Insights garden */
+.icard { background: var(--surface); border-radius: 24px; padding: 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; }
+.icard h2 { margin: 0; font-size: 1.2rem; font-weight: 600; }
+.icard .ih { display: flex; justify-content: space-between; align-items: baseline; }
+.icard .ih .muted { font-size: .85rem; }
+.ring { display: flex; align-items: center; gap: 16px; }
+.ring .rw { position: relative; width: 104px; height: 104px; flex: none; }
+.ring .rw .n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-dot); font-weight: 700; font-size: 1.8rem; }
+.ring .t1 { font-size: .82rem; color: var(--muted); }
+.ring .t2 { font-size: 1.15rem; font-weight: 600; line-height: 1.25; }
+.ring .t3 { font-size: .88rem; color: var(--muted); line-height: 1.35; }
+.ring circle.bg { stroke: var(--accent-soft); }
+.ring circle.fg { stroke: var(--red); }
+.idiv { height: 1px; background: var(--line); }
+.streak { display: flex; align-items: center; gap: 14px; }
+.streak .big { font-family: var(--font-dot); font-weight: 700; font-size: 3.2rem; line-height: 1; color: var(--red); }
+.streak .t2 { font-size: 1rem; font-weight: 600; }
+.streak .t3 { font-size: .82rem; color: var(--muted); }
+.wks { display: flex; gap: 8px; align-items: center; }
+.wks i { width: 14px; height: 14px; border-radius: 50%; background: var(--red); }
+.wks i.frz { background: var(--accent-soft); }
+.wks i.miss, .wks i.none { background: var(--pl-off); }
+.wkn { font-size: .78rem; color: var(--muted); margin-top: -6px; }
+.legend { display: flex; gap: 14px; font-size: .82rem; color: var(--muted); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; }
+.plot { display: flex; flex-direction: column; gap: 8px; background: var(--surface2); border-radius: 18px; padding: 12px 12px 10px; text-decoration: none; color: inherit; }
+.plot .pt { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.plot .pt b { font-size: 1rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plot .pt span { font-size: .82rem; color: var(--muted); white-space: nowrap; }
+.plot .pt span.due { color: var(--red); font-weight: 600; }
+.plot .pp { display: flex; gap: 4px; align-items: flex-end; padding: 0 2px; overflow: hidden; }
+.plot .soil { height: 6px; border-radius: 3px; background: var(--line); }
+.exh { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.exh div { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: .75rem; line-height: 1.25; color: var(--muted); }
+.exh b { width: 56px; height: 56px; border-radius: 50%; background: var(--surface2); color: var(--muted); opacity: .6; display: flex; align-items: center; justify-content: center; font-family: var(--font-dot); font-weight: 700; font-size: 1.2rem; }
+.exh .on { color: var(--fg); }
+.exh .on b { background: var(--accent-soft); color: var(--red); opacity: 1; }
+.rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rates > div { background: var(--surface2); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.rates .n { font-family: var(--font-dot); font-weight: 700; font-size: 2rem; line-height: 1; }
+.rates .l { font-size: .85rem; }
+.rates .s { font-size: .78rem; color: var(--muted); }
+.rates .s.acc { color: var(--red); font-weight: 600; }
+.dgrid { display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column; grid-auto-columns: 10px; gap: 5px 6px; }
+.dgrid i { width: 10px; height: 10px; border-radius: 50%; background: var(--pl-off); }
+.dgrid i.l1 { background: var(--pl-2); } .dgrid i.l2 { background: var(--pl-3); } .dgrid i.l3 { background: var(--pl-5); }
+/* area plot screen */
+.plotbed { background: var(--surface); border-radius: 24px; padding: 14px; margin-bottom: 12px; }
+.plotbed .sum { font-size: .9rem; color: var(--muted); margin-bottom: 8px; }
+.plotbed .pp { display: flex; flex-wrap: wrap; gap: 4px 2px; align-items: flex-end; }
+.plotbed .pp a { display: flex; flex-direction: column; align-items: center; width: 52px; text-decoration: none; color: inherit; }
+.plotbed .pp a span.nm { font-size: .7rem; color: var(--muted); max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plotbed .soil { height: 8px; border-radius: 4px; background: var(--line); margin-top: 4px; }
+.ghero .pl.xl.s1 { margin-top: -64px; }
+.ghero .pl.xl.s2 { margin-top: -40px; }
+.ghero .gname small.gword { color: var(--red); font-weight: 600; }
