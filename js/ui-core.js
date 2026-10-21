@@ -282,6 +282,8 @@
     },
     openTel: (p) => { location.href = 'tel:' + String(p).replace(/[^\d+]/g, ''); },
     openSms: (p) => { location.href = 'sms:' + String(p).replace(/[^\d+]/g, ''); },
+    // Directions go to the geotag when there is one (exact spot), else to the saved address.
+    navTarget: (rv) => (rv.geo && typeof rv.geo.lat === 'number' && typeof rv.geo.lng === 'number' ? rv.geo.lat + ',' + rv.geo.lng : [rv.address, rv.neighborhood].filter(Boolean).join(', ')),
     openNav: (a) => {
       const q = encodeURIComponent(a);
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

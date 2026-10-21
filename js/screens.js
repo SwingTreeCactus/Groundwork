@@ -42,11 +42,10 @@
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.doNotHome(rv.id); },
       }, lbl('notHomeShort'))
       : null;
-    const addr = [rv.address, rv.neighborhood].filter(Boolean).join(', ');
-    const navBtn = o.nh !== false && rv.address && it.att.state !== 'closed'
+    const navBtn = o.nh !== false && (rv.address || rv.geo) && it.att.state !== 'closed'
       ? h('button', {
         class: 'navbtn', type: 'button', 'aria-label': 'Directions to ' + rv.name,
-        onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(addr); },
+        onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(UI.navTarget(rv)); },
       }, 'Map')
       : null;
     const st = gardenOn() ? gstate(it) : null;
@@ -636,7 +635,7 @@
         ? (it.att.state === 'snoozed' ? h('div', { style: { marginBottom: '8px' } }, attBadge(it.att)) : null)
         : h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
       rv.address
-        ? h('button', { class: 'linkline', type: 'button', 'aria-label': 'Directions to ' + rv.address, onclick: () => UI.openNav([rv.address, rv.neighborhood].filter(Boolean).join(', ')) },
+        ? h('button', { class: 'linkline', type: 'button', 'aria-label': 'Directions to ' + rv.address, onclick: () => UI.openNav(UI.navTarget(rv)) },
           h('span', { class: 'lt' }, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')), icon('navigation', 18))
         : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
       rv.phone

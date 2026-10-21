@@ -761,6 +761,11 @@ with sync_playwright() as p:
     page.click('.sheet button[type=submit]:has-text("Save")'); time.sleep(0.3)
     g2 = ev('RV.store.S.rvs.find(r => r.name === "Geo Tester")')
     check(g2['geo'] and g2['geo']['lat'] == 37.957701 and g2['address'] == '1417 N Wilson Way', 'coordinates saved, address unchanged')
+    opened = ev('''() => { const out = []; const o = window.open; window.open = (u) => { out.push(u); return null; };
+      const r = RV.store.S.rvs.find(x => x.name === "Geo Tester");
+      RV.ui.openNav(RV.ui.navTarget(r)); const geo = r.geo; RV.store.updateRv(r.id, {geo: null});
+      RV.ui.openNav(RV.ui.navTarget(RV.store.rvById(r.id))); RV.store.updateRv(r.id, {geo}); window.open = o; return out; }''')
+    check('destination=37.957701%2C-121.290781' in opened[0] and 'destination=1417%20N%20Wilson%20Way' in opened[1], 'Map goes to the geotag, else to the address: %s' % opened)
     page.goto(URL + '#/rvs'); page.wait_for_selector('.fab'); ctx.set_offline(True)
     page.click('.fab'); page.wait_for_selector('.sheet .georow')
     page.click('.georow button:has-text("Geotag")'); page.wait_for_selector('.sheet h2:has-text("Geotag")')
