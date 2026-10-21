@@ -1183,3 +1183,7 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .exitem b { font-size: .9rem; } .exitem span { font-size: .78rem; color: var(--muted); }
 .exitem.locked b { color: var(--muted); font-weight: 500; }
 .gplotname { display: inline-block; background: var(--surface); color: var(--fg); border-radius: 999px; padding: 3px 10px; font-size: .75rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 4px rgba(14, 14, 16, .14); white-space: nowrap; }
+/* v2.19.2: the Studying block's two lines are separate buttons */
+.snap-row.study2 .sbtn { display: block; width: 100%; border: 0; background: none; padding: 4px 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; }
+.snap-row.study2 .sbtn.study-sub { font-size: .9rem; color: var(--muted); }
+.snap-row.study2 .sbtn:active { opacity: .6; }

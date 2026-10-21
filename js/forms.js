@@ -489,14 +489,16 @@
 
   // quick edit of what they are studying and where they are
   // Tapping the Studying block only sets where to start next time; the publication is changed in Edit.
-  function studyEdit(rvId) {
+  function studyEdit(rvId, focus) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
     // the publication and where to start next time are separate fields (a publication typed here was
     // being saved as Start next time when none was set)
-    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-s', autocomplete: 'off', placeholder: 'e.g. Enjoy Life Forever', 'data-autofocus': !rv.publication || null });
+    // the field you tapped gets the cursor: the publication line opens Publication, the Next line Start next time
+    const toPub = focus ? focus === 'pub' : !rv.publication;
+    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-s', autocomplete: 'off', placeholder: 'e.g. Enjoy Life Forever', 'data-autofocus': toPub || null });
     const pubList = h('datalist', { id: 'pub-list-s' }, ST.publications().map((n) => h('option', { value: n })));
-    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': rv.publication ? true : null });
+    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': toPub ? null : true });
     sheet('Studying', (close) =>
       h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), nextStart: nxt.value.trim() }); close(); } },
         pubList,

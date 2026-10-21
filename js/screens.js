@@ -612,10 +612,10 @@
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
         showStudy
-          ? h('button', { class: 'snap-row study2', type: 'button', onclick: () => F.studyEdit(rv.id) },
+          ? h('div', { class: 'snap-row study2' },
             h('div', { class: 'snap-k' }, 'Studying'),
-            h('div', { class: 'snap-v' + (rv.publication ? ' pub' : ' empty') }, rv.publication || 'Choose a publication'),
-            h('div', { class: 'study-sub' }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
+            h('button', { class: 'snap-v sbtn' + (rv.publication ? ' pub' : ' empty'), type: 'button', 'aria-label': 'Publication: ' + (rv.publication || 'not set'), onclick: () => F.studyEdit(rv.id, 'pub') }, rv.publication || 'Choose a publication'),
+            h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
           : null,
         (!closed && !study) || rv.whatsNext
           ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
