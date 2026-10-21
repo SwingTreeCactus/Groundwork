@@ -130,6 +130,8 @@
       btn.disabled = true; btn.lastChild.textContent = 'Locating…';
       let pt;
       try { pt = await RV.geo.here(); } catch (e) { toast(e.message); paintGeo(); return; }
+      // an address is already filled in: keep it, just take the coordinates (no lookup, no popup)
+      if (f.address.value.trim()) { geo = pt; paintGeo(); return; }
       btn.lastChild.textContent = 'Finding address…';
       const sug = await RV.geo.suggest(pt);
       paintGeo();
