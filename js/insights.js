@@ -145,11 +145,11 @@
       const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 20 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 30 + 16) + 'px' } });
       p.plants.forEach((x, i) => {
         const r = Math.floor(i / PER), c = i % PER;
-        const el = SC.plantOf(x.st, 'tl', { seed: seed++ });
+        const el = SC.plantOf(x.st, 'tl', { seed: seed++, bare: true });
         el.classList.add('gp');
         el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
         el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.stageOf(S.settings, x.it.rv.stage).name));
-        const left = 8 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 30 - 44;
+        const left = 8 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 30 - 40;
         el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
         el.addEventListener('click', () => pick(el, x));
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });

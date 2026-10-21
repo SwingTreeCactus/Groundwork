@@ -1084,7 +1084,8 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .gplot:nth-child(odd) { transform: translateX(-14px); } .gplot:nth-child(even) { transform: translateX(14px); }
 .gbed { position: relative; background: var(--soil); border-radius: 20px; min-width: 96px; }
 .gbed .gp { position: absolute; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.gbed .gp.sel::after { content: ""; position: absolute; left: -3px; right: -3px; bottom: -4px; height: 6px; border-radius: 50%; background: var(--red); opacity: .4; }
+.gbed .gp::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 13px; height: 7px; border-radius: 50%; background: #000; opacity: .09; }
+.gbed .gp.sel::after { left: 6%; right: 6%; background: var(--red); opacity: .45; }
 .gbed .gp:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 8px; }
 .gsign { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); color: var(--fg); border-radius: 999px; padding: 3px 10px 3px 8px; font-size: .78rem; font-weight: 600; text-decoration: none; margin-left: 6px; }
 .gsign i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); } .gsign i.due { background: var(--red); }
@@ -1095,7 +1096,7 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 @keyframes g-flap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.25); } }
 .gbird { position: absolute; width: 20px; height: 15px; z-index: 30; pointer-events: none; }
 .gbird .bb { fill: #5E5A66; }
-.gcard { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 40; background: var(--surface); border-radius: 18px; padding: 10px 10px 10px 14px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(14, 14, 16, .14); }
+.gcard { position: fixed; left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); max-width: 616px; margin: 0 auto; z-index: 40; background: var(--surface); border-radius: 18px; padding: 10px 10px 10px 14px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(14, 14, 16, .14); }
 .gcard[hidden] { display: none; }
 .gcard .gct { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .gcard .gct b { font-size: 1rem; } .gcard .gct > span { font-size: .85rem; color: var(--muted); }

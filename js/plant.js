@@ -104,6 +104,8 @@
 .pl.h5 .e-open,.pl.h2 .e-open,.pl.h1 .e-open{display:none}
 .pl.h5 .e-happy,.pl.h2 .e-drowsy,.pl.h1 .e-sleep{display:inline}
 .pl.joy .e-open,.pl.joy .e-drowsy,.pl.joy .e-sleep{display:none}.pl.joy .e-happy{display:inline}
+/* bare: planted straight in the ground (garden scene): no pot or face, the bubble and shimmer stay */
+.pl.bare .rim,.pl.bare .pot,.pl.bare .face,.pl.bare .shadow{display:none}
 .pl.ghost{color:var(--pl-off)}.pl.ghost .face,.pl.ghost .need,.pl.ghost .spark,.pl.ghost .fall,.pl.ghost .fall2{display:none}.pl.ghost .pot-svg{opacity:.6}.pl.ghost .sway,.pl.ghost .body{animation:none;transform:none}
 @keyframes pl-sway{0%,100%{transform:rotate(-2.6deg)}50%{transform:rotate(2.6deg)}}
 @keyframes pl-swayS{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(.6deg)}}
@@ -170,7 +172,7 @@
     const small = size === 'rw' || size === 'tl' || size === 'sm';
     const el = document.createElement('span');
     const buds = form === 4 ? Math.max(0, Math.min(3, o.buds || 0)) : 0;
-    el.className = 'pl ' + size + ' s' + form + ' h' + (care || 4) + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (buds ? ' u' + buds : '') + (o.ghost ? ' ghost' : '');
+    el.className = 'pl ' + size + ' s' + form + ' h' + (care || 4) + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (buds ? ' u' + buds : '') + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '');
     el.setAttribute('aria-hidden', 'true');
     el.innerHTML = plantSvg(form) + (o.potless ? '' : potSvg(small));
     if (!o.still) watch(el);
