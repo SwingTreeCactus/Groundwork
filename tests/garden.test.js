@@ -220,4 +220,19 @@ test('plots group by area; exhibits count only activity since the garden started
   assert.equal(G.exhibitsEarned(items, S, NOW, ago(1), 0)['first-study'], false);
 });
 
+test('week recap: the week that just ended, once, never for a week before the garden started', () => {
+  const a = rv({ stage: 'cultivating', name: 'Ana' });
+  const ws = U.addDays(G.weekStart(NOW), -7); // Sun 11 Oct
+  const grewAt = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 2, 10).toISOString();
+  const items = [it(a, [v(a, 12), { id: 'g1', rvId: a.id, type: 'stage', from: 'initial', to: 'cultivating', grew: true, at: grewAt }])];
+  const r = G.recap(items, S, NOW, ago(60), null);
+  assert.equal(r.key, U.toDateStr(ws));
+  assert.equal(r.grew.length, 1); assert.equal(r.grew[0].to, 'cultivating');
+  assert.equal(G.recap(items, S, NOW, ago(60), r.key), null);
+  assert.equal(G.recap(items, S, NOW, ago(1), null), null); // garden started this week
+});
+test('sky follows the clock', () => {
+  assert.deepEqual([3, 7, 12, 18, 21].map((h) => G.skyOf(new Date(2026, 9, 21, h))), ['night', 'morning', 'day', 'dusk', 'night']);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

@@ -92,40 +92,82 @@
     const frac = r.due ? r.seen / r.due : 1;
     const svg = '<svg viewBox="0 0 104 104" width="104" height="104" aria-hidden="true"><circle class="bg" cx="52" cy="52" r="42" fill="none" stroke-width="12"/>' +
       (frac > 0 ? '<circle class="fg" cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') + '</svg>';
-    const rw = h('div', { class: 'rw', role: 'img', 'aria-label': r.seen + ' of ' + r.due + ' due ' + lbl('rvs') + ' seen this week' }, h('div', { class: 'n' }, r.seen + '/' + r.due));
+    const rw = h('div', { class: 'rw', role: 'img', 'aria-label': r.seen + ' of ' + r.due + ' ' + lbl('rvs') + ' due this week watered' }, h('div', { class: 'n' }, r.seen + '/' + r.due));
     rw.insertAdjacentHTML('afterbegin', svg);
     return h('section', { class: 'icard' },
       h('div', { class: 'ring' }, rw,
         h('div', null,
-          h('div', { class: 't1' }, 'This week'),
+          h('div', { class: 't1' }, 'Due this week'),
           h('div', { class: 't2' }, r.left ? r.left + ' left to water' : 'All caught up'),
-          r.left ? h('div', { class: 't3' }, 'Close the ring by Saturday to keep your streak.') : null)),
+          h('div', { class: 't3' }, 'Only ' + lbl('rvs') + ' coming due by Saturday count.'))),
       h('div', { class: 'idiv' }),
       h('div', { class: 'streak' },
         h('div', { class: 'big' }, String(sk.streak)),
         h('div', null,
-          h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', no follow-up missed'),
+          h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', nobody past due'),
           h('div', { class: 't3' }, 'Best: ' + sk.best + (sk.freezes ? ' · ' + sk.freezes + (sk.freezes === 1 ? ' freeze' : ' freezes') + ' saved' : '')))),
       h('div', { class: 'wks', role: 'img', 'aria-label': 'Last 12 weeks' }, sk.weeks.map((w) => h('i', { class: w }))),
       h('div', { class: 'wkn' }, 'Last 12 weeks · pale dot = freeze used'));
   }
-  function plotCard(plots) {
-    let ok = 0, dry = 0, wilt = 0;
-    plots.forEach((p) => p.plants.forEach((x) => { if (x.st.care >= 3) ok++; else if (x.st.care === 2) dry++; else wilt++; }));
-    return h('section', { class: 'icard' },
-      h('div', { class: 'ih' }, h('h2', null, 'Your garden'), h('span', { class: 'muted' }, (ok + dry + wilt) + ' ' + lbl('rvs'))),
-      h('div', { class: 'legend' },
-        h('span', null, h('i', { style: { background: 'var(--pl-4)' } }), ok + ' thriving'),
-        h('span', null, h('i', { style: { background: 'var(--pl-2)' } }), dry + ' thirsty'),
-        h('span', null, h('i', { style: { background: 'var(--pl-1)' } }), wilt + ' wilting')),
-      plots.map((p) => {
-        const note = p.wilting ? p.wilting + ' wilting' : p.thirsty ? p.thirsty + ' thirsty' : 'All watered';
-        return h('a', { class: 'plot', href: '#/insights/plot/' + areaKey(p.name) },
-          h('div', { class: 'pt' }, h('b', null, p.name || 'No area'), h('span', { class: p.wilting || p.thirsty ? 'due' : '' }, note)),
-          h('div', { class: 'pp' }, p.plants.slice(0, 7).map((x, k) => SC.plantOf(x.st, 'sm', { seed: k }))),
-          h('div', { class: 'soil' }));
-      }));
+  // ---------- the garden scene ----------
+  // One bed of soil per area, every plant standing in it, under a sky that follows the clock.
+  // Butterflies visit lush plants; a bird sits on a lush study's tree. Tap a plant for its card.
+  const svgEl = (html, cls, style) => { const d = document.createElement('div'); d.innerHTML = html; const el = d.firstChild; if (cls) el.setAttribute('class', cls); if (style) el.setAttribute('style', style); return el; };
+  const FLY = '<svg aria-hidden="true" viewBox="0 0 16 14"><g class="w"><ellipse cx="4.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="11.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="5" cy="10.5" rx="3" ry="3" class="f2"/><ellipse cx="11" cy="10.5" rx="3" ry="3" class="f2"/></g><rect x="7.3" y="3" width="1.4" height="10" rx=".7" class="fb"/></svg>';
+  const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
+  function skySvg(t) {
+    const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
+    const sun = t === 'night' ? '<circle cx="304" cy="52" r="20" class="sun"/><circle cx="314" cy="46" r="18" class="skyf"/>' : '<circle cx="304" cy="52" r="22" class="sun"/>';
+    const clouds = t === 'night' ? '' : '<g class="cloud"><ellipse cx="62" cy="62" rx="26" ry="9"/><ellipse cx="76" cy="55" rx="14" ry="9"/></g><g class="cloud c2"><ellipse cx="190" cy="92" rx="22" ry="7"/><ellipse cx="200" cy="86" rx="11" ry="7"/></g>';
+    return '<svg class="gsky" aria-hidden="true" viewBox="0 0 366 170" preserveAspectRatio="xMidYMax slice"><rect width="366" height="170" class="skyf"/>' + stars + sun + clouds +
+      '<path d="M0 150 C60 118 120 120 180 140 C240 160 300 116 366 132 L366 170 L0 170 Z" class="hill"/><path d="M0 162 C80 146 160 152 230 160 C290 166 330 154 366 156 L366 170 L0 170 Z" class="hill2"/></svg>';
   }
+  function gardenScene(plots, now) {
+    const t = G.skyOf(now);
+    const card = h('div', { class: 'gcard', hidden: true });
+    let selEl = null;
+    const pick = (el, x) => {
+      if (selEl) selEl.classList.remove('sel');
+      if (selEl === el) { selEl = null; card.hidden = true; return; }
+      selEl = el; el.classList.add('sel'); P.water(el);
+      const word = x.st.word || L.stageOf(S.settings, x.it.rv.stage).name;
+      card.replaceChildren(
+        h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
+          h('span', null, (x.it.rv.neighborhood || 'No area') + ' · ', h('span', { class: x.st.word ? 'gword' : '' }, word))),
+        h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'));
+      card.hidden = false;
+    };
+    let seed = 0, flies = 0, birds = 0;
+    const beds = plots.map((p) => {
+      const PER = 7, SP = 40;
+      const cols = Math.min(p.plants.length, PER);
+      const rows = Math.ceil(p.plants.length / PER);
+      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 20 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 30 + 16) + 'px' } });
+      p.plants.forEach((x, i) => {
+        const r = Math.floor(i / PER), c = i % PER;
+        const el = SC.plantOf(x.st, 'tl', { seed: seed++ });
+        el.classList.add('gp');
+        el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
+        el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.stageOf(S.settings, x.it.rv.stage).name));
+        const left = 8 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 30 - 44;
+        el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
+        el.addEventListener('click', () => pick(el, x));
+        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });
+        bed.appendChild(el);
+        if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 26) + 'px;top:' + (top + 4) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
+        if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 6) + 'px;top:' + (top + 4) + 'px')); }
+      });
+      const due = p.wilting + p.thirsty;
+      return h('div', { class: 'gplot' },
+        bed,
+        h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
+    });
+    return h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
+      svgEl(skySvg(t)),
+      h('div', { class: 'gground' }, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds)),
+      card);
+  }
+
   function exhibitCard(earned) {
     const n = G.EXHIBITS.filter(([id]) => earned[id]).length;
     return h('section', { class: 'icard' },
@@ -163,7 +205,7 @@
     }
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    return { title: 'Insights', el: h('div', null, ringCard(sk), plots.length ? plotCard(plots) : null, exhibitCard(earned), goingCard(items, now), keep) };
+    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.
@@ -184,6 +226,49 @@
         h('div', { class: 'list' }, p.plants.map((x) => SC.rvRow(x.it, { hideArea: true })))),
     };
   }
+
+  // ---------- week's-end recap ----------
+  // Shown once, the first time the app is opened after the Sunday-to-Saturday week ends.
+  function maybeRecap() {
+    if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap')) return;
+    const now = new Date();
+    const r = G.recap(ST.items(), S.settings, now, S.settings.gardenSince, S.settings.recapSeen);
+    if (!r) return;
+    ST.saveSettings((s) => { s.recapSeen = r.key; });
+    const close = () => ov.remove();
+    const mk = (stageId, care) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true });
+    const fmt = (d) => U.MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
+    const sat = U.addDays(r.ws, 6);
+    const ring = r.ring.due
+      ? (r.ring.perfect ? ['Ring closed', 'All ' + r.ring.due + ' ' + lbl('rvs') + ' that came due got a visit.'] : [r.ring.seen + ' of ' + r.ring.due + ' watered', r.ring.left + ' came due and still need a visit.'])
+      : ['Nothing came due', 'Nobody reached their due date this week.'];
+    const C = 2 * Math.PI * 42, frac = r.ring.due ? r.ring.seen / r.ring.due : 1;
+    const ringSvg = '<svg aria-hidden="true" width="76" height="76" viewBox="0 0 104 104"><circle cx="52" cy="52" r="42" fill="none" stroke-width="12" class="rbg"/>' +
+      (frac > 0 ? '<circle cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" class="rfg" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') +
+      (r.ring.perfect ? '<path d="M36 53 L47 64 L69 41" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" class="rck"/>' : '') + '</svg>';
+    const ringBox = h('div', { class: 'rring' }); ringBox.innerHTML = ringSvg;
+    const names = Object.fromEntries(G.EXHIBITS.map(([id, , n]) => [id, n]));
+    const ov = h('div', { class: 'recap', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your week' },
+      h('div', { class: 'rin' },
+        h('div', { class: 'rdate' }, 'Week of ' + fmt(r.ws) + ' to ' + fmt(sat)),
+        h('h1', null, 'Your week'),
+        h('section', { class: 'rcard pop' }, ringBox, h('div', null, h('b', null, ring[0]), h('div', { class: 'muted' }, ring[1]))),
+        r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Grew'),
+          r.grew.slice(0, 4).map((g) => h('div', { class: 'rgrew' },
+            h('div', { class: 'pair' }, mk(g.from, 4), icon('right', 16), mk(g.to, 4)),
+            h('div', null, h('b', null, g.rv.name), h('div', { class: 'acc' }, L.stageOf(S.settings, g.to).name)))),
+          r.grew.length > 4 ? h('div', { class: 'muted small' }, '+' + (r.grew.length - 4) + ' more') : null) : null,
+        h('div', { class: 'rtwo' },
+          h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
+          h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', nobody past due'))),
+        r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New exhibit'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
+        h('div', { class: 'grow1' }),
+        h('div', { class: 'ract' },
+          h('button', { class: 'btn', type: 'button', onclick: close }, 'Close'),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights'; } }, 'See the garden'))));
+    document.body.appendChild(ov);
+  }
+  RV.gardenRecap = { maybeShow: maybeRecap };
 
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();

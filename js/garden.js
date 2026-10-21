@@ -325,11 +325,35 @@
     };
   }
 
+  // Week's-end recap: the Sunday-to-Saturday week that just ended, once (seen = that week's start as
+  // YYYY-MM-DD). Null when already seen or when the garden started after that week.
+  function recap(items, settings, now, since, seen) {
+    now = now || new Date();
+    const ws = U.addDays(weekStart(now), -7), we = U.addDays(ws, 7);
+    const key = U.toDateStr(ws);
+    if (seen === key) return null;
+    if (!since || new Date(since) >= we) return null;
+    const ring = weekRing(items, settings, ws, now);
+    const grew = [];
+    for (const it of items) for (const e of it.entries) {
+      if (e.type !== 'stage' || !e.grew || e.deletedAt) continue;
+      const t = new Date(e.at);
+      if (t >= ws && t < we) grew.push({ rv: it.rv, from: e.from, to: e.to, at: e.at });
+    }
+    grew.sort((a, b) => (a.at < b.at ? -1 : 1));
+    const lush = items.filter((it) => forItem(it, settings, now).care === CARE.LUSH).length;
+    const sk = streak(items, settings, now, since);
+    const earned = Object.keys(settings.exhibits || {}).filter((id) => { const t = new Date(settings.exhibits[id]); return t >= ws && t < we; });
+    return { key, ws, we, ring, grew, lush, streak: sk.streak, exhibits: earned };
+  }
+  // Time of day for the garden sky.
+  const skyOf = (d) => { const h = d.getHours(); return h < 6 || h >= 20 ? 'night' : h < 9 ? 'morning' : h < 17 ? 'day' : 'dusk'; };
+
   const api = {
     CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, EXHIBITS,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
-    forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned,
+    forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf,
   };
   RV.garden = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

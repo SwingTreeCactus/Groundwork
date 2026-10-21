@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.16.5';
+  RV.VERSION = '2.17.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -199,6 +199,9 @@
     if (!location.hash) history.replaceState(null, '', '#/home');
     render();
     showLock();
+    // the week's-end recap, once, after the Sunday-to-Saturday week ends (also when the app comes back on Sunday)
+    setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });
     registerSW();
     RV.drive.start();
     if (signIn && signIn.ok) {

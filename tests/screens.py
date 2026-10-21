@@ -143,11 +143,23 @@ with sync_playwright() as p:
     pg.goto(base+'#/rvs'); pg.wait_for_selector('.atile'); shot('rvs-dark')
     pg.goto(base+'#/rv/'+rid); pg.wait_for_selector('.ghero'); pg.wait_for_timeout(100); shot('detail-dark')
     pg.goto(base+'#/insights'); pg.wait_for_selector('.ring'); pg.wait_for_timeout(100); shot('insights-dark')
+    pg.locator('.gscene').screenshot(path=f'{OUT}/b-scene-dark.png')
+    for t in ['dusk', 'night']:
+        pg.evaluate("t => document.querySelector('.gscene').setAttribute('data-t', t)", t)
+        pg.locator('.gscene').screenshot(path=f'{OUT}/b-scene-dark-{t}.png')
     pg.evaluate("() => { const ST = RV.store; const a = ST.S.rvs.find(r => r.neighborhood); location.hash = '#/rvs/area/' + encodeURIComponent(a.neighborhood); }")
     pg.wait_for_timeout(300); shot('area-dark')
     # light blue
     pg.evaluate("document.documentElement.setAttribute('data-theme','light'); document.documentElement.setAttribute('data-accent','blue')")
     pg.goto(base+'#/today'); pg.wait_for_selector('.cgrid'); pg.wait_for_timeout(100); shot('today-blue')
+    pg.evaluate("document.documentElement.setAttribute('data-accent','purple')")
+    pg.goto(base+'#/insights'); pg.wait_for_selector('.gscene'); pg.wait_for_timeout(200)
+    check(pg.locator('.gscene .gp').count() >= 10 and pg.locator('.gscene .gsign').count() >= 3, 'garden scene: plants in beds with area signs')
+    for t in ['morning', 'day', 'dusk', 'night']:
+        pg.evaluate("t => document.querySelector('.gscene').setAttribute('data-t', t)", t)
+        pg.locator('.gscene').screenshot(path=f'{OUT}/b-scene-{t}.png')
+    pg.locator('.gscene .gp').nth(2).click(); pg.wait_for_timeout(200); pg.locator('.gscene').screenshot(path=f'{OUT}/b-scene-sel.png')
+    pg.evaluate("document.documentElement.setAttribute('data-accent','blue')")
     pg.goto(base+'#/insights'); pg.wait_for_selector('.ring'); pg.wait_for_timeout(100); shot('insights-blue')
     pg.evaluate("window.scrollTo(0, 1400)"); pg.wait_for_timeout(100); shot('insights-blue-2')
     pg.goto(base+'#/rv/'+rid); pg.wait_for_selector('.ghero'); pg.wait_for_timeout(100); shot('detail-blue')

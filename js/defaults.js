@@ -70,6 +70,7 @@
       garden: true,
       gardenSince: null,
       exhibits: {},
+      recapSeen: null,
       nhToastSeconds: 6,
       notHomeBanner: { on: true, minAttempts: 2 },
       lists: {
