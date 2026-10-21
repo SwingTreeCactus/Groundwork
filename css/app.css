@@ -1059,16 +1059,20 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .overlay:has(.sheet.writing) .sheet { max-height: none; }
 
 /* v2.17: the garden scene on Insights */
-.gscene { --sky: #E6EEF6; --sun: #FFFFFF; --hill: #D6CDE8; --hill2: #E2DCEC; --ground: #EAE6DC; --soil: #D9CCB4; --gpath: #F5F2EB; --cloud: #FFFFFF;
+.gscene { --sky: #D6E6F5; --sun: #FFFFFF; --hill: #C9D8C4; --hill2: #E2DCEC; --ground: #EAE6DC; --soil: #D9CCB4; --gpath: #F5F2EB; --cloud: #FFFFFF;
   position: relative; border-radius: 24px; overflow: hidden; background: var(--ground); margin-bottom: 12px; }
-.gscene[data-t="morning"] { --sky: #F1E9F3; --sun: #F6E3B4; --hill: #DCD3EA; --hill2: #E6E0EE; --ground: #ECE7DD; --soil: #DCCFB8; --gpath: #F4F1EA; }
+.gscene[data-t="morning"] { --sky: #F5E9DC; --sun: #F6D99A; --hill: #D3DCC6; --hill2: #E6E0EE; --ground: #ECE7DD; --soil: #DCCFB8; --gpath: #F4F1EA; }
 .gscene[data-t="dusk"] { --sky: #D9C9E8; --sun: #E9B8C9; --hill: #BFB0D9; --hill2: #CEC3E0; --ground: #E2DCD3; --soil: #CDBFA9; --gpath: #ECE7DF; }
 .gscene[data-t="night"] { --sky: #2A2440; --sun: #F2F0F5; --hill: #3B3456; --hill2: #4A4366; --ground: #D3CDDA; --soil: #BFB3A8; --gpath: #E2DDE6; }
 :root[data-theme="dark"] .gscene { --ground: #26232E; --soil: #3A3444; --gpath: #2F2B38; --hill: #34304A; --hill2: #3D3852; --cloud: #4A4560; }
-:root[data-theme="dark"] .gscene:not([data-t="night"]) { --sky: #2F2A44; --sun: #CFC6E6; }
+:root[data-theme="dark"] .gscene[data-t="morning"] { --hill: #3A4744; --sky: #A9BCD3; --sun: #F6E3B4; --cloud: #E8EDF4; }
+:root[data-theme="dark"] .gscene[data-t="day"] { --hill: #3A4744; --sky: #7FA3C8; --sun: #FFFFFF; --cloud: #DCE6F1; }
+:root[data-theme="dark"] .gscene[data-t="dusk"] { --sky: #8E78B0; --sun: #E9B8C9; --cloud: #B7A9CF; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .gscene { --ground: #26232E; --soil: #3A3444; --gpath: #2F2B38; --hill: #34304A; --hill2: #3D3852; --cloud: #4A4560; }
-  :root:not([data-theme="light"]) .gscene:not([data-t="night"]) { --sky: #2F2A44; --sun: #CFC6E6; }
+  :root:not([data-theme="light"]) .gscene[data-t="morning"] { --hill: #3A4744; --sky: #A9BCD3; --sun: #F6E3B4; --cloud: #E8EDF4; }
+  :root:not([data-theme="light"]) .gscene[data-t="day"] { --hill: #3A4744; --sky: #7FA3C8; --sun: #FFFFFF; --cloud: #DCE6F1; }
+  :root:not([data-theme="light"]) .gscene[data-t="dusk"] { --sky: #8E78B0; --sun: #E9B8C9; --cloud: #B7A9CF; }
 }
 .gsky { display: block; width: 100%; height: 150px; }
 .gsky .skyf { fill: var(--sky); } .gsky .sun { fill: var(--sun); } .gsky .hill { fill: var(--hill); } .gsky .hill2 { fill: var(--ground); }
