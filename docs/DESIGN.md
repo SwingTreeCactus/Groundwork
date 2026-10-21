@@ -318,3 +318,25 @@ Mockups were made in a session on 2026-10-20 (rendered with the real app styles 
 - js/ai.js calls https://api.anthropic.com/v1/messages straight from the browser (anthropic-dangerous-direct-browser-access header). Key and model live in localStorage (rvapp.aiKey, rvapp.aiModel) so they never reach backups, Drive or exports. Offline, busy, bad key and odd replies all leave the note untouched with a toast.
 - Privacy page has a "Note cleanup with Claude" section.
 - Tests: tests/ai_cleanup.py (fake API via Playwright route, 22 checks). VERSION 2.15.0, cache rvapp-v37.
+
+## 27. v2.16.0 the garden (built 2026-10-21)
+
+Spec: `claude/garden-plan.md`. Art and motion ported from the "Groundwork garden insights" canvas.
+- Code: `js/garden.js` (pure: form, care, chains, Follow up on hold, growth, Almost growing, week ring, streak, rates, activity grid, plots, exhibits; Node-testable) and `js/plant.js` (SVG characters, CSS tokens per accent and theme, sway/blink/bubble/shimmer, water bounce, lean on touch, growth moment, off-screen pause, reduced motion).
+- Saving: `logVisit` stores `entry.plan` (Discuss next time set, or Start next time for a study), `entry.study`, and `entry.chainHeld` (a follow-up date carried it past the gap). When a live visit completes a step, the record moves one stage with a `grew` stage entry and the result returns `grew {from, to}`. A stage chosen by hand earns no growth. Imported entries are marked `imported` and never grow anything. New records created past Initial Call start that stage's chain empty (`rv.garden.since`).
+- Rows: the plant replaces the stage pips; name, area · stage, then one status line: "Thirsty"/"Wilting" in the accent, else a mini bar (one segment per step), "Next: Lesson 6" for studies. A calendar mark shows while a follow-up date past the gap holds the chain; the bar fades in the heads-up days before it would break.
+- Record screen: big plant and stage name (tap to change stage), "Grows into <next>" bar with "N more talks/studies", growth path of the five forms (future ones grey silhouettes). The Studying block shows from the first study session at any stage.
+- Today: plant tiles per stage (Doto count, short name; empty stages as silhouettes) and an "Almost growing" card (up to four RVs one step from their next form, beside that form's silhouette).
+- Visit sheet: "Study session" switch (on by default in the study stage) swaps in Publication, Covered today, Start next time; optional "Follow up on" date. After saving, the growth moment plays when the plant grew (tap to skip, then the Undo toast); otherwise the record's plant bounces.
+- Snooze is now "Follow up on…" in the record menu (In 3 days, 1 week, 2 weeks, 1 month, or a date); the badge reads "Follow up on <date>".
+- Insights: weekly ring (due RVs seen Sunday to Saturday; a follow-up after Saturday takes one out), streak in weeks with best and freezes and 12 week dots, "Your garden" plots per area (tap for the area plot screen `#/insights/plot/<area>`), Exhibits (8, earned once and kept in `settings.exhibits`), found-home and prepared-visit rates over 90 days with best weekday, 12-week conversation dot grid; then the funnel, Worth reconsidering and Stuck in stage. Effort points and 60-day tiles removed.
+- Settings: Display > Garden switch (off = v2.15 rows, circles and Insights; progression keeps running). Stages > steps to grow per stage (`stage.grow`; blank = default 1/2/3/3).
+- Upgrade day: `settings.gardenSince` is set on first load; streaks and exhibits count only from then. Care and chains are read silently from the timeline.
+
+Interpretation decisions (check these):
+- Care recency uses the last conversation (imports included); a Not Home after it makes the plant Steady but does not reset the clock. Healthy needs a plan on the last conversation.
+- A follow-up date shows the hold mark only when it reaches past the chain gap; inside the gap it changes nothing visible.
+- Streak: a week counts when every RV due by Saturday had a conversation that week (long-wilted ones included). A perfect calendar month (4+ weeks, a week belongs to the month of its Saturday) earns a freeze; freezes add up. Past weeks use current stages and ignore old follow-up dates (not stored).
+- Exhibits: return visits = live visits since the upgrade; first talks = RVs whose first live conversation came after it; Three studies = three RVs with a study session after it; Area all watered = a named area with 3+ plants, none thirsty or wilting.
+- Dark blue plant colours were chosen here (the canvas has light blue and dark purple only).
+- Tests: tests/garden.test.js 28, logic 46, smoke 207, screens 35, drive_folder 23, ai_cleanup 22. VERSION 2.16.0, cache rvapp-v38.
