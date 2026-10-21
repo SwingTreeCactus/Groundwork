@@ -1143,4 +1143,5 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 /* the thirsty bubble sits just over short plants instead of floating high above them */
 .gbed .pl.s1 .needpos { transform: translate(-10px, 36px); } .gbed .pl.s2 .needpos { transform: translate(-6px, 20px); } .gbed .pl.s3 .needpos { transform: translate(-2px, 6px); }
 .gcard .gct > span.gword { color: var(--red); font-weight: 600; }
-.gplot:nth-child(odd) { transform: translateX(-8px); } .gplot:nth-child(even) { transform: translateX(8px); }
+.gplot { transform: none !important; } .gplot.small:nth-child(odd) { transform: translateX(-8px) !important; } .gplot.small:nth-child(even) { transform: translateX(8px) !important; }
+.gscene { max-width: 100%; } .gbed { max-width: 100%; }

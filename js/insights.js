@@ -153,7 +153,9 @@
     };
     let seed = 0, flies = 0, birds = 0;
     const beds = plots.map((p) => {
-      const PER = 4, SP = 80;
+      // fit the bed to the screen: up to 4 plants a row, a little closer together on narrow phones
+      const avail = Math.min(root.innerWidth || 390, 640) - 24 - 20 - 4;
+      const PER = 4, SP = Math.max(56, Math.min(80, Math.floor((avail - 12) / 4.5)));
       const cols = Math.min(p.plants.length, PER);
       const rows = Math.ceil(p.plants.length / PER);
       const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 40 + 26) + 'px' } });
@@ -172,7 +174,7 @@
         if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
       });
       const due = p.wilting + p.thirsty;
-      return h('div', { class: 'gplot' },
+      return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
         h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
     });
