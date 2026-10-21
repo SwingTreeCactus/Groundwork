@@ -24,6 +24,41 @@ def check(cond, msg):
     else: fails.append(msg); print('FAIL  ' + msg)
 
 errors = []
+
+def smile_bytes(root):
+    """Tiny Smile writer for tests. Objects are lists of (key, value) pairs so keys may repeat."""
+    out = bytearray(b':)\n\x01')
+    def vint(n):
+        z = (n << 1) ^ (n >> 63)
+        parts = [0x80 | (z & 0x3f)]; z >>= 6
+        while z: parts.append(z & 0x7f); z >>= 7
+        return bytes(reversed(parts))
+    def enc(v):
+        if v is True: out.append(0x23)
+        elif v is False: out.append(0x22)
+        elif v is None: out.append(0x21)
+        elif isinstance(v, int):
+            if -16 <= v <= 15: out.append(0xC0 + ((v << 1) ^ (v >> 63)))
+            else: out.append(0x25); out.extend(vint(v))
+        elif isinstance(v, str):
+            b = v.encode()
+            if not b: out.append(0x20)
+            elif len(b) <= 32 and v.isascii(): out.append(0x40 + len(b) - 1); out.extend(b)
+            elif len(b) <= 64 and v.isascii(): out.append(0x60 + len(b) - 33); out.extend(b)
+            else: out.append(0xE0 if v.isascii() else 0xE4); out.extend(b); out.append(0xFC)
+        elif isinstance(v, list) and v and isinstance(v[0], tuple):
+            out.append(0xFA)
+            for k, x in v:
+                kb = k.encode(); out.append(0x80 + len(kb) - 1); out.extend(kb); enc(x)
+            out.append(0xFB)
+        elif isinstance(v, list):
+            out.append(0xF8)
+            for x in v: enc(x)
+            out.append(0xF9)
+        else: raise TypeError(v)
+    enc(root)
+    return bytes(out)
+
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
@@ -36,16 +71,25 @@ with sync_playwright() as p:
 
     print('first load')
     page.goto(URL); page.wait_for_selector('.tabbar .tab')
-    check(page.locator('h1').first.inner_text().startswith('Home'), 'home loads')
+    check(page.locator('h1').first.inner_text().startswith('Groundwork'), 'home loads with the app name as its title')
     check(page.locator('text=Welcome').count() == 1, 'welcome card on empty install')
     shot('01-home-empty')
 
     print('quick add through the UI')
-    page.click('button[aria-label="Quick add"]')
+    page.click('.fab')
     page.wait_for_selector('.sheet')
     inputs = page.locator('.sheet input[type=text]')
-    inputs.nth(0).fill('Maria Lopez'); inputs.nth(1).fill('123 Oak St'); inputs.nth(2).fill('Oak Park')
-    page.locator('.sheet textarea').fill('Said to come back after 5pm; asked about Bible prophecy')
+    inputs.nth(0).fill('Maria Lopez'); inputs.nth(1).fill('123 Oak St')
+    check(page.locator('.sheet select[aria-label="Neighborhood"]').count() == 1 and page.locator('.sheet input[list]:visible').count() == 0, 'area is a pick list, not a text box')
+    page.select_option('.sheet select[aria-label="Neighborhood"]', '__new__')
+    page.wait_for_selector('.overlay[aria-label="New neighborhood"] input')
+    page.fill('.overlay[aria-label="New neighborhood"] input', 'Oak Park'); page.click('.overlay[aria-label="New neighborhood"] button[type=submit]')
+    time.sleep(0.2)
+    check(page.locator('.sheet select[aria-label="Neighborhood"]').input_value() == 'Oak Park', 'new area is added and picked')
+    check('Oak Park' in ev('RV.store.S.settings.lists.neighborhoods'), 'new area saved to the list')
+    check(page.locator('.sheet input[type=tel]').is_visible() is False and page.locator('.sheet .more-btn').is_visible(), 'new RV form starts short with More details')
+    check(page.locator('.sheet label:has-text("Interests")').count() == 0 and page.locator('.sheet label:has-text("Scriptures")').count() == 0, 'no Interests or Scriptures fields')
+    page.locator('.sheet textarea[aria-label="What did you discuss?"]').fill('Said to come back after 5pm; asked about Bible prophecy')
     shot('02-quick-add')
     page.click('.sheet button[type=submit]')
     page.wait_for_selector('.toast')
@@ -57,7 +101,7 @@ with sync_playwright() as p:
     mid = rv['id']
 
     print('duplicate warning')
-    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
+    page.click('.fab'); page.wait_for_selector('.sheet')
     page.locator('.sheet input[type=text]').nth(0).fill('Someone Else')
     page.locator('.sheet input[type=text]').nth(1).fill('123 oak street')
     page.click('.sheet button[type=submit]')
@@ -70,6 +114,8 @@ with sync_playwright() as p:
     check(ev('RV.store.S.rvs.filter(r=>!r.deletedAt).length') == 1, 'duplicate was not saved')
 
     print('seed a populated app')
+    check(ev('RV.store.S.settings.defaultStaleDays') == 30 and ev('RV.store.S.settings.stages.find(s=>s.id=="return").days') == 30, 'new install: overdue after 30 days')
+    ev('''() => RV.store.saveSettings(s => { s.defaultStaleDays = 14; s.stages.forEach(st => { if (st.id === 'initial' || st.id === 'cultivating') st.days = 7; if (st.id === 'return') st.days = 14; }); })''')
     ev('''() => {
       const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
       const mk = (f, es) => { const r = ST.addRv(Object.assign({createdAt: d(90)}, f)); (es||[]).forEach(([t, n, txt]) => ST.addEntry(r.id, t, {text: txt||''}, d(n))); return r; };
@@ -97,29 +143,23 @@ with sync_playwright() as p:
     check(page.locator('.row').count() == 0, 'Home lists no RVs')
 
     print('today')
-    page.click('.tab >> text=Today'); page.wait_for_selector('text=Overdue')
-    check(page.locator('.row:has-text("Ana Ruiz")').count() >= 1, 'Ana is flagged (20 days, 14 allowed)')
-    check(page.locator('.row:has-text("Ben Carter")').count() == 0, 'Ben (6 days, 30 allowed) not flagged')
+    page.click('.tab >> text=Today'); page.wait_for_selector('.cgrid')
+    ana_id = ev('RV.store.S.rvs.find(r=>r.name=="Ana Ruiz").id'); ben_id = ev('RV.store.S.rvs.find(r=>r.name=="Ben Carter").id')
+    check(ev(f'RV.store.itemFor("{ana_id}").att.state') == 'overdue', 'Ana is due (20 days, 14 allowed)')
+    check(ev(f'RV.store.itemFor("{ben_id}").att.state') != 'overdue', 'Ben (6 days, 30 allowed) not due')
+    check(page.locator('.cell').count() == 5, 'Today dashboard: one circle per active stage')
     shot('04-today')
 
-    print('list: search, chips, sort')
-    page.click('.tab >> text=RVs'); page.wait_for_selector('.sticky-filters')
-    rows = page.locator('.row').count()
-    check(rows == 6, 'list shows 6 active RVs, archived hidden (got %d)' % rows)
-    page.fill('input[type=search]', 'oak'); time.sleep(0.3)
+    print('list: search')
+    page.click('.tab >> text=RVs'); page.wait_for_selector('input[type=search]')
+    check(ev('RV.store.items().filter(i=>i.att.state!=="closed").length') == 6, '6 active RVs, archived hidden')
+    page.fill('input[type=search]', 'oak'); time.sleep(0.4)
     names = page.locator('.row .name').all_inner_texts()
-    check(sorted(names) == ['Ana Ruiz', 'Ben Carter', 'Maria Lopez'], 'search matches address text: %s' % names)
-    page.fill('input[type=search]', 'prophecy'); time.sleep(0.3)
+    check(sorted(names) == ['Ana Ruiz', 'Ben Carter', 'Maria Lopez'], 'search matches address and area text: %s' % names)
+    page.fill('input[type=search]', 'prophecy'); time.sleep(0.4)
     check(page.locator('.row .name').all_inner_texts() == ['Maria Lopez'], 'search matches visit notes')
-    page.fill('input[type=search]', ''); time.sleep(0.3)
-    page.click('.chips .chip:has-text("Archived")'); time.sleep(0.2)
-    check(page.locator('.row:has-text("Fay Nguyen")').count() == 1, 'Archived chip reveals archived RV')
-    page.click('.chips .chip:has-text("Archived")')
-    page.select_option('select[aria-label="Sort"]', 'neighborhood'); time.sleep(0.2)
-    heads = page.locator('.group-head').all_inner_texts()
-    check(heads and heads[0].lower().startswith('lakeview'), 'neighborhood sort groups: %s' % heads)
-    shot('05-list-neighborhood')
-    page.select_option('select[aria-label="Sort"]', 'attention')
+    page.fill('input[type=search]', 'eli'); time.sleep(0.4)
+    shot('05-list-search')
 
     print('NH button on a list row, with undo')
     before = ev('RV.store.S.entries.filter(e=>e.type=="nh").length')
@@ -131,27 +171,32 @@ with sync_playwright() as p:
     print('detail: not home, visit, stage, snooze')
     ana = ev('RV.store.S.rvs.find(r=>r.name=="Ana Ruiz").id')
     page.goto(URL + '#/rv/' + ana); page.wait_for_selector('text=Timeline')
-    check(page.locator('.banner:has-text("Overdue")').count() == 1, 'overdue banner on detail')
+    check(page.locator('.banner:has-text("Overdue")').count() == 0 and 'overdue' not in page.locator('.view').inner_text().lower(), 'no due banner or "overdue" wording on the person screen (v2.11)')
     shot('06-detail')
-    page.click('button:has-text("Not Home") >> nth=0')
+    page.click('button.btn.big:has-text("Record NH")')
     page.wait_for_selector('.toast')
     check(ev(f'RV.store.S.entries.filter(e=>e.rvId=="{ana}"&&e.type=="nh").length') == 1, 'Not Home logged on detail')
     page.click('.toast button:has-text("Add note")')
     page.wait_for_selector('.sheet textarea'); page.fill('.sheet textarea', 'Dog barking, nobody answered')
     page.click('.sheet button[type=submit]')
     check(ev(f'RV.store.S.entries.find(e=>e.rvId=="{ana}"&&e.type=="nh").text') == 'Dog barking, nobody answered', 'toast Add note saves text')
-    page.click('button:has-text("Record visit")')
+    page.click('button:has-text("Record a visit")')
     page.wait_for_selector('.sheet textarea')
     page.fill('.sheet textarea', 'Studied John 17:3; she wants a weekly study')
+    check(page.locator('.sheet.writing').count() == 1, 'typing the note opens the full-screen writing view')
+    shot('07a-writing')
+    check(page.locator('.sheet summary').is_visible() is False, 'other fields hidden while writing')
+    check(page.locator('.sheet button:has-text("Save visit")').is_visible(), 'Save stays visible while writing')
+    page.click('.sheet button:has-text("Show other fields")')
+    check(page.locator('.sheet.writing').count() == 0, 'Show other fields leaves the writing view')
     page.click('.sheet summary')
     shot('07-visit-dialog')
-    page.click('.sheet .chip:has-text("+2 weeks")')
+    check(page.locator('.sheet:has-text("Next visit date")').count() == 0, 'no next visit date in the visit sheet')
     page.select_option('.sheet select', 'study')
     page.click('.sheet button:has-text("Save visit")')
     page.wait_for_selector('.toast:has-text("Visit saved")')
     r = ev(f'RV.store.rvById("{ana}")')
     check(r['stage'] == 'study', 'visit moved stage to Bible Study')
-    check(bool(r['nextVisit']), 'visit set next visit date')
     check(ev(f'RV.store.itemFor("{ana}").att.state') in ('ok', 'soon'), 'no longer overdue after a visit')
     check(page.locator('.tl li').count() >= 4, 'timeline shows entries (%d)' % page.locator('.tl li').count())
 
@@ -161,10 +206,10 @@ with sync_playwright() as p:
     page.click('.sheet button:has-text("Archive")')
     page.wait_for_selector('.banner.danger')
     check(ev(f'RV.store.rvById("{ana}").stage') == 'archived', 'archived')
-    check(page.locator('button:has-text("Not Home")').count() == 0, 'no visit buttons on a Do not call record')
+    check(page.locator('button:has-text("Record NH")').count() == 0, 'no visit buttons on a Do not call record')
     shot('08-dnc')
     page.click('.tab >> text=Today')
-    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
+    page.click('.fab'); page.wait_for_selector('.sheet')
     page.locator('.sheet input[type=text]').nth(0).fill('Newcomer'); page.locator('.sheet input[type=text]').nth(1).fill('12 Elm Street')
     page.click('.sheet button[type=submit]')
     try:
@@ -193,21 +238,26 @@ with sync_playwright() as p:
     dow = ev('new Date().getDay()')
     campaign = ev('RV.store.activeCampaign()')
     page.goto(URL + '#/home'); page.wait_for_selector('.campaign-bar')
-    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
-    check(page.locator('.sheet .check:has-text("Fall invitation")').count() == 1, 'quick add offers the active campaign')
-    check(page.locator('.sheet .check input').is_checked(), 'campaign toggle defaults on')
+    page.click('.fab'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet .check:has-text("Fall invitation")').is_visible() is False, 'campaign switch is under More details')
+    page.click('.sheet .more-btn')
+    check(page.locator('.sheet .check:has-text("Fall invitation")').is_visible(), 'More details shows the campaign switch')
+    check(page.locator('.sheet .check:has-text("Fall invitation") input').is_checked(), 'campaign toggle defaults on')
+    check(page.locator('.sheet select').nth(2).input_value() == 'House to house' or 'House to house' in [page.locator('.sheet select').nth(i).input_value() for i in range(page.locator('.sheet select').count())], 'how we met defaults to House to house')
+    check(page.locator('.sheet .daypick button[aria-pressed="true"]').count() == 1, 'today is pre-picked as a best day')
     page.locator('.sheet input[type=text]').nth(0).fill('Blank Note Person')
     page.click('.sheet button[type=submit]'); page.wait_for_selector('.toast')
     bn = ev('RV.store.S.rvs.find(r=>r.name=="Blank Note Person")')
-    check(bn['dayPrimary']['day'] == dow and bn['dayPrimary']['part'] in ('morning', 'afternoon', 'evening', 'night'), 'quick add stamps today as the primary best day: %s' % bn['dayPrimary'])
+    check(bn['bestDays'] == [dow], 'quick add stamps today as a best day: %s' % bn['bestDays'])
     check(bn['campaignId'] == campaign['id'], 'quick add tags the active campaign')
     be = ev('RV.store.S.entries.filter(e=>e.rvId=="%s")' % bn['id'])
     check(len(be) == 1 and be[0]['type'] == 'visit' and 'Campaign: Fall invitation' in be[0]['text'] and 'Topic: ' in be[0]['text'], 'blank note filled with the live campaign and topics: %r' % (be[0]['text'] if be else None))
     check(be[0]['campaignId'] == campaign['id'], 'first visit tagged with the campaign')
-    page.click('button[aria-label="Quick add"]'); page.wait_for_selector('.sheet')
+    page.click('.fab'); page.wait_for_selector('.sheet')
     page.locator('.sheet input[type=text]').nth(0).fill('Off Campaign')
-    page.locator('.sheet .check input').uncheck()
-    page.locator('.sheet textarea').fill('Met at the market')
+    page.click('.sheet .more-btn')
+    page.locator('.sheet .check:has-text("Fall invitation") input').uncheck()
+    page.locator('.sheet textarea[aria-label="What did you discuss?"]').fill('Met at the market')
     page.click('.sheet button[type=submit]'); page.wait_for_selector('.toast')
     oc = ev('RV.store.S.rvs.find(r=>r.name=="Off Campaign")')
     check(oc['campaignId'] is None, 'campaign toggle off: RV not tagged')
@@ -230,7 +280,7 @@ with sync_playwright() as p:
     page.keyboard.press('Escape')
 
     print('v2: record visit with topic chips, next time and campaign toggle')
-    page.click('button:has-text("Record visit")'); page.wait_for_selector('.sheet textarea')
+    page.click('button:has-text("Record a visit")'); page.wait_for_selector('.sheet textarea')
     check(page.locator('.sheet .chip:has-text("Family worries")').count() == 1, 'featured topics appear as chips')
     page.click('.sheet .chip:has-text("Family worries")')
     check('Topic: Family worries' in page.locator('.sheet textarea').first.input_value(), 'tapping a topic inserts a tag into the note')
@@ -243,7 +293,7 @@ with sync_playwright() as p:
     newest = ev('RV.store.itemFor("%s").entries[0]' % ben)
     check(newest['type'] == 'visit' and newest['campaignId'] == campaign['id'], 'visit tagged with the active campaign by default')
     check(page.locator('.tl:has-text("Campaign: Fall invitation")').count() == 1, 'campaign shown on the timeline entry')
-    page.click('button:has-text("Record visit")'); page.wait_for_selector('.sheet textarea')
+    page.click('button:has-text("Record a visit")'); page.wait_for_selector('.sheet textarea')
     page.locator('.sheet .check input').uncheck()
     page.locator('.sheet textarea').first.fill('Short follow up')
     page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
@@ -254,37 +304,42 @@ with sync_playwright() as p:
     print('v2: day-tag overdue rule in the browser')
     res = ev('''() => { const ST = RV.store, dow = new Date().getDay(); const d = n => new Date(Date.now() - n*864e5).toISOString();
       const other = (dow + 3) % 7;
-      const r = ST.addRv({name: 'Tagtest', stage: 'initial', createdAt: d(30), dayPrimary: {day: other, part: 'evening'}});
+      const r = ST.addRv({name: 'Tagtest', stage: 'initial', createdAt: d(30), bestDays: [other]});
       ST.addEntry(r.id, 'visit', {text: 'x'}, d(10));
       const a = ST.itemFor(r.id).att;
-      ST.updateRv(r.id, {dayPrimary: {day: dow, part: 'evening'}});
+      ST.updateRv(r.id, {bestDays: [dow]});
       const b = ST.itemFor(r.id).att;
-      const r2 = ST.addRv({name: 'Tagtest2', stage: 'initial', createdAt: d(40), dayPrimary: {day: other, part: 'evening'}});
+      const r2 = ST.addRv({name: 'Tagtest2', stage: 'initial', createdAt: d(40), bestDays: [other]});
       ST.addEntry(r2.id, 'visit', {text: 'x'}, d(20));
       const c = ST.itemFor(r2.id).att;
       ST.deleteRv(r.id); ST.deleteRv(r2.id);
       return [a.state, !!a.waiting, b.state, c.state]; }''')
     check(res == ['ok', True, 'overdue', 'overdue'], 'tagged: waits for its day; overdue on its day; safety net after 2x: %s' % res)
 
-    print('v2: Today and the 7-day forecast')
+    print('v2.11: Today dashboard and stage lists')
     ev('''() => { const ST = RV.store, dow = new Date().getDay(); const find = n => ST.S.rvs.find(r => r.name === n).id;
-      ST.updateRv(find('Ben Carter'), {dayPrimary: {day: dow, part: 'evening'}, daySecondary: {day: (dow + 1) % 7, part: 'morning'}, whatsNext: ''});
-      ST.updateRv(find('Dee Alvarez'), {dayPrimary: {day: dow, part: 'morning'}});
-      const e = ST.addRv({name: 'Evening Person', stage: 'return', createdAt: new Date(Date.now() - 20*864e5).toISOString(), dayPrimary: {day: dow, part: 'evening'}});
-      ST.addEntry(e.id, 'visit', {text: 'Chatted'}, new Date(Date.now() - 3*864e5).toISOString()); }''')
-    page.goto(URL + '#/today'); page.wait_for_selector('.sec')
-    heads = [t.strip().lower() for t in page.locator('.sec-head h2').all_inner_texts()]
-    check('overdue' in heads and 'tagged for today' in heads and 'next 7 days' in heads, 'Today sections: %s' % heads)
-    check('coming up' not in heads and 'recently added' not in heads, 'Today no longer lists coming up or recently added')
-    check(page.locator('.sec:has(h2:text-is("Overdue")) .row:has-text("Eli Moore")').count() == 1, 'untagged overdue shows under Overdue')
-    subs = [t.strip().lower() for t in page.locator('.sec:has(h2:text-is("Tagged for today")) .subhead').all_inner_texts()]
-    check(subs == ['morning', 'evening'], 'tagged RVs grouped in natural part-of-day order: %s' % subs)
-    check(page.locator('.sec:has(h2:text-is("Tagged for today")) .row:has-text("Dee Alvarez")').count() == 1, 'Dee (tagged today morning) listed')
-    check(page.locator('.sec:has(h2:text-is("Tagged for today")) .row:has-text("Ben Carter")').count() == 0, 'Ben (tagged today) is not listed again: already visited today')
-    check(page.locator('.sec:has(h2:text-is("Next 7 days")) .row:has-text("Chen Family")').count() == 1, 'planned visit (Chen, in 2 days) is in the forecast')
-    check(page.locator('.sec:has(h2:text-is("Next 7 days")) .row:has-text("Ben Carter")').count() >= 1, 'secondary day shows Ben in the forecast')
-    check(page.locator('.sec:has(h2:text-is("Overdue")) .row:has-text("Chen Family")').count() == 0, 'future planned visit is not on the overdue list')
-    shot('14-today-v2')
+      ST.updateRv(find('Ben Carter'), {bestDays: [dow, (dow + 1) % 7], whatsNext: ''});
+      ST.updateRv(find('Dee Alvarez'), {bestDays: [dow]});
+      ST.updateRv(find('Chen Family'), {bestDays: [(dow + 3) % 7]}); }''')
+    page.goto(URL + '#/today'); page.wait_for_selector('.cgrid')
+    scope = ev('RV.logic.todaySet(RV.store.items(), new Date()).map(i => i.rv.name)')
+    check('Dee Alvarez' in scope and 'Chen Family' not in scope, 'Today scope: best day today in, another weekday out: %s' % scope)
+    check('Ben Carter' not in scope, 'someone visited today is not in Today (Ben)')
+    check('next 7 days' not in page.locator('.view').inner_text().lower(), 'no 7-day forecast')
+    page.click('.cell:has-text("Initial Call")'); page.wait_for_selector('.topbar button[aria-label="Back"]')
+    check(page.locator('.row:has-text("Dee Alvarez")').count() == 1, 'Initial Call circle lists Dee')
+    shot('14-today-stage')
+    print('RVs: search ignores remembered filters')
+    ev("localStorage.setItem('rvapp.list', JSON.stringify({sort: 'oldest', stage: 'initial', neighborhood: '', bestDay: 'today'}))")
+    page.goto(URL + '#/rvs'); page.reload(); page.wait_for_selector('input[type=search]')
+    page.fill('input[type=search]', 'Chen'); time.sleep(0.4)
+    check(page.locator('.row .name').all_inner_texts() == ['Chen Family'], 'search finds people outside the active filters')
+    page.fill('input[type=search]', ''); time.sleep(0.3)
+    ev("localStorage.removeItem('rvapp.list')")
+    page.goto(URL + '#/home'); page.wait_for_selector('.home')
+    ev('() => { const d = new Date(); const ds = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); RV.store.updateRv(RV.store.S.rvs.find(r => r.name === "Chen Family").id, {nextVisit: ds}); }')
+    page.reload(); page.wait_for_selector('.home')
+    check(page.locator('.home:has-text("Scheduled today")').count() == 0, 'Home has no scheduled visits section (next visit removed)')
 
     print('v2: Home look')
     page.goto(URL + '#/home'); page.wait_for_selector('.campaign-bar'); shot('15-home-v2')
@@ -316,9 +371,9 @@ with sync_playwright() as p:
     print('v2: Insights')
     ev('''() => { const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
       const fut = RV.util.toDateStr(RV.util.addDays(new Date(), 30));
-      const r = ST.addRv({name: 'Neverhome', stage: 'initial', createdAt: d(30), nextVisit: fut});
+      const r = ST.addRv({name: 'Neverhome', stage: 'initial', createdAt: d(30), snoozedUntil: fut});
       [7, 14, 21].forEach(n => ST.addEntry(r.id, 'nh', {}, d(n)));
-      ST.addRv({name: 'Stuckguy', stage: 'initial', createdAt: d(60), stageChangedAt: d(60), nextVisit: fut}); }''')
+      ST.addRv({name: 'Stuckguy', stage: 'initial', createdAt: d(60), stageChangedAt: d(60), snoozedUntil: fut}); }''')
     page.goto(URL + '#/insights'); page.wait_for_selector('.funnel')
     check(page.locator('.frow').count() == 5, 'funnel shows the five active stages')
     check(page.locator('.tile').count() == 5, 'five 60-day tiles')
@@ -329,39 +384,54 @@ with sync_playwright() as p:
     check(page.locator('.sec:has(h2:text-is("Stuck in stage")) .row:has-text("Stuckguy")').count() == 1, 'Stuck in stage lists long-stalled records')
     check(page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Eli Moore")').count() == 0, 'pattern lists skip people already on Today')
     shot('16-insights')
-    page.click('.frow:has-text("Bible Study")'); page.wait_for_selector('.sticky-filters')
-    on = page.locator('.chip[aria-pressed="true"]').all_inner_texts()
-    check(len(on) == 1 and on[0].startswith('Bible Study'), 'tapping a funnel stage opens the list filtered to it: %s' % on)
+    page.click('.frow:has-text("Bible Study")'); page.wait_for_selector('.achip')
+    on = page.locator('.achip').all_inner_texts()
+    check(len(on) == 1 and 'Bible Study' in on[0] and page.locator('.row:has-text("Ben Carter")').count() == 1, 'tapping a funnel stage opens the list filtered to it: %s' % on)
+    ev("localStorage.removeItem('rvapp.list')")
     ev('() => { const ST = RV.store; ST.S.rvs.filter(r => ["Neverhome","Stuckguy"].includes(r.name)).forEach(r => ST.deleteRv(r.id)); localStorage.removeItem("rvapp.list"); }')
 
-    print('study stage: publication, where you are, log study')
-    sid = ev("() => RV.store.addRv({ name: 'Study Person', address: '1 Study Way', stage: 'study', whatsNext: 'Review paragraph 3' }).id")
+    print('study stage: publication, covered today, start next time')
+    sid = ev("() => RV.store.addRv({ name: 'Study Person', address: '1 Study Way', stage: 'study' }).id")
     page.goto(URL + '#/rv/' + sid); page.wait_for_selector('.snap')
-    check(page.locator('.snap-row.study').count() == 1 and 'Choose a publication' in page.locator('.snap-row.study').inner_text(), 'study RV leads with a Studying block')
+    check(page.locator('.snap-row.study2').count() == 1 and 'Choose a publication' in page.locator('.snap-row.study2').inner_text(), 'study RV leads with a Studying block')
     check(page.locator('.snap-row:has-text("Last visit")').count() == 0, 'study RV does not lead with the last visit note')
+    check(page.locator('.snap-row.next').count() == 0, 'no separate Discuss next time on a study')
     check(page.locator('button.btn.big:has-text("Log study")').count() == 1, 'primary button says Log study')
-    check('Review paragraph 3' in page.locator('.snap-row.next').inner_text(), 'discuss next time still shows')
-    page.click('.snap-row.study'); page.wait_for_selector('.sheet input')
-    page.fill('.sheet input[placeholder="Publication"]', 'Enjoy Life Forever')
-    page.fill('.sheet input[placeholder="Lesson, paragraph, page"]', 'Lesson 5, paragraph 12')
+    page.click('.snap-row.study2'); page.wait_for_selector('.sheet input')
+    check(page.locator('.sheet input').count() == 1, 'tapping the Studying block edits only Start next time')
+    page.locator('.sheet input').fill('Lesson 5')
     page.click('.sheet button:has-text("Save")'); page.wait_for_selector('.sheet', state='detached')
-    check('Enjoy Life Forever' in page.locator('.snap-row.study').inner_text() and 'Lesson 5, paragraph 12' in page.locator('.snap-row.study').inner_text(), 'publication and place can be set from the detail screen')
+    check('Next: Lesson 5' in page.locator('.snap-row.study2').inner_text(), 'next lesson set from the detail screen')
     page.click('button.btn.big:has-text("Log study")'); page.wait_for_selector('.sheet')
-    check(page.locator('.sheet input[placeholder="Publication"]').input_value() == 'Enjoy Life Forever', 'Log study form is pre-filled with the publication')
+    check(page.locator('.sheet input[placeholder="Publication"]').count() == 1, 'Log study asks for the publication while none is set')
+    page.fill('.sheet input[placeholder="Publication"]', 'Enjoy Life Forever')
+    cov = page.locator('.sheet .field:has-text("Covered today") input'); nxt = page.locator('.sheet .field:has-text("Start next time") input')
+    check(cov.input_value() == 'Lesson 5' and nxt.input_value() == 'Lesson 6', 'covered starts as what was planned; next is suggested (%s / %s)' % (cov.input_value(), nxt.input_value()))
     check(page.locator('.sheet .chips:has-text("Hope for the future")').count() == 0, 'Log study form has no topic chips')
-    page.fill('.sheet input[placeholder="Last: Lesson 5, paragraph 12"]', 'Lesson 6, paragraph 3')
-    page.fill('.sheet textarea[placeholder="Discuss next time"]', 'Ask about the picture on page 48')
+    check(page.locator('.sheet:has-text("Discuss next time")').count() == 0 and page.locator('.sheet:has-text("Next visit")').count() == 0, 'no Discuss next time or next visit in Log study')
+    cov.fill('Lesson 5 ¶12')
+    check(nxt.input_value() == 'Lesson 5 ¶13', 'next follows what was covered (%s)' % nxt.input_value())
+    nxt.fill('Lesson 6'); cov.fill('Lesson 5 ¶14')
+    check(nxt.input_value() == 'Lesson 6', 'a typed next lesson is not overwritten')
     page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached')
-    check('Lesson 6, paragraph 3' in page.locator('.snap-row.study').inner_text(), 'saving a study updates where you are')
-    check('Ask about the picture' in page.locator('.snap-row.next').inner_text(), 'discuss next time is updated')
-    check(page.locator('.tl li:has-text("Study")').count() == 1 and page.locator('.tl:has-text("Enjoy Life Forever")').count() == 1, 'timeline shows the study with its publication and place')
-    check(ev("RV.store.S.entries.filter(e => e.rvId === '%s' && e.type === 'visit')[0].progress" % sid) == 'Lesson 6, paragraph 3', 'the study entry keeps its own progress')
-    page.goto(URL + '#/rvs'); page.wait_for_selector('.row')
-    check('Enjoy Life Forever · Lesson 6, paragraph 3' in page.locator('.row:has-text("Study Person")').inner_text(), 'list row shows publication and place')
+    blk = page.locator('.snap-row.study2').inner_text()
+    check('Enjoy Life Forever' in blk and 'Next: Lesson 6' in blk and 'last covered Lesson 5 ¶14' in blk, 'block shows publication, next and last covered')
+    check(page.locator('.tl li:has-text("Study")').count() == 1 and page.locator('.tl:has-text("Covered Lesson 5 ¶14")').count() == 1, 'timeline says what was covered')
+    e = ev("RV.store.S.entries.filter(e => e.rvId === '%s' && e.type === 'visit')[0]" % sid)
+    check(e['progress'] == 'Lesson 5 ¶14' and e['nextStart'] == 'Lesson 6', 'the study entry keeps covered and next')
+    page.click('button.btn.big:has-text("Log study")'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet input[placeholder="Publication"]').count() == 0, 'publication is not asked again once set')
+    page.keyboard.press('Escape'); time.sleep(0.2)
+    page.fill('.view input[type=search]', '') if page.locator('.view input[type=search]').count() else None
+    page.goto(URL + '#/rvs'); page.wait_for_selector('input[type=search]')
+    page.fill('input[type=search]', 'Study Person'); time.sleep(0.4)
+    rt = page.locator('.row:has-text("Study Person")').inner_text()
+    check('Enjoy Life Forever' in rt and 'Lesson 6' in rt, 'list row shows publication and next lesson')
+    page.fill('input[type=search]', ''); time.sleep(0.3)
     page.goto(URL + '#/rv/' + sid); page.wait_for_selector('.snap')
     ev("() => RV.store.setStage('%s', 'return')" % sid)
-    page.wait_for_selector('button.btn.big:has-text("Record visit")')
-    check(page.locator('.snap-row.study').count() == 0, 'leaving the study stage returns to the normal layout')
+    page.wait_for_selector('button.btn.big:has-text("Record a visit")')
+    check(page.locator('.snap-row.study2').count() == 0, 'leaving the study stage returns to the normal layout')
     ev("() => RV.store.setStage('%s', 'study')" % sid)
 
     print('settings pages open without errors')
@@ -387,12 +457,12 @@ with sync_playwright() as p:
     print('display: dark theme and large text')
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')
     page.click('.seg >> nth=0 >> button:has-text("Dark")')
-    page.click('.seg >> nth=1 >> button:has-text("Large")')
+    page.click('.seg >> nth=2 >> button:has-text("Large")')
     check(ev('document.documentElement.getAttribute("data-theme")') == 'dark', 'dark theme applied')
     check(ev('getComputedStyle(document.documentElement).fontSize') == '18.4px', 'text scale applied (%s)' % ev('getComputedStyle(document.documentElement).fontSize'))
     page.goto(URL + '#/rvs'); page.wait_for_selector('.row'); shot('11-list-dark')
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')
-    page.click('.seg >> nth=0 >> button:has-text("System")'); page.click('.seg >> nth=1 >> button:has-text("Default")')
+    page.click('.seg >> nth=0 >> button:has-text("System")'); page.click('.seg >> nth=2 >> button:has-text("Default")')
 
     print('backup and restore')
     backup = ev('RV.store.exportAll()')
@@ -425,6 +495,171 @@ with sync_playwright() as p:
     check('asked about "life"' in g['notes'], 'quoted CSV text kept')
     check(ev('RV.store.S.rvs.filter(r=>r.name=="Hal Young").length') == 0, 'duplicate of Maria Lopez address skipped')
 
+    print('Ministry Assistant import')
+    import gzip
+    def person(n, addr, note, sc, d, hidden=False):
+        return ('Pe', [('P', [('Inf', [('PI', [('I', note), ('Sc', sc), ('PtI', 1), ('D', d)])]), ('N', n), ('Add', addr),
+                              ('Hidden', hidden), ('Intd', True), ('LstTry', d - 60000), ('Zip', '95204'), ('ID', 5292002816819552362 + len(n)), ('Lat', 0)])])
+    ma = [('FileVersion', 27), ('Territories', []),
+          ('PersonMap', [person('Test Rita', '11 Birch Way', 'Likes gardening. Asked about hope. ' + 'x' * 40, 'Psalm 37:29', 1749838700000),
+                         person('Test Omar', '12 Birch Way', 'Short note', '', 1749838800000, True),
+                         person('Test Dup', '31 Maple Dr', 'Same address as Gina', '', 1749838900000)]),
+          ('Cities', ['Stockton'])]
+    ma_path = '/tmp/out/test.mabackup'
+    open(ma_path, 'wb').write(gzip.compress(smile_bytes(ma)))
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
+    with page.expect_file_chooser() as fc:
+        page.click('.setrow:has-text("Ministry Assistant")')
+    fc.value.set_files(ma_path)
+    page.wait_for_selector('.sheet:has-text("will be added")')
+    summary = page.locator('.sheet .banner').inner_text()
+    check('2 RVs and 2 notes' in summary.replace('\n', ' '), 'MA summary: ' + summary.replace('\n', ' '))
+    page.click('.sheet button:has-text("Import")')
+    time.sleep(0.4)
+    r = ev('RV.store.S.rvs.find(x=>x.name=="Test Rita")')
+    check(r and r['address'] == '11 Birch Way, Stockton 95204', 'MA address combines street, city, zip')
+    e = ev('RV.store.S.entries.filter(x=>x.rvId==RV.store.S.rvs.find(y=>y.name=="Test Rita").id)')
+    check(len(e) == 1 and e[0]['text'].startswith('Likes gardening') and e[0]['scriptures'] == ['Psalm 37:29'] and e[0]['at'].startswith('2025-06-13'), 'MA note imported with date and scripture')
+    o = ev('RV.store.S.rvs.find(x=>x.name=="Test Omar")')
+    check(o and o['stage'] == 'archived', 'MA hidden person is archived')
+    check(ev('RV.store.S.rvs.filter(x=>x.name=="Test Dup").length') == 0, 'MA duplicate address skipped')
+    check(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").stage') == 'initial', 'MA default stage is Initial Call')
+    check(len(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays')) == 1, 'MA best day set from last visit')
+    with page.expect_file_chooser() as fc:
+        page.click('.setrow:has-text("Ministry Assistant")') if page.query_selector('.setrow:has-text("Ministry Assistant")') else (page.goto(URL + '#/settings/data'), page.click('.setrow:has-text("Ministry Assistant")'))
+    open('/tmp/out/bad.mabackup', 'wb').write(b'not a backup at all')
+    fc.value.set_files('/tmp/out/bad.mabackup')
+    page.wait_for_selector('text=Could not read that file')
+    check(True, 'MA rejects a file that is not a backup')
+
+
+    print('re-import fills best day on existing people')
+    ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays = []')
+    ev('RV.store.updateRv(RV.store.S.rvs.find(x=>x.name=="Test Omar").id, {bestDays: [2, 5], stage: "initial", archiveReason: null})')
+    before = ev('RV.store.S.rvs.length')
+    page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
+    with page.expect_file_chooser() as fc:
+        page.click('.setrow:has-text("Ministry Assistant")')
+    fc.value.set_files(ma_path)
+    page.wait_for_selector('.sheet:has-text("will be added")')
+    sm = page.locator('.sheet .banner').inner_text().replace('\n', ' ')
+    check('1 already here will get a best day' in sm, 'update summary: ' + sm)
+    page.click('.sheet button:has-text("Import")'); time.sleep(0.4)
+    check(ev('RV.store.S.rvs.length') == before, 're-import adds no duplicates')
+    check(len(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays')) == 1, 'existing person got a best day')
+    check(ev('RV.store.S.rvs.find(x=>x.name=="Test Omar").bestDays') == [2, 5], 'best days already set are kept')
+
+    print('full notes on the record screen')
+    long_note = ('Line one of a long note. ' * 12) + '\nSecond paragraph ends here: END-OF-NOTE'
+    rid = ev(f"""() => {{ const r = RV.store.addRv({{name: 'Test Long Note', address: '9 Long Rd'}}); RV.store.addEntry(r.id, 'visit', {{text: {json.dumps(long_note)}}}); return r.id; }}""")
+    page.goto(URL + '#/rv/' + rid); page.wait_for_selector('.snap-v')
+    lv = page.locator('.snap-row:has-text("Last visit") .snap-v')
+    check(lv.evaluate('e => e.scrollHeight <= e.clientHeight + 1') and 'END-OF-NOTE' in lv.inner_text(), 'last visit note is shown in full')
+    check('\n' in lv.inner_text(), 'line breaks in notes are kept')
+    ev(f'RV.store.deleteRv("{rid}")')
+
+    print('v2.8: row buttons, best days picker, accent, migration')
+    page.goto(URL + '#/rvs'); page.wait_for_selector('.row')
+    row = page.locator('.row').first
+    nh = row.locator('.nhbtn'); mp = row.locator('.navbtn')
+    check(nh.inner_text().strip() == 'NH' and mp.inner_text().strip() == 'Map', 'row buttons read NH and Map (v2.11)')
+    bn, bm = nh.bounding_box(), mp.bounding_box()
+    check(abs(bn['x'] - bm['x']) < 2 and bm['y'] > bn['y'] + bn['height'], 'Map sits under Log NH in one column')
+    rb = row.bounding_box()
+    check(bn['x'] + bn['width'] > rb['x'] + rb['width'] - 20, 'buttons are at the right edge of the row')
+    rid = ev('RV.store.S.rvs.find(r => r.name === "Dee Alvarez").id')
+    page.goto(URL + '#/rv/' + rid); page.wait_for_selector('button[aria-label="Edit"]')
+    page.click('button[aria-label="Edit"]'); page.wait_for_selector('.sheet .daypick')
+    check(page.locator('.sheet:has-text("Next visit")').count() == 0 and page.locator('.sheet:has-text("Best times")').count() == 0, 'edit form has no next visit or time windows')
+    for d in ['Monday', 'Wednesday', 'Friday']:
+        dbtn = page.locator(f'.sheet .daypick button[aria-label="{d}"]')
+        if dbtn.get_attribute('aria-pressed') != 'true': dbtn.click()
+    sun = page.locator('.sheet .daypick button[aria-label="Sunday"]')
+    if sun.get_attribute('aria-pressed') == 'true': sun.click()
+    keep = [i for i in range(7) if page.locator('.sheet .daypick button').nth(i).get_attribute('aria-pressed') == 'true']
+    page.click('.sheet button:has-text("Save")'); time.sleep(0.3)
+    check(ev(f'RV.store.rvById("{rid}").bestDays') == keep and {1, 3, 5} <= set(keep), 'best days saved as weekdays: %s' % keep)
+    check(page.locator('dd:has-text("Monday")').count() == 1, 'details list the best days')
+    page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')
+    page.click('.seg >> nth=1 >> button:has-text("Blue")'); time.sleep(0.1)
+    blue = ev('getComputedStyle(document.documentElement).getPropertyValue("--red").trim()')
+    page.click('.seg >> nth=1 >> button:has-text("Purple")'); time.sleep(0.1)
+    purple = ev('getComputedStyle(document.documentElement).getPropertyValue("--red").trim()')
+    check(blue.lower() == '#2f5fa8' and purple.lower() == '#5b3e96', 'accent switches between blue and purple (%s, %s)' % (blue, purple))
+    page.goto(URL + '#/rvs'); page.fill('input[type=search]', 'Eli'); page.wait_for_selector('.row .line3.due')
+    col = page.locator('.row .line3.due').first.evaluate('e => getComputedStyle(e).color')
+    check(col == 'rgb(91, 62, 150)', 'a due row shows its last-visit line in the accent, not red (%s)' % col)
+    page.fill('input[type=search]', '')
+    legacy = ev("""async () => { const r = RV.store.blankRv({ name: 'Legacy Days', dayPrimary: { day: 2, part: 'evening' }, daySecondary: { day: 6, part: 'morning' } }); delete r.bestDays;
+      await RV.db.put('rvs', r); return r.id; }""")
+    page.reload(); page.wait_for_selector('.tabbar .tab')
+    check(ev(f'RV.store.rvById("{legacy}").bestDays') == [2, 6], 'old primary/secondary days become best days on load')
+    ev(f'RV.store.deleteRv("{legacy}")')
+
+    print('areas: pick list matches existing names; rename merges')
+    page.click('.fab'); page.wait_for_selector('.sheet')
+    page.locator('.sheet input[type=text]').nth(0).fill('Area Tester')
+    page.select_option('.sheet select[aria-label="Neighborhood"]', '__new__')
+    page.wait_for_selector('.overlay[aria-label="New neighborhood"] input')
+    page.fill('.overlay[aria-label="New neighborhood"] input', '  oak   park '); page.click('.overlay[aria-label="New neighborhood"] button[type=submit]')
+    time.sleep(0.2)
+    check(page.locator('.sheet select[aria-label="Neighborhood"]').input_value() == 'Oak Park', 'typing an existing area in other case picks the existing one')
+    page.click('.sheet button[type=submit]'); time.sleep(0.3)
+    check(ev('RV.store.S.rvs.find(r => r.name === "Area Tester").neighborhood') == 'Oak Park', 'saved with the existing area')
+    ev('() => RV.store.updateRv(RV.store.S.rvs.find(r => r.name === "Area Tester").id, {neighborhood: "oakpark"})')
+    page.goto(URL + '#/settings/fields'); page.wait_for_selector('.area-row')
+    page.click('.area-row:has-text("oakpark")'); page.click('.sheet .opt:has-text("Rename or merge")')
+    page.wait_for_selector('.overlay[aria-label="Rename oakpark"] input')
+    page.fill('.overlay[aria-label="Rename oakpark"] input', 'OAK PARK'); page.click('.overlay[aria-label="Rename oakpark"] button[type=submit]')
+    page.wait_for_selector('.toast:has-text("Merged into Oak Park")')
+    check(ev('RV.store.S.rvs.find(r => r.name === "Area Tester").neighborhood') == 'Oak Park', 'rename to an existing name merges the records')
+    check(page.locator('.area-row:has-text("oakpark")').count() == 0, 'merged name is gone from the list')
+    ev('() => RV.store.deleteRv(RV.store.S.rvs.find(r => r.name === "Area Tester").id)')
+
+    print('v2.9: one New RV form, three note fields, House to house')
+    page.goto(URL + '#/rvs'); page.wait_for_selector('.fab')
+    page.click('.fab'); page.wait_for_selector('.sheet')
+    vis = [l.strip() for l in page.locator('.sheet .field > label:visible, .sheet .field > .lbl:visible').all_inner_texts()]
+    check(vis == ['Name', 'Address', 'Neighborhood', 'What did you discuss?'], 'short form fields: %s' % vis)
+    page.locator('.sheet input[type=text]').nth(0).fill('Form Tester'); page.locator('.sheet input[type=text]').nth(1).fill('77 Form Rd')
+    page.locator('.sheet textarea[aria-label="What did you discuss?"]').fill('Talked about the garden. Read Psalm 37:11.')
+    page.click('.sheet .more-btn')
+    page.locator('.sheet input[type=text]').nth(0).fill('Form Tester')  # typed values stay after expanding
+    check(page.locator('.sheet input[type=text]').nth(1).input_value() == '77 Form Rd' and 'garden' in page.locator('.sheet textarea[aria-label="What did you discuss?"]').input_value(), 'More details keeps what was typed')
+    page.click('.sheet button[type=submit]'); page.wait_for_selector('.toast:has-text("Added Form Tester")')
+    ft = ev('RV.store.S.rvs.find(r => r.name === "Form Tester")')
+    check(ft['stage'] == 'initial' and ft['howMet'] == 'House to house', 'new RV: Initial Call, House to house')
+    page.goto(URL + '#/rv/' + ft['id']); page.wait_for_selector('.snap')
+    check('Psalm 37:11' in page.locator('.snap-row:has-text("Last visit")').inner_text(), 'the note from meeting them is the Last visit')
+    page.click('button[aria-label="Edit"]'); page.wait_for_selector('.sheet')
+    check(page.locator('.sheet .more-btn').count() == 0 and page.locator('.sheet input[type=tel]').is_visible(), 'editing shows the full form')
+    check(page.locator('.sheet label:has-text("Interests")').count() == 0 and page.locator('.sheet label:has-text("Scriptures")').count() == 0 and page.locator('.sheet textarea[aria-label="What did you discuss?"]').count() == 0, 'edit form: household notes and discuss next time only')
+    page.keyboard.press('Escape'); time.sleep(0.2)
+    page.click('button:has-text("Record a visit")'); page.wait_for_selector('.sheet'); page.click('.sheet summary')
+    check(page.locator('.sheet label:has-text("Scriptures")').count() == 0, 'visit sheet has no scriptures field')
+    page.keyboard.press('Escape'); time.sleep(0.2)
+    old = ev("""async () => { const r = RV.store.blankRv({ name: 'Old Fields', notes: 'Has a cat', interests: 'Gardening', scriptures: ['Ps 37:29', 'Rev 21:4'], howMet: 'Door', bestDays: [] });
+      await RV.db.put('rvs', r); const s = await RV.db.getMeta('settings'); s.lists.howMet = ['Door', 'Street']; await RV.db.setMeta('settings', s); return r.id; }""")
+    page.reload(); page.wait_for_selector('.tabbar .tab')
+    o = ev(f'RV.store.rvById("{old}")')
+    check(o['notes'] == 'Has a cat\nInterests: Gardening\nScriptures: Ps 37:29, Rev 21:4' and o['interests'] == '' and o['scriptures'] == [], 'interests and scriptures fold into household notes: %r' % o['notes'])
+    check(o['howMet'] == 'House to house' and ev('RV.store.S.settings.lists.howMet')[0] == 'House to house', 'Door becomes House to house on records and in the list')
+    ev(f'RV.store.deleteRv("{old}")'); ev(f'RV.store.deleteRv("{ft["id"]}")')
+    print('delete from the edit form')
+    rid = ev('RV.store.addRv({name: "Test Delete Me", address: "1 Gone St"}).id')
+    page.goto(URL + '#/rv/' + rid); page.wait_for_selector('button[aria-label="Edit"]')
+    page.click('button[aria-label="Edit"]'); page.wait_for_selector('.sheet')
+    page.click('.sheet button:has-text("Delete this")')
+    page.wait_for_selector('text=Delete Test Delete Me?')
+    page.click('button:text-is("Delete")'); time.sleep(0.4)
+    check(ev(f'RV.store.S.rvs.find(x=>x.id=="{rid}").deletedAt') is not None, 'edit form delete removes the record')
+    check(page.evaluate('location.hash') == '#/rvs', 'back on the list after delete')
+    page.goto(URL + '#/rv/' + ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").id')); page.wait_for_selector('button[aria-label="Edit"]')
+    page.click('button[aria-label="Edit"]'); page.wait_for_selector('.sheet')
+    page.click('.sheet button:has-text("Delete this")'); page.wait_for_selector('text=Delete Test Rita?')
+    page.click('button:text-is("Cancel") >> nth=-1'); time.sleep(0.2)
+    check(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").deletedAt') is None, 'cancel keeps the record')
+
     print('PIN lock')
     ev('''async () => { const salt='s'; const hash = await RV.util.sha256hex(salt+':1234');
        RV.store.saveSettings(s => { s.lock.on = true; s.lock.salt = salt; s.lock.hash = hash; }); RV.app.lockNow(); }''')
@@ -439,97 +674,7 @@ with sync_playwright() as p:
     check(True, 'correct PIN unlocks')
     ev('RV.store.saveSettings(s => { s.lock.on = false; })')
 
-    print('Google Drive backup (fake Google)')
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('.view')
-    check('not set up' in page.locator('.view').inner_text(), 'no client ID: Drive says it is not set up')
-    check(ev("RV.drive._pure.parseAuthHash('#/home')") is None and ev("RV.drive._pure.parseAuthHash('#access_token=a&expires_in=10&state=s').token") == 'a', 'sign-in reply parsing ignores app routes')
-
-    from urllib.parse import urlparse, parse_qs
-    import datetime
-    fake = {'file': None, 'mod': None, 'writes': 0, 'revoked': 0, 'deny': False}
-    def iso(offset=0):
-        return (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=offset)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
-    def google_auth(route):
-        q = parse_qs(urlparse(route.request.url).query)
-        ru, state = q['redirect_uri'][0], q['state'][0]
-        frag = 'error=access_denied&state=' + state if fake['deny'] else 'access_token=tok123&token_type=Bearer&expires_in=3599&scope=x&state=' + state
-        route.fulfill(status=302, headers={'location': ru + '#' + frag}, body='')
-    def google_api(route):
-        req = route.request; u = urlparse(req.url); q = parse_qs(u.query); m = req.method
-        jr = lambda obj, st=200: route.fulfill(status=st, content_type='application/json', body=json.dumps(obj))
-        if u.hostname == 'oauth2.googleapis.com': fake['revoked'] += 1; return route.fulfill(status=200, body='{}')
-        if req.headers.get('authorization') != 'Bearer tok123': return jr({'error': 'auth'}, 401)
-        if u.path == '/drive/v3/files' and m == 'GET':
-            return jr({'files': [{'id': 'F1', 'modifiedTime': fake['mod']}] if fake['file'] else []})
-        if u.path == '/drive/v3/files/F1' and m == 'GET':
-            if not fake['file']: return jr({}, 404)
-            return route.fulfill(status=200, content_type='application/json', body=fake['file']) if q.get('alt') == ['media'] else jr({'id': 'F1', 'modifiedTime': fake['mod']})
-        if u.path == '/upload/drive/v3/files' and m == 'POST':
-            body = req.post_data or ''
-            fake['file'] = body.split('Content-Type: application/json\r\n\r\n')[-1].rsplit('\r\n--', 1)[0]
-            fake['mod'] = iso(); fake['writes'] += 1
-            return jr({'id': 'F1', 'modifiedTime': fake['mod']})
-        if u.path == '/upload/drive/v3/files/F1' and m == 'PATCH':
-            fake['file'] = req.post_data; fake['mod'] = iso(); fake['writes'] += 1
-            return jr({'id': 'F1', 'modifiedTime': fake['mod']})
-        return jr({'error': 'unexpected ' + m + ' ' + u.path}, 500)
-    ctx.route('https://accounts.google.com/**', google_auth)
-    ctx.route('https://www.googleapis.com/**', google_api)
-    ctx.route('https://oauth2.googleapis.com/**', google_api)
-    ctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'")
-    wait_for = lambda fn, t=6: next((True for _ in range(int(t * 10)) if fn() or page.wait_for_timeout(100)), False)
-    drive_rvs = lambda: json.loads(fake['file'])['rvs'] if fake['file'] else []
-
-    page.goto(URL + '#/settings/data'); page.reload(); page.wait_for_selector('.view'); page.wait_for_selector('.setrow')
-    check(page.locator('button:has-text("Connect Google Drive")').count() == 1, 'with a client ID, Connect is offered')
-
-    fake['deny'] = True
-    page.click('button:has-text("Connect Google Drive")'); page.wait_for_selector('.toast')
-    check('cancelled' in page.locator('.toast').first.inner_text(), 'cancelling sign-in shows a short message')
-    check(ev('RV.drive.status().connected') is False, 'cancelled sign-in stays disconnected')
-    fake['deny'] = False
-
-    n_local = len([r for r in ev('RV.store.S.rvs') if not r.get('deletedAt')])
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Connect Google Drive")')
-    page.click('button:has-text("Connect Google Drive")')
-    check(wait_for(lambda: fake['file'] is not None), 'connecting saves a backup file to Drive')
-    page.wait_for_selector('button:has-text("Back up now")')
-    check(page.evaluate('location.hash') == '#/settings/data' and 'access_token' not in page.url, 'the token is removed from the address bar')
-    check(len([r for r in drive_rvs() if not r.get('deletedAt')]) == n_local, 'Drive file holds the same records as the device')
-    check(ev('RV.drive.status().connected') is True and 'Saved' in page.locator('.view').inner_text(), 'Data page shows connected and when it last saved')
-
-    writes = fake['writes']
-    ev("() => RV.store.addRv({ name: 'Drive Test Person', stage: 'initial' })")
-    ev("() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }")
-    check(wait_for(lambda: any(r['name'] == 'Drive Test Person' for r in drive_rvs())), 'a change is saved to Drive when the app is left')
-    ev("() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); }")
-    check(fake['writes'] > writes, 'the existing Drive file is updated, not duplicated')
-
-    # another device saved something in the meantime: it is merged in, not overwritten
-    other = json.loads(fake['file'])
-    other['rvs'].append({'id': 'from-other-device', 'name': 'Other Device Person', 'stage': 'initial', 'createdAt': iso(), 'updatedAt': iso()})
-    fake['file'] = json.dumps(other); fake['mod'] = iso(60)
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Back up now")')
-    page.click('button:has-text("Back up now")')
-    check(wait_for(lambda: ev("RV.store.S.rvs.some(r => r.id === 'from-other-device')")), 'records saved by another device are merged in')
-    check(wait_for(lambda: any(r['id'] == 'from-other-device' for r in drive_rvs()) and any(r['name'] == 'Drive Test Person' for r in drive_rvs())), 'the merged result is what ends up in Drive')
-
-    back = ev('async () => { const d = await RV.drive.fetchBackup(); return d && d.app; }')
-    check(back == 'rv-app', 'Restore can read the backup back from Drive')
-
-    # sign-in expired: changes wait, and the app says so
-    ev("() => { const o = JSON.parse(localStorage.getItem('rvapp.drive')); o.expires = 0; o.dirty = false; localStorage.setItem('rvapp.drive', JSON.stringify(o)); }")
-    page.goto(URL + '#/home'); page.reload(); page.wait_for_selector('.tabbar .tab')
-    ev("() => RV.store.addRv({ name: 'Offline Of Drive', stage: 'yet' })")
-    page.wait_for_selector('.banner:has-text("Drive backup paused")', timeout=4000)
-    check(True, 'expired sign-in with unsaved changes shows a reconnect banner')
-    page.click('.banner button:has-text("Reconnect")')
-    check(wait_for(lambda: any(r['name'] == 'Offline Of Drive' for r in drive_rvs()), 8), 'reconnecting saves the waiting changes')
-
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Disconnect")')
-    page.click('button:has-text("Disconnect")'); page.click('.sheet button:has-text("Disconnect")')
-    check(wait_for(lambda: ev('RV.drive.status().connected') is False) and fake['revoked'] == 1, 'Disconnect signs out and revokes the token')
-    check(fake['file'] is not None, 'disconnecting leaves the backup file in Drive')
+    # Drive backup: covered by tests/drive_folder.py (v2.10 folder and daily copies)
 
     print('offline')
     page.goto(URL); page.wait_for_selector('.tabbar .tab')
@@ -538,7 +683,7 @@ with sync_playwright() as p:
     has_ctrl = ev('!!navigator.serviceWorker.controller') or True
     ctx.set_offline(True)
     page.reload(); page.wait_for_selector('.tabbar .tab', timeout=8000)
-    check(page.locator('h1').first.inner_text().startswith('Home'), 'app opens with no network (service worker)')
+    check(page.locator('h1').first.inner_text().startswith('Groundwork'), 'app opens with no network (service worker)')
     check(ev('RV.store.S.rvs.length') > 0, 'data still there offline')
     ctx.set_offline(False)
 

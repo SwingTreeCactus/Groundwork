@@ -11,6 +11,10 @@ function test(name, fn) {
 }
 
 const S = D.defaultSettings();
+// these tests were written against the earlier 7/7/14-day thresholds; pin them
+S.defaultStaleDays = 14;
+S.stages.forEach((st) => { if (st.id === 'initial' || st.id === 'cultivating') st.days = 7; if (st.id === 'return') st.days = 14; });
+S.useNextVisit = true; // next-visit dates were removed from the app in 2.8; the logic still works when switched on
 const NOW = new Date(2026, 9, 15, 9, 0); // Thu 15 Oct 2026, 09:00
 const at = (y, mo, d, h = 12, mi = 0) => new Date(y, mo - 1, d, h, mi).toISOString();
 const daysAgo = (n) => new Date(2026, 9, 15 - n, 12, 0).toISOString();
@@ -53,6 +57,11 @@ test('newest entry wins, deleted entries ignored, falls back to created date', (
   assert.equal(item(rv, [e1, e2]).att.daysSince, 30);
   assert.equal(item(rv, []).att.daysSince, 40);
 });
+test('next visit dates are ignored unless switched on (removed from the app)', () => {
+  const s2 = D.defaultSettings();
+  const p = mkRv({ nextVisit: U.toDateStr(U.addDays(NOW, 90)) });
+  assert.equal(L.buildItems([p], [mkEntry(p.id, 'visit', daysAgo(60))], s2, NOW)[0].att.state, 'overdue');
+});
 test('next visit date overrides recency', () => {
   const far = mkRv({ nextVisit: U.toDateStr(U.addDays(NOW, 90)) });
   assert.equal(item(far, [mkEntry(far.id, 'visit', daysAgo(60))]).att.state, 'ok');
@@ -81,40 +90,27 @@ test('attention text', () => {
 
 console.log('not-home pattern');
 const thuMorning = (d, h = 9, mi = 30) => at(2026, 10, d, h, mi);
-test('shows after two not-homes in the same weekday and part of day', () => {
+test('shows after two not-homes on the same weekday', () => {
   const rv = mkRv();
-  const es = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', thuMorning(1, 10, 15))];
+  const es = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', at(2026, 10, 1, 18))]; // Thursday morning and Thursday evening
   const p = L.notHomePattern(item(rv, es), S, NOW);
-  assert.ok(p); assert.equal(p.scope, 'day'); assert.equal(p.nh, 2); assert.match(p.label, /Thursday mornings/);
+  assert.ok(p); assert.equal(p.scope, 'day'); assert.equal(p.nh, 2); assert.equal(p.label, 'Thursdays');
 });
-test('not enough tries, or a recorded visit in the slot, or other times: no banner', () => {
+test('not enough tries, a visit on that weekday, or other weekdays: no banner', () => {
   const rv = mkRv();
   assert.equal(L.notHomePattern(item(rv, [mkEntry(rv.id, 'nh', thuMorning(8))]), S, NOW), null);
-  const withVisit = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', thuMorning(1)), mkEntry(rv.id, 'visit', at(2026, 9, 24, 9, 45))]; // Thu 24 Sep, a visit in the same slot
+  const withVisit = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', thuMorning(1)), mkEntry(rv.id, 'visit', at(2026, 9, 24, 18))]; // home on a Thursday once
   assert.equal(L.notHomePattern(item(rv, withVisit), S, NOW), null);
-  const evening = [mkEntry(rv.id, 'nh', at(2026, 10, 8, 18)), mkEntry(rv.id, 'nh', at(2026, 10, 1, 18, 30))];
-  assert.equal(L.notHomePattern(item(rv, evening), S, NOW), null);
+  const otherDays = [mkEntry(rv.id, 'nh', at(2026, 10, 12, 9)), mkEntry(rv.id, 'nh', at(2026, 10, 13, 9)), mkEntry(rv.id, 'nh', at(2026, 10, 14, 9))];
+  assert.equal(L.notHomePattern(item(rv, otherDays), S, NOW), null);
 });
-test('suppressed by best-time window, per-RV switch, global switch', () => {
+test('suppressed by per-RV switch and global switch', () => {
   const es = (id) => [mkEntry(id, 'nh', thuMorning(8)), mkEntry(id, 'nh', thuMorning(1))];
-  const inWin = mkRv({ bestTimes: [{ days: [4], from: '08:00', to: '11:00' }] });
-  assert.equal(L.notHomePattern(item(inWin, es(inWin.id)), S, NOW), null);
-  const outWin = mkRv({ bestTimes: [{ days: [4], from: '18:00', to: '20:00' }] });
-  assert.ok(L.notHomePattern(item(outWin, es(outWin.id)), S, NOW));
   const off = mkRv({ nhBannerOff: true });
   assert.equal(L.notHomePattern(item(off, es(off.id)), S, NOW), null);
   const s2 = D.defaultSettings(); s2.notHomeBanner.on = false;
   const rv = mkRv();
   assert.equal(L.notHomePattern(L.buildItems([rv], es(rv.id), s2, NOW)[0], s2, NOW), null);
-});
-test('weekday fallback needs one more try', () => {
-  const rv = mkRv();
-  // Mon, Tue mornings: not the same weekday as Thursday
-  const two = [mkEntry(rv.id, 'nh', at(2026, 10, 12, 9)), mkEntry(rv.id, 'nh', at(2026, 10, 13, 9))];
-  assert.equal(L.notHomePattern(item(rv, two), S, NOW), null);
-  const three = two.concat(mkEntry(rv.id, 'nh', at(2026, 10, 14, 9)));
-  const p = L.notHomePattern(item(rv, three), S, NOW);
-  assert.ok(p); assert.equal(p.scope, 'daytype'); assert.match(p.label, /weekday mornings/);
 });
 test('best window handles overnight and every-day windows', () => {
   const rv = mkRv({ bestTimes: [{ days: [], from: '08:30', to: '09:15' }] });
@@ -126,14 +122,13 @@ test('best window handles overnight and every-day windows', () => {
 });
 
 console.log('likely home now');
-test('best window first, then history', () => {
-  const a = mkRv({ name: 'Window', bestTimes: [{ days: [4], from: '08:00', to: '10:00' }] });
+test('usually home on this weekday, from history', () => {
   const b = mkRv({ name: 'History' });
   const c = mkRv({ name: 'Never' });
-  const es = [mkEntry(b.id, 'visit', thuMorning(8)), mkEntry(b.id, 'visit', thuMorning(1)), mkEntry(c.id, 'nh', thuMorning(8))];
-  const items = L.buildItems([a, b, c], es, S, NOW);
-  const out = L.likelyHomeNow(items, NOW);
-  assert.deepEqual(out.map((o) => o.item.rv.name), ['Window', 'History']);
+  const es = [mkEntry(b.id, 'visit', thuMorning(8)), mkEntry(b.id, 'visit', at(2026, 10, 1, 19)), mkEntry(c.id, 'nh', thuMorning(8))];
+  const out = L.likelyHomeNow(L.buildItems([b, c], es, S, NOW), NOW);
+  assert.deepEqual(out.map((o) => o.item.rv.name), ['History']);
+  assert.equal(out[0].why, 'Home 2 of 2 Thursdays');
 });
 
 console.log('sorting and filtering');
@@ -241,8 +236,11 @@ test('a planned visit date still overrides day tags', () => {
 test('tag helpers: validation and labels', () => {
   assert.ok(L.validTag(tag(2))); assert.ok(L.validTag({ day: 0, part: '' }));
   assert.ok(!L.validTag(null)); assert.ok(!L.validTag({ day: 9, part: 'morning' })); assert.ok(!L.validTag({ day: 1, part: 'noon' }));
-  assert.equal(L.tagLabel(tag(1, 'morning')), 'Monday morning'); assert.equal(L.tagLabel({ day: 6, part: '' }), 'Saturday');
-  assert.equal(L.tagsLabel({ dayPrimary: tag(1, 'morning'), daySecondary: tag(5, 'evening') }), 'Monday morning or Friday evening');
+  assert.equal(L.tagLabel(tag(1, 'morning')), 'Monday'); assert.equal(L.tagLabel({ day: 6, part: '' }), 'Saturday');
+  assert.equal(L.tagsLabel({ dayPrimary: tag(5, 'evening'), daySecondary: tag(1, 'morning') }), 'Monday, Friday'); // old records: day kept, time dropped
+  assert.deepEqual(L.bestDaysOf({ bestDays: [5, 1, 5, 9] }), [1, 5]);
+  assert.deepEqual(L.bestDaysOf({ bestDays: [], dayPrimary: tag(2) }), []); // bestDays wins once set
+  assert.equal(L.tagsShort({ bestDays: [2, 4] }), 'Tue · Thu');
 });
 
 console.log('today plan and forecast');
@@ -263,8 +261,33 @@ test('Today: overdue, scheduled today, tagged for today by part of day; nothing 
   const plan = L.todayPlan(items, NOW);
   assert.deepEqual(plan.overdue.map((x) => x.rv.name), ['a', 'g']);           // g is stale AND tagged today: shown once, in Overdue
   assert.deepEqual(plan.scheduled.map((x) => x.rv.name), ['b']);
-  assert.deepEqual(plan.tagged.map((x) => x.item.rv.name), ['d', 'k', 'c', 'j']); // morning, morning, evening, any time
+  assert.deepEqual(plan.tagged.map((x) => x.item.rv.name), ['c', 'd', 'j', 'k']); // one list, by name
   assert.equal(plan.tagged.find((x) => x.item.rv.name === 'k').nhToday, true);
+});
+test('Today: overdue split into good today (best day or usually home now) and other days', () => {
+  const t = (name, o) => mkRv(Object.assign({ name, stage: 'return' }, o));
+  const a = t('a', { dayPrimary: tag(4, 'evening') }), b = t('b', { dayPrimary: tag(1, 'morning') }), c = t('c'), d = t('d', { daySecondary: tag(4, 'morning') });
+  const es = [a, b, d].map((r) => mkEntry(r.id, 'visit', daysAgo(40))).concat([mkEntry(c.id, 'visit', at(2026, 9, 24, 9))]); // c: home on a Thursday morning, 3 weeks ago
+  const plan = L.todayPlan(L.buildItems([a, b, c, d], es, S, NOW), NOW);
+  assert.deepEqual(plan.goodToday.map((x) => x.item.rv.name), ['a', 'd', 'c']);   // one list, most overdue first
+  assert.equal(plan.goodToday.find((x) => x.item.rv.name === 'c').why, 'Home 1 of 1 Thursday');
+  assert.equal(plan.goodToday.find((x) => x.item.rv.name === 'a').why, 'Best: Thu');
+  assert.deepEqual(plan.otherDays.map((x) => x.rv.name), ['b']);
+});
+test('best-day filter and short labels', () => {
+  const a = mkRv({ name: 'a', dayPrimary: tag(4, 'evening') }), b = mkRv({ name: 'b', daySecondary: tag(2, 'morning') }), c = mkRv({ name: 'c' });
+  const items = L.buildItems([a, b, c], [], S, NOW);
+  const names = (f) => L.filterItems(items, Object.assign({ now: NOW }, f), S).map((i) => i.rv.name);
+  assert.deepEqual(names({ bestDay: 'today' }), ['a']);
+  assert.deepEqual(names({ bestDay: '2' }), ['b']);
+  assert.deepEqual(names({ bestDay: 'none' }), ['c']);
+  assert.deepEqual(names({ bestDay: '' }), ['a', 'b', 'c']);
+  assert.equal(L.tagsShort(a), 'Thu');
+  assert.equal(L.tagShort({ day: 0, part: '' }), 'Sun');
+});
+test('old "Record visit" label default is renamed, a custom label is kept', () => {
+  assert.equal(D.mergeSettings({ labels: { recordVisit: 'Record visit' } }).labels.recordVisit, 'Record a visit');
+  assert.equal(D.mergeSettings({ labels: { recordVisit: 'Log call' } }).labels.recordVisit, 'Log call');
 });
 test('forecast: next 7 days of planned visits and tagged weekdays', () => {
   const x = mkRv({ name: 'x', nextVisit: '2026-10-17' }), y = mkRv({ name: 'y', dayPrimary: tag(6, 'evening') });
@@ -273,7 +296,7 @@ test('forecast: next 7 days of planned visits and tagged weekdays', () => {
   const fc = L.forecast(L.buildItems([x, y, z, w, far, closed], [], S, NOW), NOW, 7);
   assert.deepEqual(fc.map((d) => d.dateStr), ['2026-10-17', '2026-10-20']);   // Saturday, and Tuesday for w's own date
   assert.deepEqual(fc[0].scheduled.map((i) => i.rv.name), ['x']);
-  assert.deepEqual(fc[0].tagged.map((t) => t.item.rv.name), ['z', 'y']);
+  assert.deepEqual(fc[0].tagged.map((t) => t.item.rv.name), ['y', 'z']);
   assert.deepEqual(fc[1].scheduled.map((i) => i.rv.name), ['w']);
 });
 
@@ -339,7 +362,7 @@ test('worth reconsidering: same slot, repeated not-home, no visit there; suggest
   const get = (n) => out.find((r) => r.item.rv.name === n);
   assert.equal(get('a').nh, 3); assert.equal(get('a').label, 'Thursday mornings');
   assert.match(get('a').suggest, /^Try a weekday evening/);                       // never tried
-  assert.equal(get('b').suggest, 'Try Saturday evenings.');                      // their other tagged day
+  assert.equal(get('b').suggest, 'Try Saturdays.');                      // their other tagged day
   assert.match(get('e').suggest, /found them home on Saturday afternoons/);
   assert.deepEqual(L.reconsider(items, S, NOW, new Set([a.id])).map((r) => r.item.rv.name).includes('a'), false); // additive: skips ids shown elsewhere
 });
@@ -357,7 +380,7 @@ console.log('settings migration');
 test('old Home cards are dropped, version bumped, new settings added', () => {
   const m = D.mergeSettings({ version: 1, homeCards: [{ id: 'campaign', on: true }, { id: 'starters', on: true }, { id: 'topics', on: false }, { id: 'attention', on: true }, { id: 'quickAdd', on: true }] });
   assert.equal(m.version, 2);
-  assert.deepEqual(m.homeCards.map((c) => c.id), ['topics', 'quickAdd', 'recent', 'likelyHome']);
+  assert.deepEqual(m.homeCards.map((c) => c.id), ['topics', 'recent', 'likelyHome']); // the New RV card left Home in v2.11
   assert.equal(m.homeCards[0].on, false);
   assert.equal(m.dayTagForceFactor, 2); assert.equal(m.points.nh, 1);
 });
@@ -381,6 +404,76 @@ test('study stage is recognised, also on older saved settings', () => {
   assert.equal(L.isStudyStage(old, 'study'), true);
   const csv = L.rvsToCsv([], st);
   assert.ok(csv.includes('Publication') && csv.includes('Where we are'));
+});
+
+test('Smile decoder reads shared keys, duplicate keys and long strings', () => {
+  const smile = require('../js/smile.js'), ma = require('../js/ma.js');
+  // simple object: {"N":"Ann"} then a nested array
+  const b2 = Uint8Array.from([0x3a, 0x29, 0x0a, 0x01, 0xfa, 0x80, 0x4e, 0x42, 0x41, 0x6e, 0x6e, 0x81, 0x41, 0x42, 0xf8, 0x23, 0x21, 0xc2, 0xf9, 0xfb]);
+  assert.deepEqual(smile.decode(b2), { N: 'Ann', AB: [true, null, 1] });
+  assert.deepEqual(smile.decode(b2, { pairs: true })[0], ['N', 'Ann']);
+  assert.throws(() => smile.decode(Uint8Array.from([1, 2, 3, 4, 5])), /Not a Smile/);
+  const people = [['Pe', [['P', [['N', 'Zed'], ['Add', '1 A St'], ['Zip', '95204'], ['Hidden', false]]]]], ['Pe', [['P', [['N', '']]]]]];
+  const r = ma.convert([['PersonMap', people], ['Cities', ['Stockton']]], { uuid: (() => { let i = 0; return () => 'id' + (++i); })(), stageId: 'initial' });
+  assert.equal(r.rvs.length, 1);
+  assert.equal(r.skipped, 1);
+  assert.equal(r.rvs[0].address, '1 A St, Stockton 95204');
+  assert.throws(() => ma.convert([['X', 1]]), /no people/);
+});
+
+test('Ministry Assistant import sets best day from the last visit that was not a not-home', () => {
+  const ma = require('../js/ma.js');
+  const at2 = (y, m, d, h) => new Date(y, m, d, h, 0, 0).getTime();
+  const pi = (text, ms) => ['PI', [['I', text], ['D', ms]]];
+  const person = (name, pis) => ['Pe', [['P', [['N', name], ['Inf', pis]]]]];
+  const r = ma.convert([['PersonMap', [
+    person('A', [pi('Talked about hope', at2(2025, 5, 10, 9)), pi('Not home', at2(2025, 5, 14, 19))]),
+    person('B', [pi('NH', at2(2025, 5, 14, 19))]),
+    person('C', [pi('Nice chat', at2(2025, 5, 13, 18)), pi('Left tract', at2(2025, 5, 17, 14))]),
+  ]]], { uuid: (() => { let i = 0; return () => 'x' + (++i); })(), stageId: 'initial', bestFromLast: true });
+  const by = (n) => r.rvs.find((x) => x.name === n);
+  assert.deepEqual(by('A').bestDays, [new Date(2025, 5, 10).getDay()]);
+  assert.deepEqual(by('B').bestDays, []);
+  assert.deepEqual(by('C').bestDays, [new Date(2025, 5, 17).getDay()]);
+  const off = ma.convert([['PersonMap', [person('A', [pi('Hi', at2(2025, 5, 10, 9))])]]], { uuid: () => 'y', stageId: 'initial' });
+  assert.deepEqual(off.rvs[0].bestDays, []);
+});
+
+test('overdue after 30 days by default; old untouched defaults move to 30, hand-set values stay', () => {
+  const fresh = D.defaultSettings();
+  assert.equal(fresh.defaultStaleDays, 30);
+  assert.deepEqual(fresh.stages.filter((s) => !s.closed && s.id !== 'yet').map((s) => s.days), [30, 30, 30, 30]);
+  const oldStages = D.defaultSettings().stages.map((s) => Object.assign({}, s, { days: { initial: 7, cultivating: 10, return: 14 }[s.id] ?? s.days }));
+  const m = D.mergeSettings({ stages: oldStages, defaultStaleDays: 14 });
+  assert.deepEqual(m.stages.filter((s) => ['initial', 'cultivating', 'return'].includes(s.id)).map((s) => s.days), [30, 10, 30]);
+  assert.equal(m.defaultStaleDays, 30);
+  const again = D.mergeSettings(Object.assign({}, m, { defaultStaleDays: 14 }));
+  assert.equal(again.defaultStaleDays, 14); // after the one-time move, a hand-set 14 is kept
+});
+
+test('study: suggest the next lesson or paragraph from free text', () => {
+  assert.equal(L.suggestNext('Lesson 3'), 'Lesson 4');
+  assert.equal(L.suggestNext('Ch. 5 ¶12'), 'Ch. 5 ¶13');
+  assert.equal(L.suggestNext('page 40.'), 'page 41.');
+  assert.equal(L.suggestNext('Introduction'), '');
+  assert.equal(L.suggestNext(''), '');
+});
+
+console.log('v2.11-2.12 Today scope and area lists');
+test('Today scope: best day today, usually home this weekday, or no best day; not snoozed, closed or seen today', () => {
+  const t = (name, o) => mkRv(Object.assign({ name }, o));
+  const a = t('a', { bestDays: [4] }), b = t('b', { bestDays: [1] }), c = t('c', { bestDays: [] }), d = t('d', { bestDays: [2] });
+  const e = t('e', { bestDays: [4], snoozedUntil: U.toDateStr(U.addDays(NOW, 3)) }), f = t('f', { bestDays: [4], stage: 'archived', archiveReason: 'moved' });
+  const g = t('g', { bestDays: [4] });
+  const es = [mkEntry(d.id, 'visit', at(2026, 10, 8, 10)), mkEntry(g.id, 'visit', at(2026, 10, 15, 8))]; // d home last Thursday; g seen today
+  const items = L.buildItems([a, b, c, d, e, f, g], es, S, NOW);
+  assert.deepEqual(L.todaySet(items, NOW).map((i) => i.rv.name).sort(), ['a', 'c', 'd']);
+  assert.deepEqual(L.likelyHomeToday(items, NOW).map((i) => i.rv.name).sort(), ['a', 'd']); // no guessing for c
+});
+test('Longest since visit sort puts the oldest touch first', () => {
+  const a = mkRv({ name: 'a' }), b = mkRv({ name: 'b' }), c = mkRv({ name: 'c' });
+  const items = L.buildItems([a, b, c], [mkEntry(a.id, 'visit', daysAgo(3)), mkEntry(b.id, 'visit', daysAgo(40)), mkEntry(c.id, 'nh', daysAgo(10))], S, NOW);
+  assert.deepEqual(items.slice().sort(L.SORTS.oldest).map((i) => i.rv.name), ['b', 'c', 'a']);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));
