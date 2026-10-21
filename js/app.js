@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.14.1';
+  RV.VERSION = '2.15.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -71,7 +71,7 @@
     const items = [
       ['display', 'Display', 'sliders'], ['home', 'Home screen', 'home'], ['lib/topic', lbl('topics'), 'note'], ['campaigns', lbl('campaign') + 's', 'calendar'],
       ['stages', 'Lead stages', 'shuffle'], ['reasons', 'Archive reasons', 'archive'], ['fields', 'Lists and custom fields', 'users'], ['labels', 'Labels', 'edit'],
-      ['attention', 'Needs attention', 'clock'], ['security', 'Security', 'lock'], ['data', 'Data and backup', 'download'], ['about', 'About', 'alert']];
+      ['attention', 'Needs attention', 'clock'], ['ai', 'Note cleanup', 'sparkle'], ['security', 'Security', 'lock'], ['data', 'Data and backup', 'download'], ['about', 'About', 'alert']];
     const close = () => { scrim.remove(); document.body.classList.remove('no-scroll'); };
     const scrim = h('div', { class: 'drawer', onclick: (e) => { if (e.target === scrim) close(); } },
       h('nav', { class: 'drawer-panel', 'aria-label': 'Settings menu' },

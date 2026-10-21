@@ -56,6 +56,37 @@
     return { el: box, get: () => days.slice().sort((a, b) => a - b) };
   }
 
+  // ---------- note cleanup with Claude (only when a key is set in Settings > Note cleanup) ----------
+  // Tidies a dictated note; things to bring up next time move into Discuss next time (when that field is given).
+  function cleanupButton(text, next) {
+    if (!RV.ai || !RV.ai.hasKey()) return null;
+    const label = h('span', null, 'Clean up');
+    const btn = h('button', { class: 'btn sm cleanup', type: 'button' }, icon('sparkle', 16), label);
+    btn.addEventListener('click', async () => {
+      const note = text.value.trim();
+      if (!note) { toast('Nothing to clean up yet'); text.focus(); return; }
+      const before = { note: text.value, next: next ? next.value : '' };
+      btn.disabled = true; btn.classList.add('busy'); label.textContent = 'Cleaning up…';
+      try {
+        const r = await RV.ai.cleanUp({ note, discussNext: next ? next.value : '' });
+        if (!text.isConnected) return;
+        if (text.value !== before.note) { toast('The note changed while Claude worked, so it was left as is.'); return; }
+        text.value = r.note;
+        const moved = !!next && r.discussNext !== before.next.trim();
+        if (next) next.value = r.discussNext;
+        text.dispatchEvent(new CustomEvent('cleaned'));
+        toast(moved ? 'Cleaned up. Added to Discuss next time.' : 'Cleaned up', {
+          seconds: 6, actions: [{ label: 'Undo', fn: () => { text.value = before.note; if (next) next.value = before.next; text.dispatchEvent(new CustomEvent('cleaned')); } }],
+        });
+      } catch (e) {
+        toast(RV.ai.AiError && e instanceof RV.ai.AiError ? e.message : 'Could not clean up the note.', { seconds: 5 });
+      } finally {
+        btn.disabled = false; btn.classList.remove('busy'); label.textContent = 'Clean up';
+      }
+    });
+    return btn;
+  }
+
   // ---------- add / edit RV ----------
   // One form. New: Name, Address, Area and "What did you discuss?", with More details expanding the rest in place.
   // Filled in for a new contact: Initial Call, House to house, today as a best day, the running campaign.
@@ -180,6 +211,7 @@
         field('Address', f.address),
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
+        isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
         moreBtn,
         more,
         h('div', { class: 'actions' },
@@ -211,6 +243,7 @@
     const writing = () => { const sh = text.closest('.sheet'); if (sh && !study) { sh.classList.add('writing'); text.style.height = ''; } };
     text.addEventListener('pointerdown', writing);
     text.addEventListener('input', () => { writing(); grow(); });
+    text.addEventListener('cleaned', grow);
     const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-v', autocomplete: 'off', placeholder: 'Publication' });
     // study: what was covered today (starts as what was planned) and where to start next time (suggested, editable)
     const prog = h('input', { type: 'text', autocomplete: 'off', 'data-autofocus': true, value: rv.nextStart || '', placeholder: rv.progress ? 'Last time: ' + rv.progress : 'e.g. Lesson 3' });
@@ -268,7 +301,9 @@
         study && !rv.publication ? field('Publication', pub) : null,
         study ? h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)) : null,
         study ? null : h('div', { class: 'field note-field' }, text,
-          h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')),
+          h('div', { class: 'note-tools' },
+            cleanupButton(text, whatsNext),
+            h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields'))),
         !study && topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
           h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null,
         study ? null : field('Discuss next time', whatsNext),
@@ -365,5 +400,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

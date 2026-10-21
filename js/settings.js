@@ -36,6 +36,7 @@
         row('#/settings/fields', 'Lists and custom fields', null, 'users'),
         row('#/settings/labels', 'Labels', null, 'edit'),
         row('#/settings/attention', 'Needs attention', null, 'clock'),
+        row('#/settings/ai', 'Note cleanup', RV.ai && RV.ai.hasKey() ? 'Claude is on' : 'Off', 'sparkle'),
         row('#/settings/security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock'),
         row('#/settings/data', 'Data and backup', null, 'download'),
         row('#/settings/about', 'About', 'Version ' + RV.VERSION, 'alert')),
@@ -334,6 +335,45 @@
           UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
         field('Tries needed before it shows', minTries)),
     ], { noRerender: true });
+  }
+
+  // ---------- note cleanup (Claude, user's own key) ----------
+  function ai() {
+    const box = h('div');
+    function render() {
+      box.replaceChildren();
+      const has = RV.ai.hasKey();
+      const keyIn = h('input', { type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: has ? 'Key saved on this phone' : 'sk-ant-…' });
+      const status = h('div', { class: 'muted small', style: { minHeight: '1.2em' } });
+      const saveKey = async () => {
+        const k = keyIn.value.trim();
+        if (!k) { keyIn.focus(); return; }
+        const prev = RV.ai.key();
+        RV.ai.setKey(k);
+        status.textContent = 'Checking the key…';
+        try { await RV.ai.test(); toast('Note cleanup is on'); render(); }
+        catch (e) { RV.ai.setKey(prev); status.textContent = e.message || 'The key could not be checked.'; }
+      };
+      const seg = h('div', { class: 'seg', role: 'group' });
+      RV.ai.MODELS.forEach((m) => seg.appendChild(h('button', {
+        type: 'button', 'aria-pressed': String(m.value === RV.ai.model()),
+        onclick: () => { RV.ai.setModel(m.value); seg.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', String(RV.ai.MODELS[i].value === m.value))); },
+      }, m.label)));
+      box.append(h('div', { class: 'card stack' },
+        h('div', null, h('div', { style: { fontWeight: 600 } }, has ? 'Note cleanup is on' : 'Note cleanup is off'),
+          h('div', { class: 'muted small' }, 'A Clean up button under the visit note tidies dictated text with Claude.')),
+        field('Anthropic API key', keyIn),
+        status,
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn primary', type: 'button', onclick: saveKey }, has ? 'Replace key' : 'Save key'),
+          has ? h('button', { class: 'btn danger', type: 'button', onclick: () => { RV.ai.setKey(''); toast('Key removed'); render(); } }, 'Remove key') : null),
+        has ? h('div', { class: 'field', style: { marginBottom: 0 } }, h('div', { class: 'lbl' }, 'Model'), seg) : null,
+        h('a', { class: 'muted small', href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'Get a key at platform.claude.com')),
+        h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' },
+          'Notes you clean up are sent to Anthropic. The key stays on this phone and is not in backups.')));
+    }
+    render();
+    return page('Note cleanup', [box], { noRerender: true });
   }
 
   // ---------- security ----------
@@ -653,5 +693,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, security, data, about };
+  RV.settingsScreens = { index, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about };
 })(window);

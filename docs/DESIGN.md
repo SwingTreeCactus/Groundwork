@@ -310,3 +310,11 @@ Mockups were made in a session on 2026-10-20 (rendered with the real app styles 
 - v2.13.1: tapping the Studying block opens only "Start next time" (the publication and last covered are changed in Edit). Log study pre-fills Covered today with what was set for next time (editable) and suggests the following lesson; its Publication field shows only while none is set. Cache rvapp-v34.
 - v2.14.0: on RVs, the summary line ("N RVs in N areas") is replaced by a Tiles / Folders switch (remembered in rvapp.rvsView). Folders: one card per area with the area name, "N due · last visit there …", the count, and a chevron; tapping opens it in place to show likely home today first, then others (same lists as the area screen, `areaSections`). Several folders can be open. Tiles is unchanged. Cache rvapp-v35.
 - v2.14.1: folder headings stand apart: area name larger (1.45rem) in the accent colour, count in the accent, and an open folder's header gets the soft accent background. Cache rvapp-v36.
+
+## 26. v2.15.0 note cleanup with Claude
+
+- Dictation stays with the phone keyboard microphone (Claude's API takes no audio). A "Clean up" button under the visit note (and under "What did you discuss?" on the New RV form) sends the note and Discuss next time to Claude, which fixes punctuation, misheard words and scripture references, drops filler, and moves next-time items into Discuss next time (existing text there is always kept). Undo toast restores both fields. Not on Log study.
+- Settings > Note cleanup: the user's own Anthropic API key (checked with a tiny request before it is kept), model Fast (claude-haiku-5-5, default) or Careful (claude-sonnet-5-5). The button only appears when a key is saved.
+- js/ai.js calls https://api.anthropic.com/v1/messages straight from the browser (anthropic-dangerous-direct-browser-access header). Key and model live in localStorage (rvapp.aiKey, rvapp.aiModel) so they never reach backups, Drive or exports. Offline, busy, bad key and odd replies all leave the note untouched with a toast.
+- Privacy page has a "Note cleanup with Claude" section.
+- Tests: tests/ai_cleanup.py (fake API via Playwright route, 22 checks). VERSION 2.15.0, cache rvapp-v37.
