@@ -115,6 +115,33 @@
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
       nhOff: h('input', { type: 'checkbox', checked: !!rv.nhBannerOff }),
     };
+    // Geotag: coordinates live only here, in the form. The popup suggests a street address to edit first.
+    let geo = rv.geo || null;
+    const geoRow = h('div', { class: 'georow' });
+    function paintGeo() {
+      geoRow.replaceChildren(...[
+        h('button', { class: 'btn sm', type: 'button', onclick: geotag }, icon('navigation', 16), 'Geotag'),
+        geo ? h('span', { class: 'geoval' }, RV.geo.label(geo)) : null,
+        geo ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Delete coordinates', onclick: () => { geo = null; paintGeo(); } }, icon('x', 16)) : null,
+      ].filter(Boolean));
+    }
+    async function geotag() {
+      const btn = geoRow.querySelector('button');
+      btn.disabled = true; btn.lastChild.textContent = 'Locating…';
+      let pt;
+      try { pt = await RV.geo.here(); } catch (e) { toast(e.message); paintGeo(); return; }
+      btn.lastChild.textContent = 'Finding address…';
+      const sug = await RV.geo.suggest(pt);
+      paintGeo();
+      const addr = h('input', { type: 'text', value: sug || f.address.value, autocomplete: 'off', 'data-autofocus': true, placeholder: 'Street address' });
+      sheet('Geotag', (closeG) => h('form', { onsubmit: (e) => { e.preventDefault(); geo = pt; f.address.value = addr.value.trim(); paintGeo(); closeG(); } },
+        h('div', { class: 'muted small', style: { marginBottom: '10px' } }, RV.geo.label(pt)),
+        field(sug ? 'Suggested address' : 'Address', addr),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => closeG() }, 'Cancel'),
+          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+    }
+    paintGeo();
     const camp = isNew ? ST.activeCampaign() : null;
     const campOn = h('input', { type: 'checkbox', checked: true });
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
@@ -168,6 +195,7 @@
             publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
             notes: f.notes.value.trim(), tags: U.splitList(f.tags.value),
             nhBannerOff: f.nhOff.checked,
+            geo,
             custom: Object.assign({}, rv.custom || {}),
           };
           customInputs.forEach((ci) => { data.custom[ci.c.id] = ci.input.value.trim(); });
@@ -217,6 +245,7 @@
         tagList, pubList,
         field('Name', f.name),
         field('Address', f.address),
+        geoRow,
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
         isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,

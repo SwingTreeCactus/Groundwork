@@ -112,7 +112,7 @@
       id: U.uuid(), name: '', address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
       bestDays: [], dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, publication: '', progress: '', nextStart: '',
       notes: '', interests: '', scriptures: [], tags: [], custom: {},
-      stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nhBannerOff: false,
+      stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nhBannerOff: false, geo: null,
       createdAt: now, stageChangedAt: now, updatedAt: now, deletedAt: null,
     }, f || {});
   }

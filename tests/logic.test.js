@@ -476,4 +476,12 @@ test('Longest since visit sort puts the oldest touch first', () => {
   assert.deepEqual(items.slice().sort(L.SORTS.oldest).map((i) => i.rv.name), ['b', 'c', 'a']);
 });
 
+test('geotag: street address from an OpenStreetMap reverse lookup', () => {
+  const GEO = require('../js/geo.js');
+  assert.equal(GEO.streetOf({ house_number: '1415', road: 'N Wilson Way', city: 'Stockton' }), '1415 N Wilson Way');
+  assert.equal(GEO.streetOf({ road: 'Pacific Ave' }), 'Pacific Ave');
+  assert.equal(GEO.streetOf(null), '');
+  assert.equal(GEO.label({ lat: 37.9577, lng: -121.29078, acc: 12 }), '37.95770, -121.29078 (±12 m)');
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

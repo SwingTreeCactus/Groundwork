@@ -1045,3 +1045,9 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .ghero .pl.xl.s1 { margin-top: -64px; }
 .ghero .pl.xl.s2 { margin-top: -40px; }
 .ghero .gname small.gword { color: var(--red); font-weight: 600; }
+
+/* v2.16.1: geotag row in the RV form */
+.georow { display: flex; align-items: center; gap: 8px; margin: -4px 0 12px; }
+.georow .btn { flex: none; }
+.georow .geoval { flex: 1; min-width: 0; font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.georow .iconbtn { flex: none; }
