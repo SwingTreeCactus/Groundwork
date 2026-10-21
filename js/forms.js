@@ -492,10 +492,16 @@
   function studyEdit(rvId) {
     const rv = ST.rvById(rvId);
     if (!rv) return;
-    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': true });
-    sheet('Start next time', (close) =>
-      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { nextStart: nxt.value.trim() }); close(); } },
-        field(rv.publication || 'Next time', nxt),
+    // the publication and where to start next time are separate fields (a publication typed here was
+    // being saved as Start next time when none was set)
+    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-s', autocomplete: 'off', placeholder: 'e.g. Enjoy Life Forever', 'data-autofocus': !rv.publication || null });
+    const pubList = h('datalist', { id: 'pub-list-s' }, ST.publications().map((n) => h('option', { value: n })));
+    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': rv.publication ? true : null });
+    sheet('Studying', (close) =>
+      h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), nextStart: nxt.value.trim() }); close(); } },
+        pubList,
+        field('Publication', pub),
+        field('Start next time', nxt),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
