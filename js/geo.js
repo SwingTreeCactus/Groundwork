@@ -21,22 +21,52 @@
     const road = a.road || a.pedestrian || a.residential || a.footway || a.path || '';
     return [a.house_number, road].filter(Boolean).join(' ').trim();
   }
-  // Suggested address for a point, or '' (offline, nothing found, slow service).
-  async function suggest(pt) {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return '';
+  const cityOf = (a) => (a && (a.city || a.town || a.village || a.hamlet || a.municipality)) || '';
+  const stateOf = (a) => { const iso = a && a['ISO3166-2-lvl4']; return iso && /^US-[A-Z]{2}$/.test(iso) ? iso.slice(3) : ''; };
+  const zipOf = (a) => { const m = String((a && a.postcode) || '').match(/^\d{5}/); return m ? m[0] : ''; };
+  // "123 Main St, Stockton, CA 95205" (parts it has).
+  function fullOf(a) {
+    const street = streetOf(a), city = cityOf(a), tail = [stateOf(a), zipOf(a)].filter(Boolean).join(' ');
+    return [street, city, tail].filter(Boolean).join(', ');
+  }
+  // Adds the city and ZIP from the lookup to a typed street address when they are missing; the
+  // street part is never changed. Returns the address unchanged when nothing is missing.
+  function completeAddress(addr, a) {
+    let s = String(addr || '').trim();
+    if (!s || !a) return s;
+    const city = cityOf(a), st = stateOf(a), zip = zipOf(a);
+    const zipRe = /\b\d{5}(-\d{4})?\s*$/;
+    const hasZip = zipRe.test(s);
+    const hasCity = !city || s.toLowerCase().includes(city.toLowerCase());
+    if (hasZip && hasCity) return s;
+    if (!hasCity) {
+      if (hasZip) { const z = s.match(zipRe)[0].trim(); return s.replace(zipRe, '').replace(/[\s,]+$/, '') + ', ' + city + ', ' + (st ? st + ' ' : '') + z; }
+      s = s.replace(/[\s,]+$/, '') + ', ' + city;
+    }
+    if (!hasZip && zip) {
+      const hasState = st && new RegExp('(^|[\\s,])' + st + '\\s*$', 'i').test(s);
+      s = s.replace(/[\s,]+$/, '') + (hasState ? ' ' : ', ' + (st ? st + ' ' : '')) + zip;
+    }
+    return s;
+  }
+  // The lookup's address parts for a point, or null (offline, nothing found, slow service).
+  async function lookup(pt) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const t = ctl ? setTimeout(() => ctl.abort(), 8000) : null;
     try {
       const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=' + pt.lat + '&lon=' + pt.lng;
       const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: ctl ? ctl.signal : undefined });
-      if (!r.ok) return '';
+      if (!r.ok) return null;
       const j = await r.json();
-      return streetOf(j && j.address);
-    } catch (e) { return ''; } finally { if (t) clearTimeout(t); }
+      return (j && j.address) || null;
+    } catch (e) { return null; } finally { if (t) clearTimeout(t); }
   }
+  // Suggested full address for a point, or ''.
+  const suggest = async (pt) => fullOf(await lookup(pt));
   const label = (g) => (g ? g.lat.toFixed(5) + ', ' + g.lng.toFixed(5) + (g.acc ? ' (±' + g.acc + ' m)' : '') : '');
 
-  const api = { here, suggest, streetOf, label };
+  const api = { here, lookup, suggest, streetOf, fullOf, completeAddress, label };
   RV.geo = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

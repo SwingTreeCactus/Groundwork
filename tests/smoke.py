@@ -733,14 +733,14 @@ with sync_playwright() as p:
     def fake_osm(route):
         lookups.append(route.request.url)
         route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'},
-                      body=json.dumps({'address': {'house_number': '1415', 'road': 'N Wilson Way', 'city': 'Stockton'}}))
+                      body=json.dumps({'address': {'house_number': '1415', 'road': 'N Wilson Way', 'city': 'Stockton', 'postcode': '95205', 'ISO3166-2-lvl4': 'US-CA'}}))
     page.route('https://nominatim.openstreetmap.org/**', fake_osm)
     page.goto(URL + '#/rvs'); page.reload(); page.wait_for_selector('.fab')
     page.click('.fab'); page.wait_for_selector('.sheet .georow')
     page.fill('.sheet input[placeholder="Name or household"]', 'Geo Tester')
     page.click('.georow button:has-text("Geotag")'); page.wait_for_selector('.sheet h2:has-text("Geotag")')
     sug = page.locator('.sheet:has(h2:has-text("Geotag")) input').input_value()
-    check(sug == '1415 N Wilson Way' and len(lookups) == 1 and 'lat=37.957701' in lookups[0], 'Geotag suggests the street address (%s)' % sug)
+    check(sug == '1415 N Wilson Way, Stockton, CA 95205' and len(lookups) == 1 and 'lat=37.957701' in lookups[0], 'Geotag suggests the street address (%s)' % sug)
     page.fill('.sheet:has(h2:has-text("Geotag")) input', '1417 N Wilson Way')
     page.click('.sheet:has(h2:has-text("Geotag")) button:has-text("Save")'); time.sleep(0.2)
     check(page.locator('.sheet input[autocomplete=off] >> nth=1').input_value() == '1417 N Wilson Way', 'the edited address goes into the form')
@@ -757,10 +757,12 @@ with sync_playwright() as p:
     n = len(lookups)
     page.click('.topbar button[aria-label="Edit"]'); page.wait_for_selector('.sheet .georow')
     page.click('.georow button:has-text("Geotag")'); page.wait_for_selector('.georow button[aria-label="Delete coordinates"]'); time.sleep(0.2)
-    check(len(lookups) == n and page.locator('.sheet h2:has-text("Geotag")').count() == 0, 'address already saved: coordinates only, no lookup, no popup')
+    check(len(lookups) == n + 1 and page.locator('.sheet h2:has-text("Geotag")').count() == 0, 'address already saved: no popup')
+    check(page.locator('.sheet input[autocomplete=off] >> nth=1').input_value() == '1417 N Wilson Way, Stockton, CA 95205', 'missing city and ZIP filled in, street kept')
+    n = len(lookups)
     page.click('.sheet button[type=submit]:has-text("Save")'); time.sleep(0.3)
     g2 = ev('RV.store.S.rvs.find(r => r.name === "Geo Tester")')
-    check(g2['geo'] and g2['geo']['lat'] == 37.957701 and g2['address'] == '1417 N Wilson Way', 'coordinates saved, address unchanged')
+    check(g2['geo'] and g2['geo']['lat'] == 37.957701 and g2['address'] == '1417 N Wilson Way, Stockton, CA 95205', 'coordinates and completed address saved')
     opened = ev('''() => { const out = []; const o = window.open; window.open = (u) => { out.push(u); return null; };
       const r = RV.store.S.rvs.find(x => x.name === "Geo Tester");
       RV.ui.openNav(RV.ui.navTarget(r)); const geo = r.geo; RV.store.updateRv(r.id, {geo: null});

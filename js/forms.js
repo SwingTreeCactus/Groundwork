@@ -130,8 +130,16 @@
       btn.disabled = true; btn.lastChild.textContent = 'Locating…';
       let pt;
       try { pt = await RV.geo.here(); } catch (e) { toast(e.message); paintGeo(); return; }
-      // an address is already filled in: keep it, just take the coordinates (no lookup, no popup)
-      if (f.address.value.trim()) { geo = pt; paintGeo(); return; }
+      // an address is already filled in: take the coordinates, and add a missing city or ZIP from the
+      // lookup (street part untouched). No popup. Offline: coordinates only.
+      if (f.address.value.trim()) {
+        geo = pt;
+        btn.lastChild.textContent = 'Finding address…';
+        const parts = await RV.geo.lookup(pt);
+        if (parts) f.address.value = RV.geo.completeAddress(f.address.value, parts);
+        paintGeo();
+        return;
+      }
       btn.lastChild.textContent = 'Finding address…';
       const sug = await RV.geo.suggest(pt);
       paintGeo();

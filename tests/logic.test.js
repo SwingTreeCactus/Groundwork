@@ -483,5 +483,17 @@ test('geotag: street address from an OpenStreetMap reverse lookup', () => {
   assert.equal(GEO.streetOf(null), '');
   assert.equal(GEO.label({ lat: 37.9577, lng: -121.29078, acc: 12 }), '37.95770, -121.29078 (±12 m)');
 });
+test('geotag: a typed street address gets a missing city and ZIP; the street part is never changed', () => {
+  const GEO = require('../js/geo.js');
+  const a = { house_number: '1415', road: 'N Wilson Way', city: 'Stockton', postcode: '95205-1234', 'ISO3166-2-lvl4': 'US-CA' };
+  assert.equal(GEO.fullOf(a), '1415 N Wilson Way, Stockton, CA 95205');
+  assert.equal(GEO.completeAddress('1417 N Wilson Way', a), '1417 N Wilson Way, Stockton, CA 95205');
+  assert.equal(GEO.completeAddress('1417 N Wilson Way, Stockton', a), '1417 N Wilson Way, Stockton, CA 95205');
+  assert.equal(GEO.completeAddress('1417 N Wilson Way, Stockton, CA', a), '1417 N Wilson Way, Stockton, CA 95205');
+  assert.equal(GEO.completeAddress('1417 N Wilson Way 95205', a), '1417 N Wilson Way, Stockton, CA 95205');
+  assert.equal(GEO.completeAddress('1417 N Wilson Way, stockton 95207', a), '1417 N Wilson Way, stockton 95207'); // complete: untouched
+  assert.equal(GEO.completeAddress('12345 Main St', a), '12345 Main St, Stockton, CA 95205'); // a 5-digit house number is not a ZIP
+  assert.equal(GEO.completeAddress('1417 N Wilson Way', { road: 'N Wilson Way', city: 'Stockton' }), '1417 N Wilson Way, Stockton'); // no ZIP found
+});
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));
