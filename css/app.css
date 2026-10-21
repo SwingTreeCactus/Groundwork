@@ -1051,3 +1051,9 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .georow .btn { flex: none; }
 .georow .geoval { flex: 1; min-width: 0; font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .georow .iconbtn { flex: none; }
+
+/* v2.16.5: bottom sheets sit above the on-screen keyboard (Android keeps the layout height when it opens) */
+.overlay { padding-bottom: var(--kb, 0px); box-sizing: border-box; }
+.overlay:has(.sheet.writing) { padding-bottom: 0; }
+.overlay .sheet { max-height: min(92dvh, calc(var(--vvh, 100dvh) - 16px)); }
+.overlay:has(.sheet.writing) .sheet { max-height: none; }

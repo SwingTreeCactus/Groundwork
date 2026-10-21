@@ -120,9 +120,10 @@
     const geoRow = h('div', { class: 'georow' });
     function paintGeo() {
       geoRow.replaceChildren(...[
-        h('button', { class: 'btn sm', type: 'button', onclick: geotag }, icon('navigation', 16), 'Geotag'),
-        geo ? h('span', { class: 'geoval' }, RV.geo.label(geo)) : null,
-        geo ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Delete coordinates', onclick: () => { geo = null; paintGeo(); } }, icon('x', 16)) : null,
+        // new record: just the button (a check once tagged); editing: the coordinates and an x to delete them
+        h('button', { class: 'btn sm', type: 'button', onclick: geotag, 'aria-label': geo ? 'Geotagged; tag again' : 'Geotag' }, icon(isNew && geo ? 'check' : 'navigation', 16), isNew && geo ? 'Geotagged' : 'Geotag'),
+        geo && !isNew ? h('span', { class: 'geoval' }, RV.geo.label(geo)) : null,
+        geo && !isNew ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Delete coordinates', onclick: () => { geo = null; paintGeo(); } }, icon('x', 16)) : null,
       ].filter(Boolean));
     }
     async function geotag() {
@@ -143,13 +144,15 @@
       btn.lastChild.textContent = 'Finding address…';
       const sug = await RV.geo.suggest(pt);
       paintGeo();
-      const addr = h('input', { type: 'text', value: sug || f.address.value, autocomplete: 'off', 'data-autofocus': true, placeholder: 'Street address' });
+      // no autofocus: the keyboard would cover the suggestion; tap the field to edit it
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      const addr = h('input', { type: 'text', value: sug || f.address.value, autocomplete: 'off', placeholder: 'Street address' });
       sheet('Geotag', (closeG) => h('form', { onsubmit: (e) => { e.preventDefault(); geo = pt; f.address.value = addr.value.trim(); paintGeo(); closeG(); } },
         h('div', { class: 'muted small', style: { marginBottom: '10px' } }, RV.geo.label(pt)),
         field(sug ? 'Suggested address' : 'Address', addr),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => closeG() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))), { noFocus: true });
     }
     paintGeo();
     const camp = isNew ? ST.activeCampaign() : null;

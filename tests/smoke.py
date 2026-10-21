@@ -741,10 +741,17 @@ with sync_playwright() as p:
     page.click('.georow button:has-text("Geotag")'); page.wait_for_selector('.sheet h2:has-text("Geotag")')
     sug = page.locator('.sheet:has(h2:has-text("Geotag")) input').input_value()
     check(sug == '1415 N Wilson Way, Stockton, CA 95205' and len(lookups) == 1 and 'lat=37.957701' in lookups[0], 'Geotag suggests the street address (%s)' % sug)
+    check(page.evaluate('document.activeElement.tagName') != 'INPUT', 'the suggestion is not focused, so the keyboard does not cover it')
+    # a keyboard 300 px tall: the sheet's bottom sits above it
+    time.sleep(0.4)
+    box = page.evaluate('''() => { document.documentElement.style.setProperty('--kb', '300px'); document.documentElement.style.setProperty('--vvh', (innerHeight - 300) + 'px');
+      const r = [...document.querySelectorAll('.sheet')].pop().getBoundingClientRect(); return [r.bottom, innerHeight]; }''')
+    check(abs(box[0] - (box[1] - 300)) < 2, 'sheets sit above the keyboard (%s)' % box)
+    page.evaluate("() => { document.documentElement.style.setProperty('--kb', '0px'); document.documentElement.style.setProperty('--vvh', innerHeight + 'px'); }")
     page.fill('.sheet:has(h2:has-text("Geotag")) input', '1417 N Wilson Way')
     page.click('.sheet:has(h2:has-text("Geotag")) button:has-text("Save")'); time.sleep(0.2)
     check(page.locator('.sheet input[autocomplete=off] >> nth=1').input_value() == '1417 N Wilson Way', 'the edited address goes into the form')
-    check('37.95770, -121.29078' in page.locator('.georow').inner_text(), 'coordinates show in the form')
+    check('37.95' not in page.locator('.georow').inner_text() and page.locator('.georow button:has-text("Geotagged")').count() == 1, 'new form: no coordinates, the button says Geotagged')
     page.click('.sheet button[type=submit]:has-text("Add")'); time.sleep(0.4)
     geo = ev('RV.store.S.rvs.find(r => r.name === "Geo Tester")')
     check(geo['geo']['lat'] == 37.957701 and geo['geo']['lng'] == -121.290781 and geo['geo']['acc'] == 11 and geo['address'] == '1417 N Wilson Way', 'coordinates and address saved')
