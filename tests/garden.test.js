@@ -165,6 +165,14 @@ test('imported visits count toward care; Potential with no conversation is stead
   assert.deepEqual(G.stateOf(rv({ stage: 'archived' }), [], S, NOW), { form: 0, care: 0 });
 });
 
+test('Potential and Initial Call never flourish, even with a planned run (imports, manual moves)', () => {
+  const r = rv({ stage: 'initial' });
+  const run = [v(r, 50, { plan: true, imported: true }), v(r, 30, { plan: true, imported: true }), v(r, 5, { plan: true, imported: true })];
+  assert.equal(G.care(r, run, S, NOW), G.CARE.HEALTHY);
+  assert.equal(G.care(Object.assign({}, r, { stage: 'yet' }), run, S, NOW), G.CARE.HEALTHY);
+  assert.equal(G.care(Object.assign({}, r, { stage: 'cultivating' }), run, S, NOW), G.CARE.LUSH);
+});
+
 console.log('almost growing and insights');
 const it = (r, es) => ({ rv: r, entries: es.slice().sort((a, b) => (a.at < b.at ? 1 : -1)) });
 test('almost growing lists RVs one qualifying visit from the next form', () => {

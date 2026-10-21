@@ -6,17 +6,15 @@
   const RV = (root.RV = root.RV || {});
 
   // ---------- art ----------
+  // Seed and sprout have no lush parts: Potential and Initial Call top out at Healthy.
   const SEED = '<ellipse cx="30" cy="63" rx="5.5" ry="6.5" fill="currentColor"/>' +
     '<path class="fall" d="M27 58 L31 62 L28 67" stroke="var(--pl-pot)" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
     '<path class="g3" d="M30 56.5 C30 54 31 52.5 32.5 51.5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
-    '<path class="g4" d="M32.5 51.5 C33.5 48 35 46.5 37 46" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
-    '<path class="g5" d="M37 46 C37 42 40 40 44 40 C44 44 41 46 37 46Z" fill="currentColor"/>' +
-    '<path class="g5" d="M33 50 C30 47 26 47 24 49 C27 52 30 52 33 50Z" fill="currentColor"/>';
+    '<path class="g4" d="M32.5 51.5 C33.5 48 35 46.5 37 46" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
   const SPROUT = '<path d="M30 70 V46" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
     '<path d="M30 60 C23 60 19 56 19 50 C25 50 30 54 30 60Z" fill="currentColor"/>' +
     '<path class="nb1" d="M30 55 C37 55 41 51 41 45 C35 45 30 49 30 55Z" fill="currentColor"/>' +
-    '<path class="g4" d="M30 50 C24 50 21 47 21 42 C26 42 30 45 30 50Z" fill="currentColor"/>' +
-    '<path class="g5" d="M30 46 C30 41 33 38 38 37 C38 42 35 45 30 46Z" fill="currentColor"/>';
+    '<path class="g4" d="M30 50 C24 50 21 47 21 42 C26 42 30 45 30 50Z" fill="currentColor"/>';
   const LEAFY = '<path d="M30 70 V26" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
     '<path d="M30 66 C22 66 18 61 18 55 C25 55 30 59 30 66Z" fill="currentColor"/>' +
     '<path class="nb1" d="M30 62 C38 62 42 57 42 51 C35 51 30 55 30 62Z" fill="currentColor"/>' +

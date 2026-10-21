@@ -168,6 +168,8 @@
     const touches = live(entries).filter((e) => e.type === 'visit' || e.type === 'nh').sort((a, b) => ms(b.at) - ms(a.at));
     if (touches[0] && touches[0].type === 'nh') return CARE.STEADY;
     if (!planned(lastConv, rv, true)) return CARE.STEADY;
+    // Seeds and sprouts (Potential, Initial Call) top out at Healthy: too early to flourish.
+    if (formOf(settings, rv.stage) <= 2) return CARE.HEALTHY;
     // Lush: a run of consistent visits, each leaving a plan (studies: each recording covered and next).
     const study = L.isStudyStage(settings, rv.stage);
     const run = (study ? all.filter(isStudySession) : all).slice(-LUSH_RUN);
