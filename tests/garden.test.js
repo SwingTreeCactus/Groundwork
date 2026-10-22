@@ -235,7 +235,7 @@ test('sky follows the clock', () => {
   assert.deepEqual([3, 7, 12, 18, 21].map((h) => G.skyOf(new Date(2026, 9, 21, h))), ['night', 'morning', 'day', 'dusk', 'night']);
 });
 
-test('map: restyle uses Groundwork colours and drops shops, bus stops and house numbers', () => {
+test('map: restyle uses Groundwork colours and drops shops, bus stops, house numbers and buildings', () => {
   const M = require('../js/gmap.js');
   const st = { version: 8, sources: {}, layers: [
     { id: 'background', type: 'background', paint: { 'background-color': '#fff' } },
@@ -256,7 +256,7 @@ test('map: restyle uses Groundwork colours and drops shops, bus stops and house 
   assert.equal(by.highway_minor.paint['line-color'], T.minor);
   assert.equal(by.highway_major_casing.paint['line-color'], T.roadCase);
   assert.equal(by.road_label.paint['text-color'], T.text);
-  assert.equal(by['building-3d'].type, 'fill');
+  assert.ok(!by['building-3d']); // buildings hidden for a calmer map (v2.19)
   assert.equal(st.layers[1].paint['fill-color'], '#00f'); // the original is untouched
   assert.equal(M.restyle(st, true).layers[0].paint['background-color'], M.THEMES.dark.bg);
 });
