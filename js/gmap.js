@@ -102,7 +102,12 @@
     } finally { queueRunning = false; }
   }
 
-  // The map view for Insights. items: store items; returns {el, destroy}.
+  // Where the map was last left, and where you last were, for this session. Opening the map again (after a
+  // contact, say) goes back to lastView; a fresh start zooms in on you, or shows every pin when location is off.
+  let lastView = null, lastHere = null;
+  const HERE_FRESH = 2 * 60 * 1000;
+
+  // The map view for Contacts. items: store items; returns {el, refresh, destroy}.
   function view(items) {
     const { h, icon } = RV.dom;
     const UI = RV.ui, L = RV.logic, G = RV.garden, P = RV.plant, S = RV.store.S;
@@ -161,13 +166,23 @@
       }
       if (!pts.length && !todayOnly) { msg.textContent = 'Geotag an ' + UI.lbl('rv') + ' or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
     }
-    function findMe() {
-      if (!navigator.geolocation || !map) return;
+    function putYou(ll) {
+      if (!map) return;
+      if (!you) { const d = h('div', { class: 'gyou', 'aria-label': 'You are here' }, h('i')); you = new root.maplibregl.Marker({ element: d }).setLngLat(ll).addTo(map); } else you.setLngLat(ll);
+    }
+    // o.quiet: no toast on failure; o.move: false keeps the view (just moves the dot); o.done(ok)
+    function findMe(o) {
+      o = o || {};
+      const fail = () => { if (!o.quiet) UI.toast('Could not get your location.'); if (o.done) o.done(false); };
+      if (!navigator.geolocation || !map) return fail();
       navigator.geolocation.getCurrentPosition((p) => {
+        if (!map) return;
         const ll = [p.coords.longitude, p.coords.latitude];
-        if (!you) { const d = h('div', { class: 'gyou', 'aria-label': 'You are here' }, h('i')); you = new root.maplibregl.Marker({ element: d }).setLngLat(ll).addTo(map); } else you.setLngLat(ll);
-        map.easeTo({ center: ll, zoom: Math.max(map.getZoom(), 15) });
-      }, () => UI.toast('Could not get your location.'), { enableHighAccuracy: true, timeout: 15000 });
+        lastHere = { ll, at: Date.now() };
+        putYou(ll);
+        if (o.move !== false) map.easeTo({ center: ll, zoom: Math.max(map.getZoom(), 15), duration: o.quiet ? 500 : 800 });
+        if (o.done) o.done(true);
+      }, fail, { enableHighAccuracy: !o.quiet, timeout: o.quiet ? 10000 : 15000, maximumAge: o.quiet ? 60000 : 0 });
     }
     const mapEl = h('div', { class: 'gmap-canvas' });
     box.append(mapEl, chip, locate, msg, card);
@@ -178,18 +193,33 @@
         const lib = await loadLib();
         const style = restyle(await baseStyle(), isDark());
         if (!open) return;
-        const start = live().map((x) => RV.geo.pointOf(x.it.rv)).find(Boolean);
-        map = new lib.Map({ container: mapEl, style, center: start ? [start.lng, start.lat] : [-121.29, 37.96], zoom: start ? 13 : 11, attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false });
+        const hereOk = lastHere && Date.now() - lastHere.at < HERE_FRESH;
+        const first = live().map((x) => RV.geo.pointOf(x.it.rv)).find(Boolean);
+        // where to begin: the view you left, else where you are, else your first pin
+        const at = lastView || (hereOk ? { center: lastHere.ll, zoom: 15 } : null) || (first ? { center: [first.lng, first.lat], zoom: 13 } : { center: [-121.29, 37.96], zoom: 11 });
+        let settled = !!(lastView || hereOk); // false: still looking for you, so pins may set the view
+        map = new lib.Map({ container: mapEl, style, center: at.center, zoom: at.zoom, attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false });
         map.touchZoomRotate.disableRotation();
         map.on('click', () => { if (sel) sel.classList.remove('sel'); sel = null; card.hidden = true; });
-        map.on('load', () => { paintMarkers(true); placeMissing(() => paintMarkers(markers.size === 0), () => open); });
+        map.on('moveend', () => { if (map) { const c = map.getCenter(); lastView = { center: [c.lng, c.lat], zoom: map.getZoom() }; } });
+        // a hand on the map ends the search for a starting view
+        map.on('dragstart', () => { settled = true; });
+        map.on('zoomstart', (e) => { if (e && e.originalEvent) settled = true; });
+        map.on('load', () => {
+          paintMarkers(false);
+          if (hereOk) putYou(lastHere.ll);
+          if (settled) findMe({ quiet: true, move: false }); // just refresh the dot
+          else findMe({ quiet: true, done: (ok) => { if (!ok && !settled) paintMarkers(true); settled = true; } });
+          placeMissing(() => paintMarkers(!settled && markers.size === 0), () => open);
+        });
       } catch (e) {
         msg.textContent = 'The map could not load. Check your connection and try again.'; msg.hidden = false;
       }
     })();
+    box.gmapMap = () => map; // for tests
     return { el: box, refresh() { paintMarkers(false); }, destroy() { open = false; if (map) { map.remove(); map = null; } } };
   }
 
-  RV.gmap = { view, restyle, THEMES };
+  RV.gmap = { view, restyle, THEMES, _view: () => lastView, _forget: () => { lastView = null; lastHere = null; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.gmap;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.19.7';
+  RV.VERSION = '2.20.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -206,9 +206,14 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });
     registerSW();
     RV.drive.start();
-    if (signIn && signIn.ok) {
-      UI.toast('Google Drive connected');
-      RV.drive.backupNow().then((ok) => { if (ok) UI.toast('Saved to Google Drive'); });
+    if (signIn && signIn.retrying) {
+      // the silent reconnect needs Google to ask: already on the way there
+    } else if (signIn && signIn.ok) {
+      Promise.resolve(signIn.wait === undefined ? true : signIn.wait).then((ok) => {
+        if (!ok) { UI.toast(RV.drive.status().error || 'Google sign-in did not finish.'); RV.drive.clearError(); return; }
+        UI.toast('Google Drive connected');
+        RV.drive.backupNow().then((done) => { if (done) UI.toast('Saved to Google Drive'); });
+      });
     } else if (signIn) {
       UI.toast(RV.drive.status().error || 'Google sign-in did not finish.');
       RV.drive.clearError();

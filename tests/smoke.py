@@ -773,8 +773,26 @@ with sync_playwright() as p:
         ntoday = ev("(() => { const t = new Set(RV.logic.todaySet(RV.store.items(), new Date()).map(i => i.rv.id)); return RV.store.items().filter(i => t.has(i.rv.id) && RV.geo.pointOf(i.rv)).length; })()")
         check(n_dry == ntoday and n_dry <= n_all and 'Today' in page.locator('.gmap-chip').inner_text(), 'Today toggle shows just who to see today (%d of %d)' % (n_dry, n_all))
         check(page.locator('.gplotname').count() == 0 and ev("!RV.gmap._map || true"), 'no area overlay on the map')
+        # v2.20: back from a contact, the map is where you left it
+        page.click('.gmap-chip'); time.sleep(0.3)
+        ev("document.querySelector('.gmap').gmapMap().jumpTo({ center: [-121.3, 37.96], zoom: 14.25 })"); time.sleep(0.3)
+        page.locator('.gmap .gpin').first.dispatch_event('click'); time.sleep(0.2)
+        page.click('.gcard a:has-text("Open")'); page.wait_for_selector('.gmap', state='detached')
+        page.go_back(); page.wait_for_selector('.gmap'); page.wait_for_function("document.querySelector('.gmap').gmapMap && document.querySelector('.gmap').gmapMap()", timeout=15000); time.sleep(1.5)
+        v = ev("(() => { const m = document.querySelector('.gmap').gmapMap(), c = m.getCenter(); return [c.lng, c.lat, m.getZoom()]; })()")
+        check(abs(v[0] + 121.3) < 0.001 and abs(v[1] - 37.96) < 0.001 and abs(v[2] - 14.25) < 0.01, 'back from a contact, the map keeps the view you left (%s)' % v)
+    # a fresh start zooms in on where you are
+    ctx.grant_permissions(['geolocation'], origin=URL.rstrip('/')); ctx.set_geolocation({'latitude': 37.99, 'longitude': -121.25})
     page.reload(); page.wait_for_selector('.gmap')
     check(page.locator('.vswitch button.on').inner_text() == 'Map', 'Contacts remembers the map view')
+    if ok_map:
+        try:
+            page.wait_for_selector('.gmap .gyou', timeout=15000); time.sleep(1.2)
+        except Exception:
+            pass
+        v = ev("(() => { const m = document.querySelector('.gmap').gmapMap(), c = m.getCenter(); return [c.lng, c.lat, m.getZoom()]; })()")
+        check(page.locator('.gmap .gyou').count() == 1 and abs(v[0] + 121.25) < 0.002 and abs(v[1] - 37.99) < 0.002 and v[2] >= 15, 'a fresh map opens zoomed in on you (%s)' % v)
+    ctx.clear_permissions()
     page.click('.vswitch button:has-text("Tiles")'); page.wait_for_selector('.atile')
     check(page.locator('.gmap').count() == 0, 'back to tiles')
     page.unroute('https://tiles.openfreemap.org/**'); page.unroute('https://nominatim.openstreetmap.org/search**')

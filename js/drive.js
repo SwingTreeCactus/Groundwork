@@ -1,6 +1,10 @@
 /* Groundwork: Google Drive backup. A "Groundwork" folder in the user's own Drive holds the current backup file plus one
    dated copy per day (the last 7 days). Written with the drive.file permission, so the app can only see files and folders
-   it made itself. Sign-in is a full-page redirect, which also works in an installed iPhone app. */
+   it made itself. Sign-in is a full-page redirect, which also works in an installed iPhone app.
+   v2.20: with a token helper set (RV.config.tokenHelper, a small Cloudflare Worker that holds the app's client
+   secret), sign-in uses Google's code flow and keeps a renewal key on this device, so access is renewed quietly
+   every hour and Drive stays connected. Without one, the one-hour browser sign-in is used, and Reconnect first
+   tries a silent bounce through Google (no account picker) before asking. */
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
@@ -21,9 +25,20 @@
     loc = loc || root.location;
     return loc.origin + loc.pathname.replace(/index\.html$/, '');
   }
-  function buildAuthUrl(clientId, redirect, state) {
-    const q = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'token', scope: SCOPE, state, include_granted_scopes: 'true' });
+  // o.code: code flow (with a token helper; asks for a renewal key); o.silent: no screens if Google already knows you
+  function buildAuthUrl(clientId, redirect, state, o) {
+    o = o || {};
+    const q = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: o.code ? 'code' : 'token', scope: SCOPE, state, include_granted_scopes: 'true' });
+    if (o.code) { q.set('access_type', 'offline'); q.set('prompt', 'consent'); }
+    else if (o.silent) q.set('prompt', 'none');
     return 'https://accounts.google.com/o/oauth2/v2/auth?' + q.toString();
+  }
+  // the code-flow reply arrives in the query string: ?code=...&state=... (or ?error=...)
+  function parseAuthQuery(search) {
+    if (!search || search.length < 2) return null;
+    const p = new URLSearchParams(search.slice(1));
+    if (!p.has('code') && !(p.has('error') && p.has('state'))) return null;
+    return { code: p.get('code'), state: p.get('state'), error: p.get('error') };
   }
   // returns null when the hash is not an OAuth reply (the app's own routes start with "#/")
   function parseAuthHash(hash) {
@@ -53,29 +68,82 @@
   const st = { busy: false, error: '' };
 
   const configured = () => !!(RV.config && RV.config.googleClientId);
+  const helper = () => String((RV.config && RV.config.tokenHelper) || '').replace(/\/+$/, '');
   const connected = () => !!conn.connected;
   const tokenOk = () => !!(conn.token && conn.expires && conn.expires > Date.now() + 60000);
-  const status = () => ({ configured: configured(), connected: connected(), tokenOk: tokenOk(), dirty: !!conn.dirty, lastSaved: conn.lastSaved || null, busy: st.busy, error: st.error });
+  // renewable: a renewal key is kept and the helper is there to use it
+  const renewable = () => !!(helper() && conn.refresh);
+  const ready = () => tokenOk() || renewable();
+  const status = () => ({ configured: configured(), connected: connected(), tokenOk: ready(), lasting: renewable(), dirty: !!conn.dirty, lastSaved: conn.lastSaved || null, busy: st.busy, error: st.error });
+
+  async function helperPost(path, body) {
+    const res = await fetch(helper() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let j = {}; try { j = await res.json(); } catch (e) { /* ignore */ }
+    if (!res.ok) throw Object.assign(new Error(j.error || 'Sign-in helper said no (' + res.status + ').'), { code: j.error === 'invalid_grant' ? 'auth' : 'helper' });
+    return j;
+  }
+  // A fresh hour of access from the renewal key. Throws {code:'auth'} when Google no longer accepts the key.
+  let renewing = null;
+  function renew() {
+    if (renewing) return renewing;
+    renewing = (async () => {
+      try {
+        const j = await helperPost('/refresh', { refresh_token: conn.refresh });
+        save({ token: j.access_token, expires: Date.now() + (j.expires_in || 3600) * 1000 });
+      } catch (e) {
+        if (e.code === 'auth') { save({ refresh: null, expires: 0 }); throw e; }
+        throw Object.assign(new Error('Could not renew Google sign-in. Check the connection.'), { code: 'offline' });
+      } finally { renewing = null; }
+    })();
+    return renewing;
+  }
+  async function ensureToken() {
+    if (tokenOk()) return;
+    if (renewable()) return renew();
+    throw Object.assign(new Error('Reconnect Google Drive.'), { code: 'auth' });
+  }
 
   // ---------- sign in ----------
-  function connect() {
+  // o.interactive: skip the silent try (used after Google says it needs to ask)
+  function connect(o) {
     if (!configured()) return;
+    o = o || {};
     const state = U.uuid();
-    try { sessionStorage.setItem(STATE_KEY, state); localStorage.setItem(STATE_KEY, state); } catch (e) { /* ignore */ }
-    root.location.assign(buildAuthUrl(RV.config.googleClientId, redirectUri(), state));
+    const code = !!helper();
+    const silent = !code && !o.interactive && !!conn.connected; // a reconnect: try without screens first
+    try { sessionStorage.setItem(STATE_KEY, state); localStorage.setItem(STATE_KEY, state); localStorage.setItem(STATE_KEY + '.silent', silent ? '1' : ''); } catch (e) { /* ignore */ }
+    root.location.assign(buildAuthUrl(RV.config.googleClientId, redirectUri(), state, { code, silent }));
   }
   // call once at start, before the first render: picks up the sign-in reply in the address bar
+  // Returns null (no reply), {ok:false}, {ok:true, fresh}, or {ok:true, fresh, wait: Promise<boolean>} for the code flow.
   function handleRedirect() {
-    const r = parseAuthHash(root.location.hash);
+    const q = parseAuthQuery(root.location.search);
+    const r = q || parseAuthHash(root.location.hash);
     if (!r) return null;
-    let want = null;
-    try { want = sessionStorage.getItem(STATE_KEY) || localStorage.getItem(STATE_KEY); } catch (e) { /* ignore */ }
+    let want = null, wasSilent = false;
+    try { want = sessionStorage.getItem(STATE_KEY) || localStorage.getItem(STATE_KEY); wasSilent = localStorage.getItem(STATE_KEY + '.silent') === '1'; } catch (e) { /* ignore */ }
     const base = redirectUri();
     history.replaceState(null, '', base + '#/settings/data');
-    try { sessionStorage.removeItem(STATE_KEY); localStorage.removeItem(STATE_KEY); } catch (e) { /* ignore */ }
-    if (r.error || !r.token || (want && r.state !== want)) {
+    try { sessionStorage.removeItem(STATE_KEY); localStorage.removeItem(STATE_KEY); localStorage.removeItem(STATE_KEY + '.silent'); } catch (e) { /* ignore */ }
+    // the silent try needs Google to ask after all: ask
+    if (r.error && wasSilent && /interaction_required|login_required|consent_required|account_selection_required/.test(r.error)) {
+      connect({ interactive: true });
+      return { ok: false, retrying: true };
+    }
+    if (r.error || (want && r.state !== want) || (q ? !r.code : !r.token)) {
       st.error = r.error === 'access_denied' ? 'Google sign-in was cancelled.' : 'Google sign-in did not finish.';
       return { ok: false };
+    }
+    if (q) {
+      const fresh = !conn.connected;
+      const wait = helperPost('/exchange', { code: r.code, redirect_uri: base })
+        .then((j) => {
+          conn = Object.assign({}, conn, { connected: true, token: j.access_token, expires: Date.now() + (j.expires_in || 3600) * 1000 }, j.refresh_token ? { refresh: j.refresh_token } : {});
+          write(conn); changed();
+          return true;
+        })
+        .catch((e) => { st.error = 'Google sign-in did not finish (' + e.message + ').'; changed(); return false; });
+      return { ok: true, fresh, wait };
     }
     const fresh = !conn.connected;
     conn = Object.assign({}, conn, { connected: true, token: r.token, expires: Date.now() + r.expiresIn * 1000 });
@@ -83,17 +151,21 @@
     return { ok: true, fresh };
   }
   async function disconnect() {
-    const t = conn.token;
+    const t = conn.refresh || conn.token;
     clearTimeout(timer);
     conn = {}; write(conn); st.error = ''; changed();
     if (t) { try { await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(t), { method: 'POST' }); } catch (e) { /* ignore */ } }
   }
 
   // ---------- Drive calls ----------
-  async function call(url, opts) {
-    if (!tokenOk()) throw Object.assign(new Error('Reconnect Google Drive.'), { code: 'auth' });
+  async function call(url, opts, retried) {
+    await ensureToken();
     const res = await fetch(url, Object.assign({}, opts, { headers: Object.assign({ Authorization: 'Bearer ' + conn.token }, (opts && opts.headers) || {}) }));
-    if (res.status === 401) { save({ expires: 0 }); throw Object.assign(new Error('Reconnect Google Drive.'), { code: 'auth' }); }
+    if (res.status === 401) {
+      save({ expires: 0 });
+      if (!retried && renewable()) return call(url, opts, true);
+      throw Object.assign(new Error('Reconnect Google Drive.'), { code: 'auth' });
+    }
     if (res.status === 404) throw Object.assign(new Error('Not found'), { code: 'missing' });
     if (!res.ok) throw new Error('Google Drive said no (' + res.status + ').');
     return res;
@@ -218,7 +290,7 @@
         try { localStorage.setItem('rvapp.lastBackup', U.toDateStr(new Date())); } catch (e) { /* ignore */ }
         return true;
       } catch (e) {
-        st.error = e.code === 'auth' ? '' : (e.message || 'Backup failed.');
+        st.error = e.code === 'auth' || e.code === 'offline' ? '' : (e.message || 'Backup failed.');
         changed();
         return false;
       } finally { st.busy = false; running = null; changed(); }
@@ -253,7 +325,7 @@
   let timer = null;
   function schedule(delay) {
     clearTimeout(timer);
-    timer = setTimeout(() => { if (connected() && conn.dirty && tokenOk()) backupNow(); }, delay);
+    timer = setTimeout(() => { if (connected() && conn.dirty && ready()) backupNow(); }, delay);
   }
   function start() {
     ST.subscribe(() => {
@@ -262,15 +334,15 @@
       schedule(SAVE_DELAY);
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && connected() && conn.dirty && tokenOk()) { clearTimeout(timer); backupNow(); }
+      if (document.visibilityState === 'hidden' && connected() && conn.dirty && ready()) { clearTimeout(timer); backupNow(); }
     });
-    if (connected() && tokenOk() && (conn.dirty || !conn.lastSaved)) schedule(3000);
+    if (connected() && ready() && (conn.dirty || !conn.lastSaved)) schedule(3000);
   }
 
   RV.drive = {
     status, configured, connected, connect, disconnect, handleRedirect, backupNow, listBackups, fetchBackup, start,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     clearError: () => { st.error = ''; changed(); },
-    redirectUri, FILE_NAME, FOLDER_NAME, _pure: { redirectUri, buildAuthUrl, parseAuthHash, multipartBody, snapName, snapshotsToTrim },
+    redirectUri, FILE_NAME, FOLDER_NAME, _pure: { redirectUri, buildAuthUrl, parseAuthHash, parseAuthQuery, multipartBody, snapName, snapshotsToTrim },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

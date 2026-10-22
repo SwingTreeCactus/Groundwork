@@ -53,11 +53,18 @@ def run():
         ctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block')
         ctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'")
 
+        auths = []; bearer = []; silent_says = ['ok']
         def google_auth(route):
-            q = parse_qs(urlparse(route.request.url).query)
-            route.fulfill(status=302, headers={'location': q['redirect_uri'][0] + '#access_token=tok&expires_in=3599&state=' + q['state'][0]}, body='')
+            q = parse_qs(urlparse(route.request.url).query); auths.append(q)
+            back = q['redirect_uri'][0]; stt = q['state'][0]
+            if q.get('response_type') == ['code']:
+                return route.fulfill(status=302, headers={'location': back + '?code=C1&state=' + stt}, body='')
+            if q.get('prompt') == ['none'] and silent_says[0] != 'ok':
+                return route.fulfill(status=302, headers={'location': back + '#error=' + silent_says[0] + '&state=' + stt}, body='')
+            route.fulfill(status=302, headers={'location': back + '#access_token=tok&expires_in=3599&state=' + stt}, body='')
         def api(route):
             req = route.request; u = urlparse(req.url); q = parse_qs(u.query); m = req.method
+            if req.headers.get('authorization'): bearer.append(req.headers['authorization'])
             jr = lambda o, st=200: route.fulfill(status=st, content_type='application/json', body=json.dumps(o))
             pub = lambda f: {k: v for k, v in f.items() if k != 'content'}
             if u.hostname == 'oauth2.googleapis.com': return jr({})
@@ -180,6 +187,69 @@ def run():
         nf = D.folders(); cur = D.by_name('Groundwork backup.json')
         check(len(nf) == 1 and len(cur) == 1 and cur[0]['parents'] == [nf[0]['id']], 'first backup goes straight into a new Groundwork folder')
         check(not [f for f in D.live() if f['name'].startswith('Groundwork backup 2')], 'no dated copy on the very first save')
+
+        print('reconnect without the helper: silent first')
+        expire = "() => { const c = JSON.parse(localStorage.getItem('rvapp.drive')); c.expires = 0; localStorage.setItem('rvapp.drive', JSON.stringify(c)); }"
+        ev(expire); page.reload(); page.wait_for_selector('button:has-text("Reconnect")')
+        del auths[:]
+        page.click('button:has-text("Reconnect")'); page.wait_for_selector('button:has-text("Back up now")')
+        check(len(auths) == 1 and auths[0].get('prompt') == ['none'], 'Reconnect tries Google silently first (no account screens)')
+        ev(expire); page.reload(); page.wait_for_selector('button:has-text("Reconnect")')
+        del auths[:]; silent_says[0] = 'interaction_required'
+        page.click('button:has-text("Reconnect")'); page.wait_for_selector('button:has-text("Back up now")', timeout=8000)
+        check(len(auths) == 2 and auths[0].get('prompt') == ['none'] and 'prompt' not in auths[1], 'when Google needs to ask, it asks (second try is the normal sign-in)')
+        silent_says[0] = 'ok'
+        page.close()
+
+        print('with the sign-in helper: stays connected')
+        hctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block')
+        hctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'; window.__RV_TOKEN_HELPER = 'https://helper.test/'")
+        hctx.route('https://accounts.google.com/**', google_auth)
+        hctx.route('https://www.googleapis.com/**', api)
+        hctx.route('https://oauth2.googleapis.com/**', api)
+        calls = []; refresh_says = ['ok']; n_at = [1]
+        def helper(route):
+            req = route.request; path = urlparse(req.url).path; b = json.loads(req.post_data or '{}'); calls.append((path, b))
+            hdr = {'Access-Control-Allow-Origin': '*'}
+            if req.method == 'OPTIONS': return route.fulfill(status=204, headers=dict(hdr, **{'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST'}))
+            if path == '/exchange': return route.fulfill(status=200, headers=hdr, content_type='application/json', body=json.dumps({'access_token': 'AT1', 'expires_in': 3599, 'refresh_token': 'RT1'}))
+            if path == '/refresh':
+                if refresh_says[0] != 'ok': return route.fulfill(status=400, headers=hdr, content_type='application/json', body=json.dumps({'error': 'invalid_grant'}))
+                n_at[0] += 1
+                return route.fulfill(status=200, headers=hdr, content_type='application/json', body=json.dumps({'access_token': 'AT%d' % n_at[0], 'expires_in': 3599}))
+            route.fulfill(status=404, headers=hdr, body='')
+        hctx.route('https://helper.test/**', helper)
+        page = hctx.new_page(); page.on('pageerror', lambda e: errors.append(str(e))); ev = page.evaluate
+        page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Connect Google Drive")')
+        del auths[:]
+        page.click('button:has-text("Connect Google Drive")')
+        page.wait_for_selector('button:has-text("Back up now")', timeout=8000)
+        page.wait_for_function('() => !RV.drive.status().busy && !!RV.drive.status().lastSaved', timeout=8000)
+        a = auths[0] if auths else {}
+        check(a.get('response_type') == ['code'] and a.get('access_type') == ['offline'], 'with a helper, sign-in asks Google for a lasting connection')
+        ex = [c for c in calls if c[0] == '/exchange']
+        check(len(ex) == 1 and ex[0][1].get('code') == 'C1' and ex[0][1].get('redirect_uri') == URL, 'the sign-in code is swapped through the helper')
+        conn = ev("JSON.parse(localStorage.getItem('rvapp.drive'))")
+        check(conn.get('refresh') == 'RT1' and conn.get('token') == 'AT1', 'the renewal key is kept on the device')
+        check('?code' not in page.url and page.url.endswith('#/settings/data'), 'the code is cleared from the address')
+        check(ev("RV.drive.status().lasting") is True, 'status says the connection lasts')
+        # an hour later
+        ev(expire); page.reload(); page.wait_for_selector('.setrow, .card')
+        check(page.locator('button:has-text("Reconnect")').count() == 0 and page.locator('button:has-text("Back up now")').count() == 1, 'after the hour, no Reconnect: it renews itself')
+        ev("() => RV.store.addRv({ name: 'Renewed Person', stage: 'initial' })")
+        del bearer[:]
+        check(ev('() => RV.drive.backupNow()') is True and bearer and all(b == 'Bearer AT2' for b in bearer), 'backup renews quietly and saves with the fresh access')
+        check(len([c for c in calls if c[0] == '/refresh' and c[1].get('refresh_token') == 'RT1']) == 1, 'one renewal for several Drive calls')
+        # Google stops accepting the key (password change, access removed)
+        refresh_says[0] = 'bad'
+        ev(expire); page.reload(); page.wait_for_selector('.setrow, .card')
+        ev("() => RV.store.addRv({ name: 'After Revoke', stage: 'initial' })")
+        check(ev('() => RV.drive.backupNow()') is False, 'a refused renewal key stops the save')
+        page.reload(); page.wait_for_selector('button:has-text("Reconnect")')
+        check(ev("JSON.parse(localStorage.getItem('rvapp.drive')).refresh") is None, 'the refused key is forgotten and Reconnect shows')
+        refresh_says[0] = 'ok'
+        page.click('button:has-text("Reconnect")'); page.wait_for_selector('button:has-text("Back up now")', timeout=8000)
+        check(ev("JSON.parse(localStorage.getItem('rvapp.drive')).refresh") == 'RT1', 'reconnecting once makes it last again')
 
         check(not errors, 'no page errors' + (': ' + '; '.join(errors) if errors else ''))
         browser.close()
