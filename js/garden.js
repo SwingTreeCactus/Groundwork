@@ -125,7 +125,8 @@
     const need = needFor(settings, rv.stage);
     const kind = kindFor(settings, rv.stage);
     const nx = nextStageOf(settings, rv.stage);
-    const out = { form, need, have: 0, kind, next: nx ? nx.id : null, nextName: nx ? nx.name : '', fading: false, held: false, broken: false };
+    // nextName: what the plant grows into, as people see it (a stage name across shown stages, else the next form)
+    const out = { form, need, have: 0, kind, next: nx ? nx.id : null, nextName: nx ? growthName(settings, rv.stage, nx.id) : '', fading: false, held: false, broken: false };
     if (!form || !need) return out;
     if (kind === 'study') { out.have = Math.min(need, studyCount(entries)); return out; }
     if (kind === 'first') {
@@ -351,11 +352,20 @@
   // Time of day for the garden sky.
   const skyOf = (d) => { const h = d.getHours(); return h < 6 || h >= 20 ? 'night' : h < 9 ? 'morning' : h < 17 ? 'day' : 'dusk'; };
 
+  // What to call a growth step: a new shown stage by its name (Potential -> RV, RV -> Bible Study); a step
+  // inside RV by the plant's new form ("Leafy plant").
+  function growthName(settings, from, to) {
+    const a = L.shownStage(settings, from), b = L.shownStage(settings, to);
+    if (a.key !== b.key) return b.name;
+    const n = FORM_NAMES[formOf(settings, to)] || '';
+    return n.charAt(0).toUpperCase() + n.slice(1);
+  }
+
   const api = {
     CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, EXHIBITS,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
-    forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf,
+    forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,
   };
   RV.garden = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

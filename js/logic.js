@@ -391,9 +391,30 @@
     return parts.join('. ');
   }
 
+  // ---------- the stages people see (v2.19.4) ----------
+  // Three: the first stage (Potential: not in a real conversation yet), RV, and the study stage. Everything
+  // between (Initial Call, Cultivating, Return Visit) is the garden's backbone: it drives growth and timing,
+  // and shows only as the plant's form. key 'rv' stands for that whole middle band.
+  function shownStages(settings) {
+    const act = settings.stages.filter((s) => !s.closed);
+    if (!act.length) return [];
+    const first = act[0], study = act.find((s) => s.study === true || s.id === 'study') || act[act.length - 1];
+    const middle = act.filter((s) => s !== first && s !== study);
+    const out = [{ key: first.id, name: first.name, ids: [first.id] }];
+    if (middle.length) out.push({ key: 'rv', name: (settings.labels && settings.labels.rv) || 'RV', ids: middle.map((s) => s.id) });
+    if (study !== first) out.push({ key: study.id, name: study.name, ids: [study.id], study: true });
+    return out;
+  }
+  function shownStage(settings, stageId) {
+    const st = stageOf(settings, stageId);
+    if (st.closed) return { key: st.id, name: st.name, ids: [st.id], closed: true };
+    return shownStages(settings).find((x) => x.ids.includes(stageId)) || { key: stageId, name: st.name, ids: [stageId] };
+  }
+  const shownName = (settings, stageId) => shownStage(settings, stageId).name;
+
   // ---------- Insights ----------
   function funnel(items, settings) {
-    const rows = settings.stages.filter((s) => !s.closed).map((s) => ({ stage: s, count: items.filter((i) => i.rv.stage === s.id).length }));
+    const rows = shownStages(settings).map((s) => ({ stage: { id: s.key, name: s.name }, count: items.filter((i) => s.ids.includes(i.rv.stage)).length }));
     const archived = items.filter((i) => i.att.state === 'closed').length;
     return { rows, archived, total: rows.reduce((n, r) => n + r.count, 0) };
   }
@@ -623,7 +644,7 @@
     suggestNext,
     PARTS, validTag, dayTagsOf, bestDaysOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, todaySet, likelyHomeToday, forecast,
     campaignStatus, activeCampaign, campaignOverlap, nextCampaign, quickAddFallback,
-    funnel, effortEvents, effortSummary, reconsider, stuckInStage,
+    funnel, effortEvents, effortSummary, reconsider, stuckInStage, shownStages, shownStage, shownName,
     IMPORT_FIELDS, guessMapping, parseLooseDate, importRows,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.logic;

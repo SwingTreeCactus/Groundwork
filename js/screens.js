@@ -53,7 +53,7 @@
     const study = !garden && L.isStudyStage(S.settings, rv.stage) && (rv.publication || rv.nextStart)
       ? [rv.publication, rv.nextStart ? 'Next: ' + rv.nextStart : null].filter(Boolean).join(' · ') : '';
     const area = o.hideArea ? '' : (rv.neighborhood || '');
-    const stageName = garden ? h('span', { class: 'gstage' }, L.stageOf(S.settings, rv.stage).name) : null;
+    const stageName = garden ? h('span', { class: 'gstage' }, L.shownName(S.settings, rv.stage)) : null;
     const stage = garden ? stageName : it.att.state !== 'closed'
       ? h('span', { class: 'stagebtn', role: 'button', tabindex: '0', 'aria-label': 'Change stage for ' + rv.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); F.stageFlow(rv.id); } }, stageBadge(rv.stage))
       : stageBadge(rv.stage);
@@ -195,6 +195,12 @@
     return S.settings.homeCards.filter((c) => c.on && builders[c.id]).map((c) => builders[c.id]());
   }
 
+  // the few people who have gone longest without a visit, at the foot of Home
+  function upNext(items) {
+    const next = items.filter((i) => i.att.state !== 'closed').sort(L.SORTS.oldest).slice(0, 3);
+    if (!next.length) return null;
+    return h('section', { class: 'upnext' }, h('div', { class: 'upn' }, h('span', null, 'Up next'), h('span', { class: 'muted' }, 'longest since a visit')), listOf(next));
+  }
   function home() {
     const items = ST.items();
     const welcome = !S.rvs.some((r) => !r.deletedAt)
@@ -207,7 +213,9 @@
     const d = new Date();
     return {
       title: 'Groundwork', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items)),
+      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
+        welcome ? null : h('div', { class: 'home-today' }, todayDash().el),
+        welcome ? null : upNext(items)),
     };
   }
 
@@ -242,11 +250,16 @@
   }
   function today(stageId) {
     if (stageId) return todayStage(stageId);
+    const d = todayDash();
+    return { title: lbl('today'), fab: true, el: d.el, update: d.paint };
+  }
+  // Who to see: Today / All, the stage tiles and Almost growing. Shown on Home under topics and the campaign.
+  function todayDash() {
     const box = h('div', { class: 'dash' });
     function paint() {
       const now = new Date(), scope = todayScope();
       const pool = todayPool(scope, now);
-      const stages = S.settings.stages.filter((x) => !x.closed);
+      const stages = L.shownStages(S.settings);
       const day = U.DAYS[now.getDay()];
       box.replaceChildren(
         seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
@@ -254,38 +267,39 @@
         gardenOn()
           ? h('div', { class: 'cgrid gd' }, stages.map((x, k) => {
             // five tiles, each with that stage's plant, the count and a short name
-            const n = pool.filter((i) => i.rv.stage === x.id).length;
+            const n = pool.filter((i) => x.ids.includes(i.rv.stage)).length;
             const wide = k === stages.length - 1 && stages.length % 2 === 1;
-            return h('a', { class: 'gtile' + (wide ? ' wide' : '') + (n ? '' : ' zero'), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
-              P.make(G.formOf(S.settings, x.id), 4, { size: 'tl', ghost: !n, seed: k }),
+            return h('a', { class: 'gtile' + (wide ? ' wide' : '') + (n ? '' : ' zero'), href: '#/today/' + encodeURIComponent(x.key), 'aria-label': x.name + ': ' + n },
+              P.make(G.formOf(S.settings, x.ids[Math.floor((x.ids.length - 1) / 2)]), 4, { size: 'tl', ghost: !n, seed: k }),
               h('span', { class: 'num' }, String(n)),
               h('span', { class: 'clab' }, shortName(x.name)));
           }))
           : h('div', { class: 'cgrid' }, stages.map((x, k) => {
-            const n = pool.filter((i) => i.rv.stage === x.id).length;
+            const n = pool.filter((i) => x.ids.includes(i.rv.stage)).length;
             const wide = k === stages.length - 1 && stages.length % 2 === 1;
-            return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.id), 'aria-label': x.name + ': ' + n },
-              h('span', { class: 'circ' + (n ? '' : ' zero') + (n && L.isStudyStage(S.settings, x.id) ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
+            return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.key), 'aria-label': x.name + ': ' + n },
+              h('span', { class: 'circ' + (n ? '' : ' zero') + (n && x.study ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
               h('span', { class: 'clab' }, x.name));
           })),
         (gardenOn() && almostCard(ST.items(), now)) || '');
     }
     paint();
-    return { title: lbl('today'), fab: true, el: box, update: paint };
+    return { el: box, paint };
   }
   function todayStage(stageId) {
-    const st = L.stageOf(S.settings, stageId);
+    // a shown stage key (Potential, rv, study); an old internal id opens its shown stage
+    const st = L.shownStages(S.settings).find((x) => x.key === stageId) || L.shownStage(S.settings, stageId);
     const box = h('div');
     function paint() {
       const now = new Date(), scope = todayScope();
-      const rows = todayPool(scope, now).filter((i) => i.rv.stage === stageId).sort(L.SORTS.oldest);
+      const rows = todayPool(scope, now).filter((i) => st.ids.includes(i.rv.stage)).sort(L.SORTS.oldest);
       box.replaceChildren(
         seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
         h('div', { class: 'dsum' }, h('b', null, String(rows.length)), scope === 'all' ? ' in ' + st.name : ' to see on ' + U.DAYS[now.getDay()]),
         rows.length ? listOf(rows) : UI.emptyState('check', scope === 'all' ? 'Nobody in this stage.' : 'Nobody in this stage today.'));
     }
     paint();
-    return { title: st.name, back: '#/today', fab: true, el: box, update: paint };
+    return { title: st.name, back: '#/home', fab: true, el: box, update: paint };
   }
 
   // ---------- RV list ----------
@@ -299,7 +313,7 @@
     const stage = typeof st.stage === 'string' ? st.stage : (Array.isArray(st.stages) && st.stages.length === 1 ? st.stages[0] : '');
     return {
       sort: LIST_SORTS.some(([k]) => k === st.sort) ? st.sort : 'oldest',
-      stage: S.settings.stages.some((x) => x.id === stage && !x.closed) ? stage : '',
+      stage: stage ? (L.shownStages(S.settings).some((x) => x.key === stage) ? stage : S.settings.stages.some((x) => x.id === stage && !x.closed) ? L.shownStage(S.settings, stage).key : '') : '',
       neighborhood: st.neighborhood || '', bestDay: st.bestDay || '', q: '',
     };
   }
@@ -310,7 +324,8 @@
     .concat(U.DAYS.map((d, i) => ({ value: String(i), label: d }))).concat([{ value: 'none', label: 'None set' }]);
   function listFilterFor(st) {
     const active = S.settings.stages.filter((x) => !x.closed).map((x) => x.id);
-    return { stages: new Set(st.stage ? [st.stage] : active), neighborhood: st.neighborhood, bestDay: st.bestDay };
+    const sh = st.stage ? L.shownStages(S.settings).find((x) => x.key === st.stage) : null;
+    return { stages: new Set(sh ? sh.ids : active), neighborhood: st.neighborhood, bestDay: st.bestDay };
   }
 
   const NO_AREA = '-';
@@ -373,7 +388,7 @@
         };
         const sec = (label, w) => h('div', { class: 'wsec' }, h('div', { class: 'wlab' }, label), w);
         wheels.sort = UI.wheel(LIST_SORTS.map(([value, label]) => ({ value, label })), st.sort, (v) => { st.sort = v; upd(); }, { label: 'Sort' });
-        wheels.stage = UI.wheel([{ value: '', label: 'Any stage' }].concat(S.settings.stages.filter((x) => !x.closed).map((x) => ({ value: x.id, label: x.name }))), st.stage, (v) => { st.stage = v; upd(); }, { label: 'Stage', neutral: '' });
+        wheels.stage = UI.wheel([{ value: '', label: 'Any stage' }].concat(L.shownStages(S.settings).map((x) => ({ value: x.key, label: x.name }))), st.stage, (v) => { st.stage = v; upd(); }, { label: 'Stage', neutral: '' });
         wheels.area = UI.wheel([{ value: '', label: 'Any ' + lbl('neighborhood').toLowerCase() }].concat(ST.neighborhoods().map((x) => ({ value: x, label: x }))), st.neighborhood, (v) => { st.neighborhood = v; upd(); }, { label: lbl('neighborhood'), neutral: '' });
         wheels.day = UI.wheel(DAY_OPTS(), st.bestDay, (v) => { st.bestDay = v; upd(); }, { label: 'Best day', neutral: '' });
         const reset = h('button', { class: 'link-quiet', type: 'button', onclick: () => {
@@ -405,7 +420,7 @@
         views.forEach((v) => box.appendChild(h('div', { class: 'row plain' },
           h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => { close(); applyView(v); } },
             h('div', { class: 'name' }, v.name),
-            h('div', { class: 'line2' }, [(LIST_SORTS.find(([k]) => k === v.sort) || [0, 'Longest since visit'])[1], v.stage ? L.stageOf(S.settings, v.stage).name : null, v.neighborhood, v.bestDay ? dayLabel(v.bestDay) : null].filter(Boolean).join(' · '))),
+            h('div', { class: 'line2' }, [(LIST_SORTS.find(([k]) => k === v.sort) || [0, 'Longest since visit'])[1], v.stage ? L.shownName(S.settings, v.stage) : null, v.neighborhood, v.bestDay ? dayLabel(v.bestDay) : null].filter(Boolean).join(' · '))),
           h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Delete view ' + v.name, onclick: () => { ST.saveSettings((s) => { s.savedViews = s.savedViews.filter((x) => x.id !== v.id); }); close(); viewsSheet(); } }, icon('trash')))));
         box.appendChild(h('div', { class: 'actions' }, h('button', {
           class: 'btn primary', type: 'button',
@@ -422,13 +437,21 @@
     // No search and no filters: one tile per area, then the few people who have gone longest without a visit.
     // No search and no filters: the areas, as tiles or as folders (remembered).
     const VIEW_KEY = 'rvapp.rvsView';
-    let view = (() => { try { return localStorage.getItem(VIEW_KEY) === 'folders' ? 'folders' : 'tiles'; } catch (e) { return 'tiles'; } })();
+    let view = (() => { try { const v = localStorage.getItem(VIEW_KEY); return v === 'folders' || v === 'map' ? v : 'tiles'; } catch (e) { return 'tiles'; } })();
+    let mapView = null; // the map is kept while it is showing, so edits refresh its pins instead of reloading it
+    const dropMap = () => { if (mapView) { mapView.destroy(); mapView = null; } };
     const openFolders = new Set();
     function paintTiles(all) {
       const live = all.filter((i) => i.att.state !== 'closed');
       const groups = areaGroups(live);
-      metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, [['tiles', 'Tiles'], ['folders', 'Folders']].map(([v, label]) =>
-        h('button', { type: 'button', class: v === view ? 'on' : '', 'aria-pressed': String(v === view), onclick: () => { view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
+      metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, [['tiles', 'Tiles'], ['folders', 'Folders']].concat(RV.gmap && gardenOn() ? [['map', 'Map']] : []).map(([v, label]) =>
+        h('button', { type: 'button', class: v === view ? 'on' : '', 'aria-pressed': String(v === view), onclick: () => { if (v === view) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
+      // Map: everyone's plant where they live
+      if (view === 'map' && RV.gmap && gardenOn()) {
+        if (!mapView) { mapView = RV.gmap.view(all); listBox.replaceChildren(mapView.el); } else mapView.refresh();
+        return;
+      }
+      dropMap();
       if (!live.length) {
         listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
         return;
@@ -448,7 +471,6 @@
         }));
         return;
       }
-      const next = live.slice().sort(L.SORTS.oldest).slice(0, 3);
       listBox.replaceChildren(
         h('div', { class: 'tgrid' }, groups.map((g) => {
           const due = dueOf(g);
@@ -456,9 +478,7 @@
             h('span', { class: 'n' }, String(g.items.length)),
             h('span', { class: 'nm' }, g.name),
             h('span', { class: 'sub' + (due ? '' : ' calm') }, due ? due + ' due' : 'All recent'));
-        })),
-        h('div', { class: 'upn' }, h('span', null, 'Up next'), h('span', { class: 'muted' }, 'longest since a visit')),
-        listOf(next));
+        })));
     }
 
     function refresh() {
@@ -470,12 +490,13 @@
       filterBtn.replaceChildren(...[icon('sliders', 22), n ? h('span', { class: 'b' }, String(n)) : null].filter(Boolean));
       // a search looks through everyone; the filters only apply when not searching
       chipsBox.replaceChildren(...(searching ? [] : [
-        st.stage ? ['stage', L.stageOf(S.settings, st.stage).name] : null,
+        st.stage ? ['stage', (L.shownStages(S.settings).find((x) => x.key === st.stage) || L.shownStage(S.settings, st.stage)).name] : null,
         st.neighborhood ? ['neighborhood', st.neighborhood] : null,
         st.bestDay ? ['bestDay', 'Best day: ' + dayLabel(st.bestDay)] : null,
       ].filter(Boolean).map(([k, label]) => h('button', { class: 'achip', type: 'button', 'aria-label': 'Remove ' + label, onclick: () => { st[k] = ''; saveListState(st); shown = 100; refresh(); } }, label, icon('x', 14)))));
       chipsBox.hidden = !chipsBox.firstChild;
       if (!searching && !n) { paintTiles(all); return; }
+      dropMap();
       const filter = searching ? { stages: new Set(S.settings.stages.filter((x) => !x.closed).map((x) => x.id)), q: st.q } : Object.assign(listFilterFor(st), { q: '' });
       const rows = L.filterItems(all, filter, S.settings).sort(L.SORTS[st.sort] || L.SORTS.oldest);
       const total = all.filter((i) => i.att.state !== 'closed').length;
@@ -522,7 +543,7 @@
         chipsBox),
       metaEl, listBox);
     refresh();
-    return { title: lbl('rvs'), el, fab: true, update: refresh };
+    return { title: lbl('rvs'), el, fab: true, update: refresh, destroy: dropMap };
   }
 
   // ---------- RV detail ----------
@@ -539,22 +560,32 @@
     if (e.type === 'stage') {
       const to = L.stageOf(S.settings, e.to), from = L.stageOf(S.settings, e.from);
       if (to.closed) return 'Archived' + (e.reason ? ': ' + ((L.reasonOf(S.settings, e.reason) || {}).name || '') : '');
-      if (from.closed) return 'Restored to ' + to.name;
-      return 'Moved from ' + from.name + ' to ' + to.name;
+      if (from.closed) return 'Restored to ' + L.shownName(S.settings, to.id);
+      // inside RV the steps are the garden's: say how the plant grew, not the hidden stage
+      if (e.grew) return 'Grew into ' + G.growthName(S.settings, e.from, e.to);
+      const a = L.shownName(S.settings, from.id), b = L.shownName(S.settings, to.id);
+      return a === b ? 'Stage adjusted' : 'Moved from ' + a + ' to ' + b;
     }
     return e.type;
   }
 
+  // "Grows into a leafy plant" inside RV; "Becomes an RV" from Potential; "Grows into Bible Study" at the end.
+  function nextLabel(st, rv) {
+    const nm = st.nextName || '';
+    if (Object.values(G.FORM_NAMES).some((f) => f.toLowerCase() === nm.toLowerCase())) return 'Grows into a ' + nm.toLowerCase();
+    if (st.next && L.shownStage(S.settings, st.next).key === 'rv') return 'Becomes an ' + nm;
+    return 'Grows into ' + nm;
+  }
   // Record screen: big plant and stage name, the bar toward the next form, the growth path of five forms.
   function gardenHero(it, st) {
     const rv = it.rv;
     const big = plantOf(st, 'xl');
     P.leanOnTouch(big);
     if (P.pendingWater === rv.id) { P.pendingWater = null; setTimeout(() => P.water(big), 60); }
-    const stName = L.stageOf(S.settings, rv.stage).name;
+    const stName = L.shownName(S.settings, rv.stage);
     const bar = st.need && st.next
       ? h('div', { class: 'gbar' },
-        h('div', { class: 'gt' }, h('b', null, 'Grows into ' + st.nextName),
+        h('div', { class: 'gt' }, h('b', null, nextLabel(st, rv)),
           h('span', null, st.held ? icon('calendar', 14) : null, moreText(st))),
         h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need },
           Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' }))))

@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.19.3';
+  RV.VERSION = '2.19.4';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -38,7 +38,7 @@
     const SC = RV.screens, SS = RV.settingsScreens;
     switch (p[0]) {
       case undefined: case 'home': return SC.home();
-      case 'today': return SC.today(p[1]);
+      case 'today': if (!p[1]) { location.replace('#/home'); return SC.home(); } return SC.today(p[1]);
       case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
@@ -51,16 +51,17 @@
   }
   function activeTab() {
     const p = parts()[0];
-    return { undefined: 'home', home: 'home', today: 'today', insights: 'insights', rvs: 'rvs', rv: 'rvs', settings: 'settings' }[p] || 'home';
+    return { undefined: 'home', home: 'home', today: 'home', insights: 'insights', rvs: 'rvs', rv: 'rvs', settings: 'settings' }[p] || 'home';
   }
 
   function renderTabs() {
     const due = ST.items().filter((i) => i.att.state === 'overdue').length;
-    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', 'chart', 'Insights']];
+    // three tabs (v2.19.4): Home holds who to see today; the due count sits on Home
+    const tabs = [['home', '#/home', 'home', 'Home'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', 'chart', 'Insights']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
-        icon(ic, 22), label, id === 'today' && due ? h('span', { class: 'dot', 'aria-label': due + ' due for a visit' }, due > 99 ? '99+' : String(due)) : null)));
+        icon(ic, 22), label, id === 'home' && due ? h('span', { class: 'dot', 'aria-label': due + ' due for a visit' }, due > 99 ? '99+' : String(due)) : null)));
   }
 
 

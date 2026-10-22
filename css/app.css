@@ -1147,7 +1147,7 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 
 /* v2.18: the garden map */
 .gview { margin: 0 0 12px; }
-.gmap { position: relative; height: calc(100dvh - 230px - env(safe-area-inset-bottom)); min-height: 420px; border-radius: 24px; overflow: hidden; background: var(--surface2); }
+.gmap { position: relative; height: calc(100dvh - 300px - env(safe-area-inset-bottom)); min-height: 380px; border-radius: 24px; overflow: hidden; background: var(--surface2); }
 .gmap-canvas { position: absolute !important; inset: 0; width: 100%; height: 100%; }
 .gmap-chip { position: absolute; left: 12px; top: 12px; z-index: 5; border: 0; border-radius: 999px; height: 38px; padding: 0 14px; font: inherit; font-size: .85rem; font-weight: 600; background: var(--surface); color: var(--fg); box-shadow: 0 2px 8px rgba(14, 14, 16, .12); cursor: pointer; }
 .gmap-chip.on { background: var(--red); color: var(--accent-fg); }
@@ -1187,3 +1187,6 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .snap-row.study2 .sbtn { display: block; width: 100%; border: 0; background: none; padding: 4px 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; }
 .snap-row.study2 .sbtn.study-sub { font-size: .9rem; color: var(--muted); }
 .snap-row.study2 .sbtn:active { opacity: .6; }
+/* v2.19.4: Home holds who to see today, then Up next */
+.home-today { margin-top: 18px; }
+.upnext { margin-top: 8px; }

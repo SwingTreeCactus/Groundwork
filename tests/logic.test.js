@@ -329,7 +329,7 @@ console.log('insights');
 test('funnel counts per stage and archived', () => {
   const rvs = [mkRv({ stage: 'initial' }), mkRv({ stage: 'initial' }), mkRv({ stage: 'study' }), mkRv({ stage: 'archived', archiveReason: 'moved' })];
   const f = L.funnel(L.buildItems(rvs, [], S, NOW), S);
-  assert.deepEqual(f.rows.map((r) => r.count), [0, 2, 0, 0, 1]); assert.equal(f.archived, 1); assert.equal(f.total, 3);
+  assert.deepEqual(f.rows.map((r) => r.count), [0, 2, 1]); // Potential, RV, Bible Study assert.equal(f.archived, 1); assert.equal(f.total, 3);
 });
 test('effort points: every action counts, not-home too; advances and studies; imports excluded', () => {
   const rv = mkRv({ createdAt: daysAgo(5) }), imp = mkRv({ createdAt: daysAgo(5), imported: true }), old = mkRv({ createdAt: daysAgo(80) });

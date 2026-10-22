@@ -94,7 +94,7 @@
   const HOUSE = 'House to house';
   // New / Edit offer three stages: the first (Potential), RV, and the study stage. The garden moves people
   // through Initial Call, Cultivating and Return Visit on its own, so "RV" keeps whichever of those they are in
-  // (a new contact starts at Initial Call). Move to stage in the menu still lists every stage.
+  // (a new contact starts at Initial Call). Move to stage in the menu offers the same three.
   function stageChoices(cur) {
     const act = activeStages();
     const first = act[0], study = act.find((x) => x.study || x.id === 'study') || act[act.length - 1];
@@ -301,10 +301,10 @@
     const G = RV.garden, P = RV.plant;
     const on = S.settings.garden !== false && G && P;
     if (on && res.grew) {
-      const to = L.stageOf(S.settings, res.grew.to);
+      const name = G.growthName(S.settings, res.grew.from, res.grew.to);
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
-      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, to.name, rvId);
+      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, name, rvId);
     } else if (on) P.pendingWater = rvId;
     toast(msg, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
@@ -333,7 +333,8 @@
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
     const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
     // the stage is left alone unless changed here; the garden grows it on its own
-    const stage = select(stageOptions(), rv.stage);
+    const sc = stageChoices(rv.stage);
+    const stage = select(sc.options, sc.value);
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
     const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
@@ -352,8 +353,8 @@
     };
     const stageNote = h('div', { class: 'progress-note' });
     const updateNote = () => {
-      const cur = L.stageOf(S.settings, rv.stage).name, to = L.stageOf(S.settings, stage.value).name;
-      stageNote.textContent = stage.value === rv.stage ? 'Stays in ' + cur : 'Will move from ' + cur + ' to ' + to;
+      const cur = L.shownName(S.settings, rv.stage), to = L.shownName(S.settings, stage.value);
+      stageNote.textContent = stage.value === rv.stage ? 'Stays ' + (cur === lbl('rv') ? 'an ' + cur : 'in ' + cur) : 'Will move from ' + cur + ' to ' + to;
     };
     stage.addEventListener('change', updateNote);
     updateNote();
@@ -441,13 +442,14 @@
     const rv = ST.rvById(rvId);
     if (!rv) return;
     const closedStage = S.settings.stages.find((s) => s.closed);
-    const opts = activeStages().map((s) => ({ value: s.id, label: s.name }));
+    const sc = stageChoices(rv.stage);
+    const opts = sc.options.slice();
     if (closedStage && !L.isClosed(S.settings, rv)) opts.push({ value: closedStage.id, label: lbl('archive') + '…', sub: 'Choose a reason' });
-    const choice = await pick('Move to stage', opts, rv.stage);
+    const choice = await pick('Move to stage', opts, sc.value);
     if (choice === undefined || choice === rv.stage) return;
     if (closedStage && choice === closedStage.id) return archiveFlow(rvId);
     const res = ST.setStage(rvId, choice);
-    if (res) toast('Moved to ' + L.stageOf(S.settings, choice).name, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
+    if (res) toast('Moved to ' + L.shownName(S.settings, choice), { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
   async function archiveFlow(rvId) {
@@ -476,10 +478,10 @@
     const reason = L.reasonOf(S.settings, rv.archiveReason);
     if (reason && !reason.restorable) { toast('Records archived as "' + reason.name + '" cannot be restored.'); return; }
     const def = rv.prevStage && activeStages().some((s) => s.id === rv.prevStage) ? rv.prevStage : (S.settings.stages.find((s) => s.id === 'return') || activeStages()[0]).id;
-    const choice = await pick('Restore to which stage?', stageOptions(), def);
+    const choice = await pick('Restore to which stage?', stageChoices(def).options, stageChoices(def).value);
     if (!choice) return;
     const res = ST.setStage(rvId, choice, { text: 'Restored' });
-    if (res) toast('Restored to ' + L.stageOf(S.settings, choice).name, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
+    if (res) toast('Restored to ' + L.shownName(S.settings, choice), { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
   // Follow up on <date>: one action for the old Snooze and next-visit date. Quiet until then; holds the chain.

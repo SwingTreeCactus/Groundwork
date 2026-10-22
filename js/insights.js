@@ -67,7 +67,7 @@
       ? h('div', { class: 'list' }, recon.slice(0, 8).map((r) => rowFor(r.item, lbl('notHome') + ' ' + r.nh + ' times on ' + r.label, r.suggest)))
       : h('div', { class: 'muted small' }, 'Nothing right now');
     const stuckBox = stuck.length
-      ? h('div', { class: 'list' }, stuck.slice(0, 8).map((x) => rowFor(x.item, x.days + ' days in ' + x.stage.name)))
+      ? h('div', { class: 'list' }, stuck.slice(0, 8).map((x) => rowFor(x.item, x.days + ' days in ' + L.shownName(S.settings, x.stage.id))))
       : h('div', { class: 'muted small' }, 'Nobody right now');
 
     return {
@@ -144,7 +144,7 @@
       if (selEl) selEl.classList.remove('sel');
       if (selEl === el) { selEl = null; card.hidden = true; return; }
       selEl = el; el.classList.add('sel'); P.water(el);
-      const word = x.st.word || L.stageOf(S.settings, x.it.rv.stage).name;
+      const word = x.st.word || L.shownName(S.settings, x.it.rv.stage);
       card.replaceChildren(
         h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
           h('span', { class: x.st.word ? 'gword' : '' }, word)),
@@ -164,7 +164,7 @@
         const el = SC.plantOf(x.st, 'lg', { seed: seed++, bare: true });
         el.classList.add('gp');
         el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
-        el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.stageOf(S.settings, x.it.rv.stage).name));
+        el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.shownName(S.settings, x.it.rv.stage)));
         const left = 6 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 40 - 78;
         el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
         el.addEventListener('click', () => pick(el, x));
@@ -302,7 +302,7 @@
         r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Grew'),
           r.grew.slice(0, 4).map((g) => h('div', { class: 'rgrew' },
             h('div', { class: 'pair' }, mk(g.from, 4, g.rv.id), icon('right', 16), mk(g.to, 4, g.rv.id)),
-            h('div', null, h('b', null, g.rv.name), h('div', { class: 'acc' }, L.stageOf(S.settings, g.to).name)))),
+            h('div', null, h('b', null, g.rv.name), h('div', { class: 'acc' }, G.growthName(S.settings, g.from, g.to))))),
           r.grew.length > 4 ? h('div', { class: 'muted small' }, '+' + (r.grew.length - 4) + ' more') : null) : null,
         h('div', { class: 'rtwo' },
           h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
@@ -316,27 +316,10 @@
   }
   RV.gardenRecap = { maybeShow: maybeRecap };
 
-  // Garden or Map at the top of Insights (remembered on this device).
-  const VIEW_KEY = 'rvapp.insView';
-  // the map is the default; the garden scene is one tap away
-  const insView = () => { try { return localStorage.getItem(VIEW_KEY) === 'garden' ? 'garden' : 'map'; } catch (e) { return 'map'; } };
-  function viewSwitch(cur) {
-    const go = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } RV.app.render(); };
-    return h('div', { class: 'seg2 gview', role: 'tablist', 'aria-label': 'Garden or map' }, [['garden', 'Garden'], ['map', 'Map']].map(([v, label]) =>
-      h('button', { type: 'button', role: 'tab', class: v === cur ? 'on' : '', 'aria-selected': String(v === cur), onclick: () => { if (v !== cur) go(v); } }, label)));
-  }
-  function mapScreen() {
-    const mv = RV.gmap.view(ST.items());
-    return { title: 'Insights', el: h('div', null, viewSwitch('map'), mv.el), update: () => mv.refresh(), destroy: () => mv.destroy() };
-  }
-
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();
     if (sub === 'plot') return plotScreen(key || '-');
-    if (insView() === 'map' && RV.gmap) return mapScreen();
-    const g = garden();
-    g.el.prepend(viewSwitch('garden'));
-    return g;
+    return garden();
   }
   RV.screens.insights = insights;
 })(window);
