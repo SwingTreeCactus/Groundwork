@@ -389,7 +389,7 @@ with sync_playwright() as p:
     check(page.locator('.gscene .gsky').count() == 1 and page.locator('.gscene').get_attribute('data-t') in ('morning', 'day', 'dusk', 'night'), 'sky follows the clock')
     page.locator('.gscene .gp').first.click(); time.sleep(0.2)
     check(page.locator('.gcard').is_visible() and page.locator('.gcard a:has-text("Open")').count() == 1, 'tapping a plant shows its card')
-    check('Due this week' in page.locator('.ring').inner_text() and 'coming due by Saturday' in page.locator('.ring').inner_text(), 'ring says only RVs coming due count')
+    check('Due this week' in page.locator('.ring').inner_text(), 'ring: due this week')
     check(page.locator('.ctile.ms').count() == 1 and 'of 20' in page.locator('.ctile.ms').inner_text() and page.locator('.ctile.vs').count() == 1, 'v2.25: Milestones and Visitors tiles under the garden')
     check(page.locator('.tend .tg').count() == 3, "v2.25: today's tending has three goals")
     check(page.locator('details.fstats').count() == 1 and not page.locator('details.fstats').evaluate('d => d.open'), 'v2.25: field stats folded at the foot')

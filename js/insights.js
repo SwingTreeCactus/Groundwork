@@ -99,15 +99,14 @@
         h('div', null,
           h('div', { class: 't1' }, 'Due this week'),
           h('div', { class: 't2' }, r.left ? r.left + ' left to water' : 'All caught up'),
-          h('div', { class: 't3' }, 'Only ' + lbl('rvs') + ' coming due by Saturday count.'))),
+          )),
       h('div', { class: 'idiv' }),
       h('div', { class: 'streak' },
         h('div', { class: 'big' }, String(sk.streak)),
         h('div', null,
           h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', nobody past due'),
           h('div', { class: 't3' }, 'Best: ' + sk.best + (sk.freezes ? ' · ' + sk.freezes + (sk.freezes === 1 ? ' freeze' : ' freezes') + ' saved' : '')))),
-      h('div', { class: 'wks', role: 'img', 'aria-label': 'Last 12 weeks' }, sk.weeks.map((w) => h('i', { class: w }))),
-      h('div', { class: 'wkn' }, 'Last 12 weeks · pale dot = freeze used'));
+      h('div', { class: 'wks', role: 'img', 'aria-label': 'Last 12 weeks' }, sk.weeks.map((w) => h('i', { class: w }))));
   }
   // ---------- the garden scene ----------
   // One bed of soil per area, every plant standing in it, under a sky that follows the clock.
@@ -310,7 +309,7 @@
     const card = (kind, name) => {
       const o = seen[kind], got = !!(o && o.first);
       return h('a', { class: 'vcard' + (got ? '' : ' unfound'), href: '#/insights/visitors/' + kind, 'aria-label': got ? name : 'Not found yet' },
-        RV.critters.make(kind, { size: 72, sil: !got }), h('b', null, got ? name : 'Not found yet'), h('span', null, got ? seenLine(o) : ''));
+        RV.critters.make(kind, { size: 72, sil: !got }), got ? h('b', null, name) : null, got ? h('span', null, seenLine(o)) : null);
     };
     const found = G.VISITORS.filter(([k]) => seen[k] && seen[k].first).length, coats = G.COATS.filter(([c]) => seen[c] && seen[c].first).length;
     return {
@@ -319,7 +318,6 @@
         h('p', { class: 'vsum' }, found + ' of ' + G.VISITORS.length + ' found · ' + coats + ' of ' + G.COATS.length + ' rare coats'),
         h('div', { class: 'vgrid' }, G.VISITORS.map(([k, n]) => card(k, n))),
         h('h2', { class: 'vhead' }, 'Rare coats'),
-        h('p', { class: 'vsum' }, 'About 1 sighting in 20 comes in a rare coat.'),
         h('div', { class: 'vgrid' }, G.COATS.map(([c, n]) => card(c, n)))),
     };
   }
@@ -343,9 +341,9 @@
           coat ? h('span', { class: 'vcoat' }, 'Rare coat') : null,
           h('h1', null, title),
           got ? h('div', { class: 'vmood' }, mood) : null,
-          h('div', { class: 'vsub' }, got ? 'First seen ' + U.fmtDate(new Date(o.first)) + ' · ' + seenLine(o) : 'Its outline shows until you find it.'),
+          got ? h('div', { class: 'vsub' }, 'First seen ' + U.fmtDate(new Date(o.first)) + ' · ' + seenLine(o)) : null,
           h('section', { class: 'vwhy' }, h('div', { class: 'vk' }, got ? 'Why it came' : 'How to find it'),
-            h('div', null, got ? (coat ? 'A rare coat. About 1 ' + name.toLowerCase() + ' sighting in 20.' : why) : (coat ? 'Sometimes comes instead of the ' + name.toLowerCase() + '.' : hint))))),
+            h('div', null, got ? (coat ? 'About 1 ' + name.toLowerCase() + ' sighting in 20.' : why) : (coat ? 'Sometimes comes instead of the ' + name.toLowerCase() + '.' : hint))))),
     };
   }
   // the two collection tiles under the garden
