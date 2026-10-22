@@ -306,16 +306,18 @@
   const reduced = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // The growth moment: about 1.6 s, plays once, tap to skip, light haptic, then a chip naming the new stage.
-  function grow(fromForm, toForm, care, stageName, vid) {
+  // o.fromCare: the old plant's care (for the revive moment); o.label: the overlay's spoken label.
+  function grow(fromForm, toForm, care, stageName, vid, o) {
+    o = o || {};
     ensureStyle();
     return new Promise((resolve) => {
       const ov = document.createElement('div');
       ov.className = 'grow-ov';
       ov.setAttribute('role', 'status');
-      ov.setAttribute('aria-label', 'Grew into ' + stageName);
+      ov.setAttribute('aria-label', o.label || 'Grew into ' + stageName);
       const chip = document.createElement('div'); chip.className = 'gchip';
       const wrap = document.createElement('div'); wrap.className = 'stagewrap';
-      const out = make(fromForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid }); out.classList.add('joy');
+      const out = make(fromForm, o.fromCare || care, { size: 'xl', potless: true, still: true, seed: 0, vid }); if (!o.fromCare) out.classList.add('joy');
       const inn = make(toForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid }); inn.classList.add('joy');
       const lo = document.createElement('div'); lo.className = 'lay out'; lo.appendChild(out);
       const li = document.createElement('div'); li.className = 'lay in'; li.appendChild(inn);
@@ -341,6 +343,11 @@
     });
   }
 
+  // The revive moment: the same plant, drooping, perks back up to health (a visit after Thirsty or Wilting).
+  function revive(form, fromCare, toCare, vid) {
+    return grow(form, form, toCare, 'Revived', vid, { fromCare, label: 'Revived' });
+  }
+
   ensureStyle(); // tokens (--pl-*) are also used by bars and dots in app.css
-  RV.plant = { make, water, leanOnTouch, grow, css: CSS, variant, plantSvg, careOf };
+  RV.plant = { make, water, leanOnTouch, grow, revive, css: CSS, variant, plantSvg, careOf };
 })(window);

@@ -152,6 +152,12 @@
     return !!isNewest && !!String(rv.whatsNext || '').trim();
   }
 
+  const NH_HOLD = 14;
+  function nhHolds(entries, ref, window, now) {
+    const t0 = U.addDays(U.startOfDay(now), -NH_HOLD);
+    return live(entries).some((e) => e.type === 'nh' && ms(e.at) > ms(ref) && new Date(e.at) >= t0 &&
+      U.daysBetween(new Date(e.at), new Date(ref)) < 2 * window);
+  }
   // Care level 1..5 (0 = no plant). Recency sets the ceiling, quality fills up to it.
   function care(rv, entries, settings, now) {
     now = now || new Date();
@@ -163,7 +169,9 @@
     const fu = followUp(rv, settings, now);
     if (window != null && !(fu && fu.active)) {
       const days = U.daysBetween(now, new Date(ref));
-      if (days >= 2 * window) return CARE.WILTED;
+      // A Not Home within the last NH_HOLD days, made while the plant was still only Thirsty, keeps it from
+      // wilting: going counts, though only a conversation revives it.
+      if (days >= 2 * window && !nhHolds(entries, ref, window, now)) return CARE.WILTED;
       if (days >= window) return CARE.DRY;
     }
     if (!lastConv) return CARE.HEALTHY;
@@ -225,7 +233,9 @@
     if (due >= we) return null;
     const isNow = ws <= now && now < we;
     if (isNow && rv.snoozedUntil) { const f = U.parseDateStr(rv.snoozedUntil); if (f && f >= we) return null; }
-    const seen = convs.some((e) => { const t = new Date(e.at); return t >= ws && t < we; });
+    // a conversation or a Not Home in the week counts: going is what the ring measures
+    const inWeek = (e) => { const t = new Date(e.at); return t >= ws && t < we; };
+    const seen = convs.some(inWeek) || live(it.entries).some((e) => e.type === 'nh' && !e.imported && inWeek(e));
     return { seen };
   }
   function weekRing(items, settings, ws, now) {
@@ -344,10 +354,14 @@
       if (t >= ws && t < we) grew.push({ rv: it.rv, from: e.from, to: e.to, at: e.at });
     }
     grew.sort((a, b) => (a.at < b.at ? -1 : 1));
+    let revived = 0;
+    for (const it of items) for (const e of it.entries) {
+      if (e.type === 'visit' && e.revived && !e.deletedAt) { const t = new Date(e.at); if (t >= ws && t < we) revived++; }
+    }
     const lush = items.filter((it) => forItem(it, settings, now).care === CARE.LUSH).length;
     const sk = streak(items, settings, now, since);
     const earned = Object.keys(settings.exhibits || {}).filter((id) => { const t = new Date(settings.exhibits[id]); return t >= ws && t < we; });
-    return { key, ws, we, ring, grew, lush, streak: sk.streak, exhibits: earned };
+    return { key, ws, we, ring, grew, revived, lush, streak: sk.streak, exhibits: earned };
   }
   // Time of day for the garden sky.
   const skyOf = (d) => { const h = d.getHours(); return h < 6 || h >= 20 ? 'night' : h < 9 ? 'morning' : h < 17 ? 'day' : 'dusk'; };
@@ -362,7 +376,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, EXHIBITS,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

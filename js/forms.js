@@ -305,6 +305,10 @@
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
       await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, name, rvId);
+    } else if (on && res.revived) {
+      const it = ST.itemFor(rvId);
+      const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
+      await P.revive(res.revived.form, res.revived.from, care || 4, rvId);
     } else if (on) P.pendingWater = rvId;
     toast(msg, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }

@@ -190,6 +190,22 @@ test('week ring: due RVs seen this week; a later follow-up date takes one out', 
   const r = G.weekRing(items, S, ws, NOW);
   assert.deepEqual([r.due, r.seen, r.left], [2, 1, 1]);
 });
+test('week ring: a Not Home this week counts as seen (v2.21)', () => {
+  const ws = G.weekStart(NOW);
+  const a = rv({ stage: 'return' }), b = rv({ stage: 'return' });
+  const items = [it(a, [v(a, 40), nh(a, 1)]), it(b, [v(b, 40), nh(b, 10)])]; // b's NH was last week
+  const r = G.weekRing(items, S, ws, NOW);
+  assert.deepEqual([r.due, r.seen, r.left], [2, 1, 1]);
+});
+test('a recent Not Home keeps a thirsty plant from wilting; only a conversation revives it (v2.21)', () => {
+  const r = rv({ stage: 'return' });
+  assert.equal(G.care(r, [v(r, 65)], S, NOW), G.CARE.WILTED);
+  assert.equal(G.care(r, [v(r, 65), nh(r, 10)], S, NOW), G.CARE.DRY);    // tried at 55 days, still thirsty then
+  assert.equal(G.care(r, [v(r, 65), nh(r, 20)], S, NOW), G.CARE.WILTED); // hold over after 14 days
+  assert.equal(G.care(r, [v(r, 65), nh(r, 3)], S, NOW), G.CARE.WILTED);  // already wilting when tried
+  assert.equal(G.care(r, [v(r, 40), nh(r, 1)], S, NOW), G.CARE.DRY);     // a Not Home never revives
+  assert.equal(G.care(r, [v(r, 40), nh(r, 1), v(r, 0)], S, NOW), G.CARE.HEALTHY);
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due

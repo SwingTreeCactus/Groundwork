@@ -152,20 +152,24 @@
       card.hidden = false;
     };
     let seed = 0, flies = 0, birds = 0;
+    const ROW = 52; // depth between rows of a bed
     const beds = plots.map((p) => {
       // fit the bed to the screen: up to 4 plants a row, a little closer together on narrow phones
       const avail = Math.min(root.innerWidth || 390, 640) - 24 - 20 - 4;
-      const PER = 4, SP = Math.max(56, Math.min(80, Math.floor((avail - 12) / 4.5)));
+      // three a row on phones (four on wider screens), spaced so each plant reads on its own
+      const PER = avail >= 380 ? 4 : 3, SP = Math.max(64, Math.min(96, Math.floor((avail - 12) / (PER + 0.5))));
+      // tallest forms in the back rows, so nothing hides behind a tree; same height: thirstiest first
+      p.plants = p.plants.slice().sort((a, b) => b.st.form - a.st.form || a.st.care - b.st.care || U.cmp(a.it.rv.name, b.it.rv.name));
       const cols = Math.min(p.plants.length, PER);
       const rows = Math.ceil(p.plants.length / PER);
-      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * 40 + 26) + 'px' } });
+      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * ROW + 26) + 'px' } });
       p.plants.forEach((x, i) => {
         const r = Math.floor(i / PER), c = i % PER;
         const el = SC.plantOf(x.st, 'lg', { seed: seed++, bare: true });
         el.classList.add('gp');
         el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
         el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.shownName(S.settings, x.it.rv.stage)));
-        const left = 6 + c * SP + (r % 2 ? SP / 2 : 0), top = r * 40 - 78;
+        const left = 6 + c * SP + (r % 2 ? SP / 2 : 0), top = r * ROW - 78;
         el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
         el.addEventListener('click', () => pick(el, x));
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });
@@ -299,6 +303,8 @@
         h('div', { class: 'rdate' }, 'Week of ' + fmt(r.ws) + ' to ' + fmt(sat)),
         h('h1', null, 'Your week'),
         h('section', { class: 'rcard pop' }, ringBox, h('div', null, h('b', null, ring[0]), h('div', { class: 'muted' }, ring[1]))),
+        r.revived ? h('section', { class: 'rcard pop', style: { animationDelay: '.1s' } }, h('div', { class: 'n acc' }, String(r.revived)),
+          h('div', null, h('b', null, 'Revived'), h('div', { class: 'muted' }, (r.revived === 1 ? 'A plant' : 'Plants') + ' brought back from thirsty.'))) : null,
         r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Grew'),
           r.grew.slice(0, 4).map((g) => h('div', { class: 'rgrew' },
             h('div', { class: 'pair' }, mk(g.from, 4, g.rv.id), icon('right', 16), mk(g.to, 4, g.rv.id)),

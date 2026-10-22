@@ -220,8 +220,11 @@
     // garden: did this visit leave a plan, and did a follow-up date carry the chain past its gap?
     const G = RV.garden;
     const before = S.entries.filter((e) => e.rvId === rvId);
+    const careBefore = G && !o.imported ? G.care(rv, before, S.settings, new Date()) : 0;
     if (G && G.heldLink(rv, before, S.settings, entry.at)) entry.chainHeld = true;
     entry.plan = entry.study ? !!entry.nextStart : !!String(typeof o.whatsNext === 'string' ? o.whatsNext : rv.whatsNext || '').trim();
+    // revived: this conversation lifted a Thirsty or Wilting plant back to health
+    if (G && careBefore && careBefore <= G.CARE.DRY && G.care(rv, before.concat([entry]), S.settings, new Date()) >= G.CARE.HEALTHY) entry.revived = true;
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
@@ -244,6 +247,7 @@
     emit();
     return {
       entry, stageEntry: stageRes && stageRes.entry, grew,
+      revived: entry.revived ? { form: G.formOf(S.settings, rv.stage), from: careBefore } : null,
       undo: () => { if (stageRes) purgeEntry(stageRes.entry.id); purgeEntry(entry.id); restoreRvSnapshot(snap); emit(); },
     };
   }

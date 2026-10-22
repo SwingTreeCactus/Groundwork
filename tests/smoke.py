@@ -712,6 +712,21 @@ with sync_playwright() as p:
     check(page.locator('.toast:has-text("Visit saved")').count() == 1, 'toast with undo after the moment')
     g = ev('''(id) => { const it = RV.store.itemFor(id); const st = RV.garden.forItem(it, RV.store.S.settings, new Date()); return [st.care, st.have, st.need]; }''', gid)
     check(g == [4, 0, 2], 'healthy (a talk with a plan), next bar empty: %s' % g)
+    # v2.21: a visit to a thirsty plant revives it, with its own moment and a flag for the recap
+    tid = ev('''() => { const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
+      const r = ST.addRv({name: 'Thirsty Thyme', stage: 'cultivating', neighborhood: 'Thymeville', createdAt: d(90), stageChangedAt: d(90)});
+      ST.logVisit(r.id, {text: 'old talk', whatsNext: 'x', at: d(40)}); ST.logNH(r.id); return r.id; }''')
+    tc = ev('''(id) => RV.garden.forItem(RV.store.itemFor(id), RV.store.S.settings, new Date()).care''', tid)
+    check(tc == 2, 'a Not Home leaves a thirsty plant thirsty (%s)' % tc)
+    page.goto(URL + '#/rv/' + tid); page.wait_for_selector('.ghero')
+    page.click('button.btn.big:has-text("Record a visit")'); page.wait_for_selector('.sheet')
+    page.fill('.sheet textarea >> nth=0', 'Back again'); page.click('.sheet button:has-text("Save visit")')
+    page.wait_for_selector('.grow-ov[aria-label="Revived"]'); time.sleep(0.4); shot('31b-revive-moment')
+    page.wait_for_selector('.grow-ov .gchip span', timeout=4000)
+    check(page.locator('.grow-ov .gchip').inner_text() == 'Revived', 'revive moment says Revived')
+    page.click('.grow-ov'); page.wait_for_selector('.grow-ov', state='detached')
+    check(ev('''(id) => RV.store.S.entries.some(e => e.rvId === id && e.type === 'visit' && e.revived)''', tid), 'the reviving visit is flagged for the recap')
+    page.goto(URL + '#/rv/' + gid); page.wait_for_selector('.ghero')
     # a talk a day counts once
     ev('''(id) => RV.store.logVisit(id, {text: 'again', whatsNext: 'x'})''', gid)
     check(ev('RV.store.rvById("%s").stage' % gid) == 'initial', 'a second talk the same day does not count')

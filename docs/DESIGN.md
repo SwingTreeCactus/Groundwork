@@ -408,3 +408,12 @@ Mockups: canvas boards "Care as posture" and "Variety".
 - Map: a fresh start (open, reload) zooms in on where you are (zoom 15, the You dot) and falls back to all pins if location is off or slow; back from a contact, the map returns to the view you left (kept for the session). Locate still recentres.
 - Privacy page: the sign-in helper paragraph.
 - Tests: drive_folder 36 (silent reconnect, helper sign-in, renewal, refused key), worker 6 (node tests/worker.test.mjs), smoke 253 (view kept after a contact, opens on you), screens 42. VERSION 2.20.0, cache rvapp-v61.
+
+## 33. v2.21.0 going counts, reviving is a moment, a tidier garden (built 2026-10-22)
+
+From the gamification review (claude/gamification-review.md), items 1, 2 and the garden layout.
+- Weekly ring and streak: a Not Home in the week counts as seen, like a conversation (one try per person per week; `G.weekCheck`). Due dates still run from the last conversation, so someone not home stays due the next week. The streak is computed under the new rule for past weeks too (Mark: fine, single user).
+- Care: a Not Home holds a Thirsty plant from sliding to Wilting for 14 days (`G.NH_HOLD`), if it was made while the plant was still only Thirsty. A Not Home never revives; only a conversation does.
+- Revive moment: a live visit that lifts a Thirsty or Wilting plant to Healthy or better plays the growth-style moment with the same form (drooping plant to upright, chip "Revived"; `P.revive`). The visit is flagged `entry.revived`. Growth takes priority when both happen. The week's-end recap shows a Revived count.
+- Garden scene: each bed is ordered by height (fruit tree, shrub, leafy, sprout, seed; then thirstiest first), so tall plants stand in the back rows; three plants a row on phones (four on wider screens), spacing 64–96 px, rows 52 px deep (was 40).
+- Tests: garden 35, logic 48, smoke 256, screens 42, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.21.0, cache rvapp-v62.
