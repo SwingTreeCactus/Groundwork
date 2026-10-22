@@ -458,16 +458,21 @@
     return n;
   }
 
-  // ---------- rare visitors (v2.23; once a day from v2.24) ----------
-  // Decorative, earned by good care, rolled once per day so a visitor stays put all day.
-  // hum: a hummingbird by one flowering shrub doing well (35%); rabbit: at one named bed where nobody is
-  // thirsty (30%); fox: on the hill at dusk after a week with the ring closed (50%).
+  // ---------- rare visitors (v2.23; once a day from v2.24; rebalanced v2.24.2) ----------
+  // Decorative, rolled once per day so a visitor stays put all day. Conditions reward recent effort, not a
+  // perfect garden; rarity comes from the odds. The first time a visitor's condition is met it always comes,
+  // so everyone meets each one early (settings.visitors[k].first not set yet).
+  // hum: by a plant (leafy and up) that is Healthy or Lush (15%).
+  // rabbit: at an area where you talked with or knocked on someone in the last 3 days, with most plants
+  //   there not thirsty (15%).
+  // fox: in the evening (5 pm to midnight) after a week you went out on 2 or more days (25%).
   // root.__RV_SURPRISE = 1 (always) or 0 (never) is a test hook.
   const VISITORS = [
-    ['hum', 'Hummingbird', 'Hummingbirds visit flowering shrubs that are doing well.'],
-    ['rabbit', 'Rabbit', 'Rabbits come to a bed where nobody is thirsty.'],
-    ['fox', 'Fox', 'Foxes come out at dusk after a week with every due RV seen.'],
+    ['hum', 'Hummingbird', 'Hummingbirds visit plants that are doing well.'],
+    ['rabbit', 'Rabbit', 'Rabbits come to an area you visited in the last few days.'],
+    ['fox', 'Fox', 'Foxes come out in the evening after a week you went out on two or more days.'],
   ];
+  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25 };
   function dayRoll(day, key) {
     const f = root.__RV_SURPRISE;
     if (f === 1) return 0; if (f === 0) return 1;
@@ -477,15 +482,26 @@
   }
   function visitors(items, settings, now) {
     now = now || new Date();
-    const day = U.toDateStr(now);
+    const day = U.toDateStr(now), seen = settings.visitors || {};
+    const comes = (k) => (root.__RV_SURPRISE === 0 ? false : !(seen[k] && seen[k].first)) || dayRoll(day, k) < VISIT_ODDS[k];
     const live = items.filter((it) => !L.isClosed(settings, it.rv)).map((it) => ({ it, st: forItem(it, settings, now) })).filter((x) => x.st.form);
     const out = { hum: null, rabbit: null, fox: false };
-    const shrubs = live.filter((x) => x.st.form === 4 && x.st.care >= CARE.HEALTHY).sort((a, b) => U.cmp(a.it.rv.id, b.it.rv.id));
-    if (shrubs.length && dayRoll(day, 'hum') < 0.35) out.hum = shrubs[Math.floor(dayRoll(day, 'hum-who') * shrubs.length) % shrubs.length].it.rv.id;
-    const beds = plots(live.map((x) => x.it), settings, now).filter((p) => p.name && p.plants.length >= 2 && !p.wilting && !p.thirsty);
-    if (beds.length && dayRoll(day, 'rabbit') < 0.3) out.rabbit = beds[Math.floor(dayRoll(day, 'rabbit-where') * beds.length) % beds.length].name;
-    const last = weekRing(items, settings, U.addDays(weekStart(now), -7), now);
-    if (last.due > 0 && last.perfect && skyOf(now) === 'dusk' && dayRoll(day, 'fox') < 0.5) out.fox = true;
+    const good = live.filter((x) => x.st.form >= 3 && x.st.care >= CARE.HEALTHY).sort((a, b) => U.cmp(a.it.rv.id, b.it.rv.id));
+    if (good.length && comes('hum')) out.hum = good[Math.floor(dayRoll(day, 'hum-who') * good.length) % good.length].it.rv.id;
+    // areas with a live Not Home or visit in the last 3 days, most plants not thirsty
+    const t3 = U.addDays(U.startOfDay(now), -3).getTime();
+    const recent = new Set(live.filter((x) => x.it.entries.some((e) => !e.deletedAt && !e.imported && (e.type === 'nh' || e.type === 'visit') && ms(e.at) >= t3 && ms(e.at) <= now.getTime()))
+      .map((x) => (x.it.rv.neighborhood || '').trim()).filter(Boolean));
+    const beds = plots(live.map((x) => x.it), settings, now).filter((p) => p.name && recent.has(p.name) && (p.wilting + p.thirsty) * 2 < p.plants.length);
+    if (beds.length && comes('rabbit')) out.rabbit = beds[Math.floor(dayRoll(day, 'rabbit-where') * beds.length) % beds.length].name;
+    // went out on two or more days last week (Sunday to Saturday)
+    const ws = U.addDays(weekStart(now), -7).getTime(), we = weekStart(now).getTime();
+    const days = new Set();
+    for (const it of items) for (const e of it.entries) {
+      if (e.deletedAt || e.imported || (e.type !== 'nh' && e.type !== 'visit')) continue;
+      const t = ms(e.at); if (t >= ws && t < we) days.add(U.toDateStr(new Date(t)));
+    }
+    if (days.size >= 2 && now.getHours() >= 17 && comes('fox')) out.fox = true;
     return out;
   }
   // Present visitors not yet seen today (for the dot on the garden tab).
