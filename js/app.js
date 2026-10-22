@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.19.2';
+  RV.VERSION = '2.19.3';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -56,7 +56,7 @@
 
   function renderTabs() {
     const due = ST.items().filter((i) => i.att.state === 'overdue').length;
-    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', UI.lbl('rvs')], ['insights', '#/insights', 'chart', 'Insights']];
+    const tabs = [['home', '#/home', 'home', 'Home'], ['today', '#/today', 'calendar', UI.lbl('today')], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', 'chart', 'Insights']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },

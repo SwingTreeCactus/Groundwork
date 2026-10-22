@@ -92,6 +92,20 @@
   // Filled in for a new contact: Initial Call, House to house, today as a best day, the running campaign.
   // Edit: everything shown.
   const HOUSE = 'House to house';
+  // New / Edit offer three stages: the first (Potential), RV, and the study stage. The garden moves people
+  // through Initial Call, Cultivating and Return Visit on its own, so "RV" keeps whichever of those they are in
+  // (a new contact starts at Initial Call). Move to stage in the menu still lists every stage.
+  function stageChoices(cur) {
+    const act = activeStages();
+    const first = act[0], study = act.find((x) => x.study || x.id === 'study') || act[act.length - 1];
+    const middle = act.filter((x) => x !== first && x !== study);
+    const rvVal = middle.some((x) => x.id === cur) ? cur : (middle[0] || first).id;
+    const options = [{ value: first.id, label: first.name }];
+    if (middle.length) options.push({ value: rvVal, label: lbl('rv') });
+    if (study !== first) options.push({ value: study.id, label: study.name });
+    const value = cur === first.id || cur === study.id ? cur : rvVal;
+    return { options, value };
+  }
   function rvForm(existing, opts) {
     opts = opts || {};
     const rv = existing || {};
@@ -106,7 +120,7 @@
       phone: h('input', { type: 'tel', value: rv.phone || '', autocomplete: 'off' }),
       howMet: select([{ value: '', label: '(not set)' }].concat(
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), howMetDefault),
-      stage: select(stageOptions(), rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id),
+      stage: (() => { const sc = stageChoices(rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id); return select(sc.options, sc.value); })(),
       publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
       progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' }),
       nextStart: h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' }),
