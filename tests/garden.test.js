@@ -272,6 +272,32 @@ test('visitors: rolled once a day; conditions reward recent effort; the first si
   assert.deepEqual(G.visitors(items, s2, NOW), { hum: null, rabbit: null, fox: false });
   global.__RV_SURPRISE = undefined;
 });
+test("today's tending: water the thirsty, leave a plan, grow one that's close (v2.25)", () => {
+  const at = (h) => new Date(2026, 9, 21, h, 0).toISOString();
+  const a = rv({ name: 'Ann Dry', stage: 'return' }), b = rv({ name: 'Bo Dry', stage: 'return' });
+  const c = rv({ name: 'Cy Close', stage: 'cultivating', stageChangedAt: ago(60) });
+  const base = [it(a, [v(a, 40)]), it(b, [v(b, 45)]), it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true })])];
+  let t = G.tending(base, S, NOW);
+  assert.deepEqual(t.goals.map((g) => [g.key, g.have, g.need]), [['water', 0, 2], ['plan', 0, 1], ['grow', 0, 1]]);
+  assert.equal(t.goals[2].label, 'Grow Cy: one more talk');
+  // a knock on Ann and a planned talk with Bo; Cy grows
+  const later = [it(a, [v(a, 40), { id: 'n1', rvId: a.id, type: 'nh', at: at(9) }]), it(b, [v(b, 45), { id: 'v1', rvId: b.id, type: 'visit', at: at(10), plan: true }]),
+    it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true }), { id: 'v2', rvId: c.id, type: 'visit', at: at(11), plan: false }, { id: 's1', rvId: c.id, type: 'stage', grew: true, from: 'cultivating', to: 'return', at: at(11) }])];
+  t = G.tending(later, S, NOW);
+  assert.ok(t.all, JSON.stringify(t.goals));
+  // nobody thirsty and nobody close: talk with 2, knock on 3 doors
+  const d = rv({ stage: 'return' });
+  t = G.tending([it(d, [v(d, 3)])], S, NOW);
+  assert.deepEqual(t.goals.map((g) => g.key), ['talk', 'plan', 'doors']);
+});
+test('next milestones: the lowest open tier of each family, closest first (v2.25)', () => {
+  const counts = { visits: 7, firsts: 1, plans: 0, revived: 0, studies: 0, best: 0, rounds: 0, area: 0 };
+  const n = G.nextMilestones(counts, { rv10: false }, 3);
+  assert.equal(n[0].id, 'rv10'); assert.equal(n[0].have, 7); assert.equal(n[0].need, 10);
+  const n2 = G.nextMilestones(Object.assign({}, counts, { visits: 12 }), { rv10: '2026-10-01' }, 5);
+  assert.ok(n2.some((m) => m.id === 'rv25' && m.have === 12));
+  assert.ok(!n2.some((m) => m.id === 'rv10'));
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due

@@ -348,7 +348,18 @@
     ['first-study', '1st', 'First study', 'study', 1], ['studies3', '3', 'Three studies', 'study', 2], ['studies5', '5', 'Five studies', 'study', 3],
     ['area', 'All', 'Area all watered', 'area', 1],
   ];
-  function exhibitsEarned(items, settings, now, since, best) {
+  // What each milestone counts and how many it needs (v2.25: shown as progress toward the next ones).
+  const MILESTONE_NEED = {
+    'first-plan': ['plans', 1], round1: ['rounds', 1],
+    ring1: ['best', 1], streak4: ['best', 4], streak12: ['best', 12], streak26: ['best', 26], streak52: ['best', 52],
+    revive1: ['revived', 1], revive5: ['revived', 5], revive25: ['revived', 25],
+    rv10: ['visits', 10], rv25: ['visits', 25], rv50: ['visits', 50], rv100: ['visits', 100],
+    first10: ['firsts', 10], first25: ['firsts', 25],
+    'first-study': ['studies', 1], studies3: ['studies', 3], studies5: ['studies', 5],
+    area: ['area', 1],
+  };
+  // The running counts behind the milestones, from live activity since the garden started (nothing backfilled).
+  function milestoneCounts(items, settings, now, since, best) {
     const t0 = since ? new Date(since) : new Date(0);
     const after = (e) => !e.imported && !e.deletedAt && new Date(e.at) >= t0;
     let visits = 0, firsts = 0, plans = 0, revived = 0;
@@ -363,15 +374,64 @@
       if (firstConv && after(firstConv)) firsts++;
     }
     const pl = plots(items, settings, now);
-    return {
-      'first-plan': plans >= 1, round1: !!settings.roundSeen,
-      ring1: best >= 1, streak4: best >= 4, streak12: best >= 12, streak26: best >= 26, streak52: best >= 52,
-      revive1: revived >= 1, revive5: revived >= 5, revive25: revived >= 25,
-      rv10: visits >= 10, rv25: visits >= 25, rv50: visits >= 50, rv100: visits >= 100,
-      first10: firsts >= 10, first25: firsts >= 25,
-      'first-study': studied.size >= 1, studies3: studied.size >= 3, studies5: studied.size >= 5,
-      area: pl.some((p) => p.name && p.plants.length >= 3 && !p.wilting && !p.thirsty),
-    };
+    return { visits, firsts, plans, revived, studies: studied.size, best: best || 0, rounds: settings.roundSeen ? 1 : 0,
+      area: pl.some((p) => p.name && p.plants.length >= 3 && !p.wilting && !p.thirsty) ? 1 : 0 };
+  }
+  function exhibitsEarned(items, settings, now, since, best) {
+    const c = milestoneCounts(items, settings, now, since, best);
+    const out = {};
+    for (const [id, [k, need]] of Object.entries(MILESTONE_NEED)) out[id] = c[k] >= need;
+    return out;
+  }
+  // The nearest milestones not yet earned: the lowest open tier of each family, closest first.
+  function nextMilestones(counts, earned, n) {
+    const fam = new Map();
+    for (const [id, , name, f, tier] of EXHIBITS) {
+      if (earned[id]) continue;
+      if (!fam.has(f) || fam.get(f).tier > tier) {
+        const [k, need] = MILESTONE_NEED[id];
+        fam.set(f, { id, name, fam: f, tier, have: Math.min(need, counts[k] || 0), need });
+      }
+    }
+    return Array.from(fam.values()).sort((a, b) => b.have / b.need - a.have / a.need || a.need - b.need).slice(0, n || 3);
+  }
+
+  // ---------- today's tending (v2.25) ----------
+  // Three small goals for today from the garden as it stood this morning; each fills as the day's logs come in.
+  // water: thirsty or wilting plants this morning that got a talk or a knock today (up to 2; else talk with 2 people);
+  // plan: a visit today that left a plan; grow: one plant that was a step from its next form grows today
+  // (else knock on 3 doors). Imports never count.
+  function tending(items, settings, now) {
+    now = now || new Date();
+    const sod = U.startOfDay(now), t0 = sod.getTime(), t1 = now.getTime();
+    const today = (e) => !e.deletedAt && !e.imported && ms(e.at) >= t0 && ms(e.at) <= t1;
+    const live = items.filter((it) => !L.isClosed(settings, it.rv) && !L.isDNC(settings, it.rv) && formOf(settings, it.rv.stage));
+    const touched = new Set(), talked = new Set();
+    let planned = 0;
+    for (const it of live) for (const e of it.entries) {
+      if (!today(e)) continue;
+      if (e.type === 'nh' || e.type === 'visit') touched.add(it.rv.id);
+      if (e.type === 'visit') { talked.add(it.rv.id); if (e.plan === true || (e.study && e.nextStart)) planned++; }
+    }
+    const goals = [];
+    const morning = live.map((it) => {
+      const before = it.entries.filter((e) => ms(e.at) < t0);
+      return { it, care: care(it.rv, before, settings, sod), p: progress(it.rv, before, settings, sod) };
+    });
+    const dry = morning.filter((x) => x.care && x.care <= CARE.DRY);
+    if (dry.length) {
+      const need = Math.min(2, dry.length);
+      goals.push({ key: 'water', label: need === 1 ? 'Water a thirsty plant' : 'Water 2 thirsty plants', need, have: Math.min(need, dry.filter((x) => touched.has(x.it.rv.id)).length) });
+    } else goals.push({ key: 'talk', label: 'Talk with 2 people', need: 2, have: Math.min(2, talked.size) });
+    goals.push({ key: 'plan', label: 'Leave a plan on a visit', need: 1, have: planned ? 1 : 0 });
+    const near = morning.filter((x) => x.p.need && x.p.next && !x.p.broken && x.p.need - x.p.have === 1).sort((a, b) => U.cmp(a.it.rv.name, b.it.rv.name));
+    if (near.length) {
+      const x = near[0], first = String(x.it.rv.name || '').split(' ')[0];
+      const grew = x.it.entries.some((e) => today(e) && e.type === 'stage' && e.grew);
+      goals.push({ key: 'grow', label: 'Grow ' + first + ': ' + (x.p.kind === 'study' ? 'one more study' : 'one more talk'), need: 1, have: grew ? 1 : 0, rvId: x.it.rv.id });
+    } else goals.push({ key: 'doors', label: 'Knock on 3 doors', need: 3, have: Math.min(3, touched.size) });
+    goals.forEach((g) => { g.done = g.have >= g.need; });
+    return { goals, all: goals.every((g) => g.done) };
   }
 
   // Week's-end recap: the Sunday-to-Saturday week that just ended, once (seen = that week's start as
@@ -523,7 +583,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, VISITORS, visitors, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, visitors, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

@@ -181,7 +181,7 @@
       const day = U.toDateStr(now);
       setTimeout(() => ST.saveSettings((s) => {
         s.visitors = Object.assign({}, s.visitors || {});
-        for (const [k] of G.VISITORS) if (vis[k]) s.visitors[k] = { first: (s.visitors[k] && s.visitors[k].first) || now.toISOString(), seen: day };
+        for (const [k] of G.VISITORS) if (vis[k] && fresh.has(k)) { const o = s.visitors[k] || {}; if (o.seen === day) continue; s.visitors[k] = { first: o.first || now.toISOString(), seen: day, days: (o.days || (o.first ? 1 : 0)) + 1 }; }
       }), 1600);
     }
     let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0;
@@ -226,7 +226,9 @@
         opt.campaign ? svgEl('<svg class="gbunt" aria-hidden="true" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="M0 4 Q100 22 200 4" class="bl"/>' +
           Array.from({ length: 11 }, (_, i) => { const x = 10 + i * 18, y = 4 + 18 * (1 - Math.pow((x - 100) / 100, 2)) * 0.5; return '<path d="M' + (x - 5) + ' ' + y.toFixed(1) + ' L' + (x + 5) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 10).toFixed(1) + ' Z" class="b' + (i % 3) + '"/>'; }).join('') + '</svg>') : null,
         vis.fox ? visEl(FOX, 'fox', 'gfox', '') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
-      card);
+      card,
+      // v2.25: a light rain over the beds when today's tending is all done (once a day)
+      opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
     // v2.24: the card closes on a tap anywhere else in the garden, or when the page scrolls
     scene.addEventListener('click', (e) => { if (!card.hidden && !e.target.closest('.gp, .gvis, .gcard')) unpick(); });
     let y0 = null;
@@ -273,28 +275,86 @@
     return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)));
   }
   const VART = { hum: () => HUM, rabbit: () => RABBIT, fox: () => FOX };
+  // v2.25: Milestones (formerly Exhibits) and Visitors are separate pages
   function exhibitSheet(earned) {
-    const seen = S.settings.visitors || {};
-    UI.sheet('Exhibits', (close) => h('div', null,
+    UI.sheet('Milestones', (close) => h('div', null,
       h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name, fam]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
         exhibitObj(fam, name, !earned[id]),
         h('b', null, name),
         h('span', null, earned[id] ? U.fmtDate(new Date(earned[id])) : 'Not yet')))),
-      // v2.24: rare visitors, with the day each was first seen; unseen ones as silhouettes
-      h('h3', { class: 'exhead' }, 'Visitors'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+  }
+  // Rare visitors met so far, like a field guide: first seen, days visited, why they come; unmet ones as silhouettes.
+  function visitorSheet() {
+    const seen = S.settings.visitors || {};
+    UI.sheet('Visitors', (close) => h('div', null,
       h('div', { class: 'exgrid' }, G.VISITORS.map(([k, name, why]) => {
         const got = seen[k] && seen[k].first;
         const art = h('div', { class: 'gobj vobj v-' + k + (got ? '' : ' locked'), role: 'img', 'aria-label': got ? name : 'Not seen yet' });
         art.innerHTML = VART[k]();
+        const days = got ? seen[k].days || 1 : 0;
         return h('div', { class: 'exitem' + (got ? '' : ' locked') }, art, h('b', null, got ? name : '?'),
-          h('span', null, got ? 'First seen ' + U.fmtDate(new Date(seen[k].first)) : 'Not seen yet'), got ? h('span', { class: 'why' }, why) : null);
+          h('span', null, got ? 'First seen ' + U.fmtDate(new Date(seen[k].first)) + (days > 1 ? ' · ' + days + ' days' : '') : 'Not seen yet'),
+          got ? h('span', { class: 'why' }, why) : null);
       })),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
   }
-  function exhibitCard(earned) {
+  // the two collection tiles under the garden
+  function collectTiles(earned) {
     const n = G.EXHIBITS.filter(([id]) => earned[id]).length;
-    return h('button', { class: 'exrow', type: 'button', onclick: () => exhibitSheet(earned) },
-      h('span', { class: 'n' }, n + ' of ' + G.EXHIBITS.length), h('span', { class: 't' }, 'Exhibits in the garden'), icon('right', 18));
+    const seen = S.settings.visitors || {}, v = G.VISITORS.filter(([k]) => seen[k] && seen[k].first).length;
+    const tile = (cls, title, count, art, on) => {
+      const a = h('div', { class: 'ctart', 'aria-hidden': 'true' }); a.innerHTML = art;
+      return h('button', { class: 'ctile ' + cls, type: 'button', onclick: on }, a, h('b', null, title), h('span', null, count));
+    };
+    return h('div', { class: 'ctiles' },
+      tile('ms', 'Milestones', n + ' of ' + G.EXHIBITS.length, EXH_ART.rv, () => exhibitSheet(earned)),
+      tile('vs', 'Visitors', v + ' of ' + G.VISITORS.length, HUM, visitorSheet));
+  }
+  // the nearest milestones, with how close they are
+  function nextCard(items, earned, sk, now) {
+    const c = G.milestoneCounts(items, S.settings, now, S.settings.gardenSince, sk.best);
+    const next = G.nextMilestones(c, earned, 3);
+    if (!next.length) return null;
+    return h('section', { class: 'icard nextm' }, h('h2', null, 'Next milestones'),
+      next.map((m) => h('div', { class: 'nm' }, exhibitObj(m.fam, m.name, true),
+        h('div', { class: 'nmt' }, h('b', null, m.name),
+          m.need > 1 ? h('span', { class: 'mbar' }, h('i', { class: 'on', style: { width: Math.round((m.have / m.need) * 100) + '%' } })) : null,
+          h('span', { class: 'muted small' }, m.need > 1 ? m.have + ' of ' + m.need : m.fam === 'area' ? 'An area with 3 or more plants, none thirsty' : 'Not yet')))));
+  }
+  // today's three small goals
+  function tendCard(t) {
+    return h('section', { class: 'icard tend' + (t.all ? ' all' : '') },
+      h('div', { class: 'ih' }, h('h2', null, "Today's tending"), t.all ? h('span', { class: 'acc small' }, 'All done') : null),
+      t.goals.map((g) => {
+        const row = h(g.rvId ? 'a' : 'div', { class: 'tg' + (g.done ? ' done' : ''), href: g.rvId ? '#/rv/' + g.rvId : null },
+          h('span', { class: 'tck', 'aria-hidden': 'true' }, g.done ? icon('check', 14) : null),
+          h('div', { class: 'tgt' }, h('span', null, g.label),
+            g.need > 1 ? h('span', { class: 'tgb' }, Array.from({ length: g.need }, (_, i) => h('i', { class: i < g.have ? 'on' : '' }))) : null),
+          g.need > 1 ? h('span', { class: 'muted small' }, g.have + '/' + g.need) : null);
+        row.setAttribute('aria-label', g.label + (g.done ? ', done' : ', ' + g.have + ' of ' + g.need));
+        return row;
+      }));
+  }
+  // How the garden works: one screen, mostly pictures.
+  function guideSheet() {
+    const pl = (f, c, label, sub) => h('div', { class: 'gdp' }, P.make(f, c, { size: 'sm', still: true, vid: 'guide' }), h('b', null, label), sub ? h('span', null, sub) : null);
+    const line = (ic, text) => h('div', { class: 'gdl' }, h('span', { class: 'gdi' }, icon(ic, 18)), h('span', null, text));
+    UI.sheet('How your garden works', (close) => h('div', { class: 'guide' },
+      h('p', { class: 'gdlead' }, 'Everyone you visit is a plant. Your visits grow it.'),
+      h('h3', null, 'It grows'),
+      h('div', { class: 'gdrow' }, pl(1, 4, L.shownName(S.settings, (S.settings.stages.find((x) => !x.closed) || {}).id) || 'Potential'), pl(2, 4, 'Sprout'), pl(3, 4, 'Leafy'), pl(4, 4, 'Shrub'), pl(5, 4, 'Study')),
+      h('p', { class: 'muted small' }, 'Each talk grows it. Keep talks less than a month apart. A study grows a tree.'),
+      h('h3', null, 'It shows how it is doing'),
+      h('div', { class: 'gdrow four' }, pl(3, 5, 'Lush'), pl(3, 4, 'Healthy'), pl(3, 2, 'Thirsty'), pl(3, 1, 'Wilting')),
+      line('sparkle', 'Leave a plan (Discuss next time) on each visit and it grows lush.'),
+      line('clock', 'It goes thirsty when a visit is due. A talk revives it; a knock keeps it from wilting.'),
+      line('check', 'Nothing ever dies, and nothing you have grown is lost.'),
+      h('h3', null, 'Your week and your garden'),
+      line('calendar', 'Visit or knock on everyone who comes due each week to keep your streak.'),
+      line('flag', 'Milestones stand in your garden as you reach them.'),
+      line('sun', 'Rare visitors come when you have been out. Tap one to learn why it came.'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Got it'))));
   }
 
   function goingCard(items, now) {
@@ -327,8 +387,15 @@
     }
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now) }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
-    return { title: 'My garden', el: h('div', null, plots.length ? gardenScene(plots, now, earned, opt) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
+    const tend = G.tending(items, S.settings, now);
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now) }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    if (opt.rain && !(root.__RV_GARDEN_OPT && root.__RV_GARDEN_OPT.rain)) setTimeout(() => ST.saveSettings((s) => { s.tendDone = U.toDateStr(now); }), 3200);
+    // v2.25: the game first (how it works, this week, today, next, collections); field stats folded at the foot
+    const stats = h('details', { class: 'fstats' }, h('summary', null, icon('down', 18), 'Field stats'), goingCard(items, now), keep);
+    return { title: 'My garden', el: h('div', null,
+      plots.length ? gardenScene(plots, now, earned, opt) : null,
+      h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'),
+      ringCard(sk), tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.
@@ -386,7 +453,7 @@
         h('div', { class: 'rtwo' },
           h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
           h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', nobody past due'))),
-        r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New exhibit'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
+        r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New milestone'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
         h('div', { class: 'grow1' }),
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Close'),
