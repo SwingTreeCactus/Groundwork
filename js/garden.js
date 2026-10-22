@@ -458,6 +458,42 @@
     return n;
   }
 
+  // ---------- rare visitors (v2.23; once a day from v2.24) ----------
+  // Decorative, earned by good care, rolled once per day so a visitor stays put all day.
+  // hum: a hummingbird by one flowering shrub doing well (35%); rabbit: at one named bed where nobody is
+  // thirsty (30%); fox: on the hill at dusk after a week with the ring closed (50%).
+  // root.__RV_SURPRISE = 1 (always) or 0 (never) is a test hook.
+  const VISITORS = [
+    ['hum', 'Hummingbird', 'Hummingbirds visit flowering shrubs that are doing well.'],
+    ['rabbit', 'Rabbit', 'Rabbits come to a bed where nobody is thirsty.'],
+    ['fox', 'Fox', 'Foxes come out at dusk after a week with every due RV seen.'],
+  ];
+  function dayRoll(day, key) {
+    const f = root.__RV_SURPRISE;
+    if (f === 1) return 0; if (f === 0) return 1;
+    let n = 2166136261; const s = day + '|' + key;
+    for (let i = 0; i < s.length; i++) { n ^= s.charCodeAt(i); n = Math.imul(n, 16777619) >>> 0; }
+    return (n % 10000) / 10000;
+  }
+  function visitors(items, settings, now) {
+    now = now || new Date();
+    const day = U.toDateStr(now);
+    const live = items.filter((it) => !L.isClosed(settings, it.rv)).map((it) => ({ it, st: forItem(it, settings, now) })).filter((x) => x.st.form);
+    const out = { hum: null, rabbit: null, fox: false };
+    const shrubs = live.filter((x) => x.st.form === 4 && x.st.care >= CARE.HEALTHY).sort((a, b) => U.cmp(a.it.rv.id, b.it.rv.id));
+    if (shrubs.length && dayRoll(day, 'hum') < 0.35) out.hum = shrubs[Math.floor(dayRoll(day, 'hum-who') * shrubs.length) % shrubs.length].it.rv.id;
+    const beds = plots(live.map((x) => x.it), settings, now).filter((p) => p.name && p.plants.length >= 2 && !p.wilting && !p.thirsty);
+    if (beds.length && dayRoll(day, 'rabbit') < 0.3) out.rabbit = beds[Math.floor(dayRoll(day, 'rabbit-where') * beds.length) % beds.length].name;
+    const last = weekRing(items, settings, U.addDays(weekStart(now), -7), now);
+    if (last.due > 0 && last.perfect && skyOf(now) === 'dusk' && dayRoll(day, 'fox') < 0.5) out.fox = true;
+    return out;
+  }
+  // Present visitors not yet seen today (for the dot on the garden tab).
+  function newVisitors(v, settings, now) {
+    const day = U.toDateStr(now || new Date()), seen = settings.visitors || {};
+    return VISITORS.map(([k]) => k).filter((k) => v[k] && (!seen[k] || seen[k].seen !== day));
+  }
+
   // Time of day for the garden sky.
   const skyOf = (d) => { const h = d.getHours(); return h < 6 || h >= 20 ? 'night' : h < 9 ? 'morning' : h < 17 ? 'day' : 'dusk'; };
 
@@ -471,7 +507,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, VISITORS, visitors, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

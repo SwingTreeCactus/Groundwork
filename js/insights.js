@@ -118,8 +118,6 @@
   const HUM = '<svg aria-hidden="true" viewBox="0 0 26 16"><g class="hw"><ellipse cx="11" cy="4" rx="6" ry="2.4" transform="rotate(-24 11 4)" class="hwing"/></g><ellipse cx="11" cy="9" rx="6" ry="3.4" class="hb"/><circle cx="17" cy="7" r="2.8" class="hb"/><path d="M19.4 6.8 L26 6 L19.6 7.8 Z" class="hk"/><circle cx="17.8" cy="6.4" r=".8" fill="#FFFFFF"/><path d="M5.5 9.5 L0 12 L5 11.4 Z" class="hb"/><ellipse cx="12" cy="10.4" rx="3" ry="1.6" class="hth"/></svg>';
   const RABBIT = '<svg aria-hidden="true" viewBox="0 0 26 24"><ellipse cx="12" cy="17" rx="9" ry="6.5" class="rb"/><circle cx="19" cy="11" r="4.6" class="rb"/><ellipse cx="17.5" cy="3.6" rx="1.6" ry="4.4" transform="rotate(-12 17.5 3.6)" class="rb"/><ellipse cx="21" cy="4" rx="1.6" ry="4.4" transform="rotate(14 21 4)" class="rb"/><ellipse cx="21" cy="4.4" rx=".6" ry="2.8" transform="rotate(14 21 4.4)" class="ri"/><circle cx="3.6" cy="16" r="2.6" class="rt"/><circle cx="20.6" cy="10.4" r=".9" class="re"/><ellipse cx="16" cy="23" rx="3.4" ry="1.1" class="rb"/></svg>';
   const FOX = '<svg aria-hidden="true" viewBox="0 0 40 26"><path d="M4 18 C0 12 6 8 10 14 C14 20 8 24 4 18 Z" class="fx"/><path d="M3 19 C2 17 4 16 5 18 Z" class="ft"/><ellipse cx="18" cy="17" rx="10" ry="6" class="fx"/><path d="M26 14 L36 13 L32 20 L26 19 Z" class="fx"/><path d="M27 13 L28 6 L31 12 Z" class="fx"/><path d="M31 12 L33 6 L34 12.6 Z" class="fx"/><path d="M33 17 L36 13.4 L35 18 Z" class="fd"/><circle cx="31.5" cy="15" r=".9" class="fd"/><path d="M12 22 V26 M16 22 V26 M21 22 V26 M24 21 V26" stroke-width="2" stroke-linecap="round" class="fl"/><path d="M14 18 C17 21 22 21 25 18" class="ft" stroke-width="0"/></svg>';
-  // chance: window.__RV_SURPRISE = 1 (always) or 0 (never) for tests
-  const chance = (p) => { const f = root.__RV_SURPRISE; return f === 1 ? true : f === 0 ? false : Math.random() < p; };
   const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
   function skySvg(t) {
     const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
@@ -147,6 +145,8 @@
     const t = G.skyOf(now);
     const card = h('div', { class: 'gcard', hidden: true });
     let selEl = null;
+    const unpick = () => { if (selEl) selEl.classList.remove('sel'); selEl = null; card.hidden = true; };
+    const closeBtn = () => h('button', { class: 'gx', type: 'button', 'aria-label': 'Close', onclick: unpick }, icon('x', 18));
     const pick = (el, x) => {
       if (selEl) selEl.classList.remove('sel');
       if (selEl === el) { selEl = null; card.hidden = true; return; }
@@ -155,9 +155,35 @@
       card.replaceChildren(
         h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
           h('span', null, word)),
-        h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'));
+        h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'), closeBtn());
       card.hidden = false;
     };
+    // v2.24 visitors: rolled once a day; they arrive the first time they are seen that day; tap to learn why they came
+    const vis = opt.visitors || G.visitors(ST.items(), S.settings, now);
+    const fresh = new Set(G.newVisitors(vis, S.settings, now));
+    const VNAME = Object.fromEntries(G.VISITORS.map(([k, n, why]) => [k, [n, why]]));
+    const visEl = (art, k, cls, style, where) => {
+      const el = svgEl(art, cls + ' gvis' + (fresh.has(k) ? ' arrive' : ''), style);
+      el.removeAttribute('aria-hidden'); el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Rare visitor: ' + VNAME[k][0]);
+      const show = (e) => {
+        e.stopPropagation();
+        if (selEl === el) return unpick();
+        if (selEl) selEl.classList.remove('sel');
+        selEl = el;
+        card.replaceChildren(h('div', { class: 'gct' }, h('span', { class: 'gvk' }, 'Rare visitor'), h('b', null, VNAME[k][0] + (where ? ' in ' + where : '')), h('span', null, VNAME[k][1])), closeBtn());
+        card.hidden = false;
+      };
+      el.addEventListener('click', show);
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(e); } });
+      return el;
+    };
+    if (fresh.size) { // only when someone new came today, so saving does not re-render the garden in a loop
+      const day = U.toDateStr(now);
+      setTimeout(() => ST.saveSettings((s) => {
+        s.visitors = Object.assign({}, s.visitors || {});
+        for (const [k] of G.VISITORS) if (vis[k]) s.visitors[k] = { first: (s.visitors[k] && s.visitors[k].first) || now.toISOString(), seen: day };
+      }), 1600);
+    }
     let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0;
     const ROW = 52; // depth between rows of a bed
     const beds = plots.map((p) => {
@@ -184,23 +210,34 @@
         if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
         if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
         // a hummingbird, now and then, by a flowering shrub that is doing well
-        if (x.st.form === 4 && x.st.care >= G.CARE.HEALTHY && !hums && chance(0.35)) { hums++; bed.appendChild(svgEl(HUM, 'ghum', 'left:' + (left + 50) + 'px;top:' + (top + 4) + 'px')); }
+        if (vis.hum === x.it.rv.id && !hums) { hums++; bed.appendChild(visEl(HUM, 'hum', 'ghum', 'left:' + (left + 50) + 'px;top:' + (top + 4) + 'px')); }
       });
       const due = p.wilting + p.thirsty;
       // a rabbit, sometimes, at the front of a bed where nobody is thirsty
-      if (!due && p.plants.length >= 2 && !rabbits && chance(0.3)) { rabbits++; bed.appendChild(svgEl(RABBIT, 'grab', 'right:' + (rows > 1 ? 4 : -18) + 'px;bottom:6px')); }
+      if (vis.rabbit && vis.rabbit === p.name && !rabbits) { rabbits++; bed.appendChild(visEl(RABBIT, 'rabbit', 'grab', 'right:' + (rows > 1 ? 4 : -18) + 'px;bottom:6px', p.name)); }
       return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
         h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
     });
-    return h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
+    const scene = h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
       h('div', { class: 'gground' }, tufts(),
         // bunting over the path while a campaign is running; a fox at dusk after a week with the ring closed
         opt.campaign ? svgEl('<svg class="gbunt" aria-hidden="true" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="M0 4 Q100 22 200 4" class="bl"/>' +
           Array.from({ length: 11 }, (_, i) => { const x = 10 + i * 18, y = 4 + 18 * (1 - Math.pow((x - 100) / 100, 2)) * 0.5; return '<path d="M' + (x - 5) + ' ' + y.toFixed(1) + ' L' + (x + 5) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 10).toFixed(1) + ' Z" class="b' + (i % 3) + '"/>'; }).join('') + '</svg>') : null,
-        (opt.sky || t) === 'dusk' && opt.ringClosed && chance(0.5) ? svgEl(FOX, 'gfox') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
+        vis.fox ? visEl(FOX, 'fox', 'gfox', '') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
       card);
+    // v2.24: the card closes on a tap anywhere else in the garden, or when the page scrolls
+    scene.addEventListener('click', (e) => { if (!card.hidden && !e.target.closest('.gp, .gvis, .gcard')) unpick(); });
+    let y0 = null;
+    const onScroll = () => {
+      if (!scene.isConnected) { root.removeEventListener('scroll', onScroll); return; }
+      if (card.hidden) { y0 = null; return; }
+      if (y0 == null) y0 = root.scrollY;
+      else if (Math.abs(root.scrollY - y0) > 40) { y0 = null; unpick(); }
+    };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return scene;
   }
 
   // ---------- exhibits: earned milestones stand in the garden as objects ----------
@@ -235,12 +272,23 @@
     if (!top.size) return null;
     return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)));
   }
+  const VART = { hum: () => HUM, rabbit: () => RABBIT, fox: () => FOX };
   function exhibitSheet(earned) {
+    const seen = S.settings.visitors || {};
     UI.sheet('Exhibits', (close) => h('div', null,
       h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name, fam]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
         exhibitObj(fam, name, !earned[id]),
         h('b', null, name),
         h('span', null, earned[id] ? U.fmtDate(new Date(earned[id])) : 'Not yet')))),
+      // v2.24: rare visitors, with the day each was first seen; unseen ones as silhouettes
+      h('h3', { class: 'exhead' }, 'Visitors'),
+      h('div', { class: 'exgrid' }, G.VISITORS.map(([k, name, why]) => {
+        const got = seen[k] && seen[k].first;
+        const art = h('div', { class: 'gobj vobj v-' + k + (got ? '' : ' locked'), role: 'img', 'aria-label': got ? name : 'Not seen yet' });
+        art.innerHTML = VART[k]();
+        return h('div', { class: 'exitem' + (got ? '' : ' locked') }, art, h('b', null, got ? name : '?'),
+          h('span', null, got ? 'First seen ' + U.fmtDate(new Date(seen[k].first)) : 'Not seen yet'), got ? h('span', { class: 'why' }, why) : null);
+      })),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
   }
   function exhibitCard(earned) {
@@ -279,9 +327,8 @@
     }
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    const last = G.weekRing(items, S.settings, U.addDays(G.weekStart(now), -7), now);
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), ringClosed: last.due > 0 && last.perfect }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
-    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now, earned, opt) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now) }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    return { title: 'My garden', el: h('div', null, plots.length ? gardenScene(plots, now, earned, opt) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.

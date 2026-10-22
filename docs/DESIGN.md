@@ -433,3 +433,13 @@ From the gamification review, items 4 and 6, plus Mark's request to drop care la
 - Exhibits: 20 in families, earned once and kept (v2.16 ids kept): First plan left (arbor), First round (watering can), streak family (sundial: first full week, 4, 12, 26, 52 weeks), revivals (birdbath: 1, 5, 25), return visits (bench: 10, 25, 50, 100), first talks (gate: 10, 25), studies (lantern: 1, 3, 5), Area all watered (fountain). The garden shows one object per family at its highest tier: tier 2 adds a pot of flowers, tier 3 a second pot, tier 4 a sparkle, tier 5 a ring of blooms. The Exhibits sheet lists all twenty. The old big-tree art is retired.
 - Rare visitors (decorative, by chance on each visit to the garden): a hummingbird by a flowering shrub doing well (35%), a rabbit at a bed where nobody is thirsty (30%), a fox on the hill at dusk after a week with the ring closed (50%). Bunting over the path while a campaign is running. Test hooks: `window.__RV_SURPRISE` (1 always, 0 never), `window.__RV_GARDEN_OPT`.
 - Tests: garden 38, smoke 266, screens 44, logic 48, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.23.0, cache rvapp-v64.
+
+## 36. v2.24.0 My garden, visitors that stay and are remembered (built 2026-10-22)
+
+- The third tab is "My garden" with a sprout icon (Insights with the chart icon when the garden is off); the screen title too.
+- Plant card fix: the name card in the garden closes on a tap anywhere else in the garden, when the page scrolls more than a little, or with its new close button (it used to close only by tapping the same plant again).
+- Rare visitors are rolled once a day (`G.visitors`, a hash of the date), so a visitor stays all day and re-opening the garden cannot re-roll it. Same conditions as v2.23 (hummingbird by a flowering shrub doing well 35%, rabbit at a named bed with nobody thirsty 30%, fox at dusk after a closed ring 50%).
+- The first time a visitor is seen that day it arrives (hummingbird darts in, rabbit hops in, fox trots on); `settings.visitors[k] = {first, seen}` records it (syncs). A dot on the My garden tab shows while a visitor came today and has not been seen yet (`G.newVisitors`).
+- Tap a visitor: a card reads "Rare visitor", its name (and the area for the rabbit), and why it came, e.g. "Rabbits come to a bed where nobody is thirsty." Visitors are buttons for screen readers ("Rare visitor: Fox").
+- Exhibits sheet: a Visitors section with each visitor's first-seen date and why it comes; unseen ones are grey silhouettes with "Not seen yet". No counts or points.
+- Tests: garden 39, smoke 266, screens 48, logic 48, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.24.0, cache rvapp-v65.

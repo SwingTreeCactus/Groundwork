@@ -8,7 +8,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
 - Current release: v2.20.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v61` (sw.js). Last commit a2fdd3f.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.23.1 / rvapp-v65), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.24.1 / rvapp-v66), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
 - Accent colour: purple is the default, blue is an option. Never red. He dislikes transparency in the plant art.
@@ -18,7 +18,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
 - Stages: internally Potential, Initial Call, Cultivating, Return Visit, Bible Study. Users see only Potential, RV (the three middle stages) and Bible Study (`L.shownStages / shownStage / shownName`). Growth moves people through the hidden stages.
 - Garden (js/garden.js): care levels shown are Lush 5, Healthy 4, Thirsty 2, Wilting 1 (3 is never returned). `G.forItem` is memoised. Exhibits, streaks, weekly recap.
 - Plants (js/plant.js): drawn procedurally by `plantSvg`; each person gets a variant from a hash of the record ID; `P.make(form, care, opts)`.
-- Tabs: Home (campaign banner and topics, then Today with three stage tiles and Almost growing, then Up next), Contacts (Tiles / Folders / Map switch, remembered in localStorage `rvapp.rvsView`), Insights (the garden only).
+- Tabs: Home (campaign banner and topics, then Today with three stage tiles and Almost growing, then Up next), Contacts (Tiles / Folders / Map switch, remembered in localStorage `rvapp.rvsView`), My garden (the garden; Insights when the garden is off).
 - Record screen: Record NH, Record a visit, and Log study for every RV (not Potential). Last visit block and timeline Edit open the visit edit sheet, which has a Study session toggle (`ST.growNow`).
 - Map (js/gmap.js): bundled MapLibre 5.24.0 (vendor/maplibre), OpenFreeMap positron restyled by `restyle()`, potted-plant pins, missing coordinates from Nominatim (one per second), All / Today toggle, Locate button, card with Open / Directions. v2.20: a fresh open zooms to the user's location (zoom 15, You dot; falls back to all pins); returning from a contact restores the last view (module-level `lastView`, kept for the session).
 - Drive backup (js/drive.js): drive.file scope, Groundwork folder, current backup and 7 dated daily copies. Connection kept in localStorage `rvapp.drive` (not in backups).
@@ -42,7 +42,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
   4. Add the variables: GOOGLE_CLIENT_ID (text), GOOGLE_CLIENT_SECRET (secret), ALLOWED_ORIGIN = https://mygroundwork.app.
   5. Send the Worker URL.
   6. After the update, Reconnect once in Settings → Data. Every user does this once.
-- **Next action when Mark sends the URL:** set `tokenHelper` in js/config.js to that URL, release v2.23.1 (cache rvapp-v65), and send the zip and design-doc line.
+- **Next action when Mark sends the URL:** set `tokenHelper` in js/config.js to that URL, release v2.24.1 (cache rvapp-v66), and send the zip and design-doc line.
   - Optional first check: a curl OPTIONS request with the Origin header should return 204.
 
 ## Tests (all passing at v2.20.0)

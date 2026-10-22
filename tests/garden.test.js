@@ -244,6 +244,22 @@ test('shrub flowers: one per chain of three talks at the shrub, from the day flo
   assert.equal(G.EXHIBITS.length, 20);
   assert.ok(['first-study', 'rv25', 'rv50', 'studies3', 'first10', 'streak26', 'streak52', 'area'].every((id) => G.EXHIBITS.some((e) => e[0] === id)), 'v2.16 exhibit ids kept');
 });
+test('visitors: rolled once a day, so they stay put; only when the garden is doing well (v2.24)', () => {
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  const items = [];
+  for (let k = 0; k < 6; k++) { const r = rv({ stage: 'return', neighborhood: 'Oak Park' }); items.push(it(r, [v(r, 2, { plan: true })])); }
+  const a = G.visitors(items, s2, NOW), b = G.visitors(items, s2, new Date(2026, 9, 21, 15, 0));
+  assert.deepEqual([a.hum, a.rabbit], [b.hum, b.rabbit]);                       // same day, same visitors
+  global.__RV_SURPRISE = 1;
+  const c = G.visitors(items, s2, NOW);
+  assert.ok(c.hum && c.rabbit === 'Oak Park' && c.fox === false);                // no fox at noon
+  assert.deepEqual(G.newVisitors(c, s2, NOW).sort(), ['hum', 'rabbit']);
+  assert.deepEqual(G.newVisitors(c, Object.assign({}, s2, { visitors: { hum: { seen: U.toDateStr(NOW) } } }), NOW), ['rabbit']);
+  const dry = items.map((x) => it(x.rv, [v(x.rv, 40)]));                        // all thirsty: nobody comes
+  const d = G.visitors(dry, s2, NOW);
+  assert.ok(!d.hum && !d.rabbit);
+  global.__RV_SURPRISE = undefined;
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due
