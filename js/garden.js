@@ -518,21 +518,26 @@
     return n;
   }
 
-  // ---------- rare visitors (v2.23; once a day from v2.24; rebalanced v2.24.2) ----------
+  // ---------- visitors (v2.23; once a day v2.24; rebalanced v2.24.2; nine and rare coats v2.26) ----------
   // Decorative, rolled once per day so a visitor stays put all day. Conditions reward recent effort, not a
-  // perfect garden; rarity comes from the odds. The first time a visitor's condition is met it always comes,
-  // so everyone meets each one early (settings.visitors[k].first not set yet).
-  // hum: by a plant (leafy and up) that is Healthy or Lush (15%).
-  // rabbit: at an area where you talked with or knocked on someone in the last 3 days, with most plants
-  //   there not thirsty (15%).
-  // fox: in the evening (5 pm to midnight) after a week you went out on 2 or more days (25%).
-  // root.__RV_SURPRISE = 1 (always) or 0 (never) is a test hook.
+  // perfect garden. The first time a visitor's condition is met it always comes (settings.visitors[k].first
+  // not set yet), so everyone meets each one early. root.__RV_SURPRISE = 1 (always) or 0 (never) is a test hook.
+  // [key, name, why it came, how to find it, mood, scene for its portrait]
   const VISITORS = [
-    ['hum', 'Hummingbird', 'Hummingbirds visit plants that are doing well.'],
-    ['rabbit', 'Rabbit', 'Rabbits come to an area you visited in the last few days.'],
-    ['fox', 'Fox', 'Foxes come out in the evening after a week you went out on two or more days.'],
+    ['hum', 'Hummingbird', 'One of your plants is doing well.', 'Keep a plant healthy or lush.', 'Driven', 'day'],
+    ['rabbit', 'Rabbit', 'You visited or knocked in this area in the last 3 days.', 'Visit or knock on a door in an area.', 'Nervous', 'day'],
+    ['fox', 'Fox', 'Last week you went out on 2 or more days.', 'Go out on 2 or more days in a week, then look in one evening.', 'Sly', 'dusk'],
+    ['bluebird', 'Bluebird', 'You finished a round of field service yesterday.', 'Finish a round of field service.', 'Content', 'dawn'],
+    ['squirrel', 'Squirrel', 'Someone\u2019s plant grew today.', 'Help someone\u2019s plant grow to its next form.', 'Frazzled', 'day'],
+    ['frog', 'Frog', 'You finished all three of today\u2019s tending goals.', 'Finish all three of today\u2019s tending goals.', 'Unbothered', 'day'],
+    ['owl', 'Owl', 'You have someone in the Bible study stage.', 'Have someone in the Bible study stage, then look in at night.', 'Skeptical', 'night'],
+    ['deer', 'Deer', 'Last week you went out on 3 or more days.', 'Go out on 3 or more days in a week, then look in early in the morning.', 'Gentle', 'dawn'],
+    ['ladybug', 'Ladybug', 'One of your plants is lush.', 'Grow a plant to lush in spring or summer.', 'Shy', 'day'],
   ];
-  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25 };
+  // Rare coats: about 1 sighting in 20 of the usual animal. [coat key, name, animal]
+  const COATS = [['rabbit-white', 'White rabbit', 'rabbit'], ['hum-gold', 'Golden hummingbird', 'hum'], ['fox-silver', 'Silver fox', 'fox']];
+  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25, bluebird: 1, squirrel: 1, frog: 1, owl: 0.5, deer: 0.5, ladybug: 0.25 };
+  const COAT_ODDS = 0.05;
   function dayRoll(day, key) {
     const f = root.__RV_SURPRISE;
     if (f === 1) return 0; if (f === 0) return 1;
@@ -542,32 +547,56 @@
   }
   function visitors(items, settings, now) {
     now = now || new Date();
-    const day = U.toDateStr(now), seen = settings.visitors || {};
+    const day = U.toDateStr(now), seen = settings.visitors || {}, hr = now.getHours(), t1 = now.getTime();
     const comes = (k) => (root.__RV_SURPRISE === 0 ? false : !(seen[k] && seen[k].first)) || dayRoll(day, k) < VISIT_ODDS[k];
+    const pickOne = (list, k) => list[Math.floor(dayRoll(day, k + '-who') * list.length) % list.length];
+    const liveLog = (e) => !e.deletedAt && !e.imported && (e.type === 'nh' || e.type === 'visit');
     const live = items.filter((it) => !L.isClosed(settings, it.rv)).map((it) => ({ it, st: forItem(it, settings, now) })).filter((x) => x.st.form);
-    const out = { hum: null, rabbit: null, fox: false };
-    const good = live.filter((x) => x.st.form >= 3 && x.st.care >= CARE.HEALTHY).sort((a, b) => U.cmp(a.it.rv.id, b.it.rv.id));
-    if (good.length && comes('hum')) out.hum = good[Math.floor(dayRoll(day, 'hum-who') * good.length) % good.length].it.rv.id;
-    // areas with a live Not Home or visit in the last 3 days, most plants not thirsty
+    const byId = (a, b) => U.cmp(a.it.rv.id, b.it.rv.id);
+    const out = { hum: null, rabbit: null, fox: false, bluebird: false, squirrel: null, frog: false, owl: false, deer: false, ladybug: null, coat: {} };
+    // hummingbird: beside a plant from leafy up that is Healthy or Lush
+    const good = live.filter((x) => x.st.form >= 3 && x.st.care >= CARE.HEALTHY).sort(byId);
+    if (good.length && comes('hum')) out.hum = pickOne(good, 'hum').it.rv.id;
+    // rabbit: an area with a live Not Home or visit in the last 3 days, most plants not thirsty
     const t3 = U.addDays(U.startOfDay(now), -3).getTime();
-    const recent = new Set(live.filter((x) => x.it.entries.some((e) => !e.deletedAt && !e.imported && (e.type === 'nh' || e.type === 'visit') && ms(e.at) >= t3 && ms(e.at) <= now.getTime()))
+    const recent = new Set(live.filter((x) => x.it.entries.some((e) => liveLog(e) && ms(e.at) >= t3 && ms(e.at) <= t1))
       .map((x) => (x.it.rv.neighborhood || '').trim()).filter(Boolean));
     const beds = plots(live.map((x) => x.it), settings, now).filter((p) => p.name && recent.has(p.name) && (p.wilting + p.thirsty) * 2 < p.plants.length);
-    if (beds.length && comes('rabbit')) out.rabbit = beds[Math.floor(dayRoll(day, 'rabbit-where') * beds.length) % beds.length].name;
-    // went out on two or more days last week (Sunday to Saturday)
+    if (beds.length && comes('rabbit')) out.rabbit = pickOne(beds, 'rabbit').name;
+    // days out last week (Sunday to Saturday): fox from 2, deer from 3
     const ws = U.addDays(weekStart(now), -7).getTime(), we = weekStart(now).getTime();
     const days = new Set();
-    for (const it of items) for (const e of it.entries) {
-      if (e.deletedAt || e.imported || (e.type !== 'nh' && e.type !== 'visit')) continue;
-      const t = ms(e.at); if (t >= ws && t < we) days.add(U.toDateStr(new Date(t)));
-    }
-    if (days.size >= 2 && now.getHours() >= 17 && comes('fox')) out.fox = true;
+    for (const it of items) for (const e of it.entries) { if (!liveLog(e)) continue; const t = ms(e.at); if (t >= ws && t < we) days.add(U.toDateStr(new Date(t))); }
+    if (days.size >= 2 && hr >= 17 && comes('fox')) out.fox = true;
+    if (days.size >= 3 && hr >= 6 && hr < 9 && comes('deer')) out.deer = true;
+    // bluebird: a round (3+ logs, each within ROUND_GAP minutes of the last) yesterday
+    const y0 = U.addDays(U.startOfDay(now), -1).getTime(), y1 = U.startOfDay(now).getTime();
+    const yLogs = [];
+    for (const it of items) for (const e of it.entries) if (liveLog(e) && ms(e.at) >= y0 && ms(e.at) < y1) yLogs.push(ms(e.at));
+    yLogs.sort((a, b) => a - b);
+    let run = yLogs.length ? 1 : 0, best = run;
+    for (let i = 1; i < yLogs.length; i++) { run = yLogs[i] - yLogs[i - 1] <= ROUND_GAP * 60000 ? run + 1 : 1; best = Math.max(best, run); }
+    if (best >= ROUND_MIN && comes('bluebird')) out.bluebird = true;
+    // squirrel: someone's plant grew today
+    const grewToday = live.filter((x) => x.it.entries.some((e) => !e.deletedAt && e.type === 'stage' && e.grew && ms(e.at) >= y1 && ms(e.at) <= t1)).sort(byId);
+    if (grewToday.length && comes('squirrel')) out.squirrel = pickOne(grewToday, 'squirrel').it.rv.id;
+    // frog: all three of today's tending goals done
+    if (comes('frog') && tending(items, settings, now).all) out.frog = true;
+    // owl: at night (8 pm to 6 am) when someone is in the study stage
+    if ((hr >= 20 || hr < 6) && live.some((x) => L.isStudyStage(settings, x.it.rv.stage)) && comes('owl')) out.owl = true;
+    // ladybug: spring and summer (March to August), on a lush plant
+    const m = now.getMonth(), lush = live.filter((x) => x.st.care === CARE.LUSH).sort(byId);
+    if (m >= 2 && m <= 7 && lush.length && comes('ladybug')) out.ladybug = pickOne(lush, 'ladybug').it.rv.id;
+    // rare coats, once the usual animal has been found
+    for (const [coat, , k] of COATS) if (out[k] && seen[k] && seen[k].first && (root.__RV_SURPRISE === 1 ? !!root.__RV_COATS : dayRoll(day, coat) < COAT_ODDS)) out.coat[k] = coat;
     return out;
   }
+  // The key a present visitor is recorded under: its rare coat if it wears one today.
+  const visitorKey = (v, k) => (v.coat && v.coat[k]) || k;
   // Present visitors not yet seen today (for the dot on the garden tab).
   function newVisitors(v, settings, now) {
     const day = U.toDateStr(now || new Date()), seen = settings.visitors || {};
-    return VISITORS.map(([k]) => k).filter((k) => v[k] && (!seen[k] || seen[k].seen !== day));
+    return VISITORS.map(([k]) => k).filter((k) => { if (!v[k]) return false; const kk = visitorKey(v, k); return !seen[kk] || seen[kk].seen !== day; });
   }
 
   // Time of day for the garden sky.
@@ -583,7 +612,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, visitors, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, visitors, visitorKey, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

@@ -1298,3 +1298,98 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 @keyframes g-rain-out { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .grain { display: none; } }
 .ctile:focus, .howbtn:focus { outline: none; } .ctile:focus-visible, .howbtn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+/* v2.26 garden visitors (js/critters.js) */
+.cr { position: relative; display: inline-block; line-height: 0; }
+.cr svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.cr .eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: cr-blink 6.5s infinite; }
+.cr .eyes.slow { animation: cr-blink-slow 8s infinite; }
+@keyframes cr-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } 98% { transform: scaleY(1); } }
+@keyframes cr-blink-slow { 0%, 82%, 100% { transform: scaleY(1); } 86%, 91% { transform: scaleY(.1); } }
+.cr .r-head { transform-box: fill-box; transform-origin: 80% 90%; animation: cr-groom 9s ease-in-out infinite; }
+@keyframes cr-groom { 0%, 55%, 100% { transform: rotate(0); } 60%, 74% { transform: rotate(-16deg); } 80% { transform: rotate(0); } }
+.cr .r-ear { transform-box: fill-box; transform-origin: 30% 100%; animation: cr-ear 7s ease-in-out infinite; }
+@keyframes cr-ear { 0%, 20%, 100% { transform: rotate(0); } 24% { transform: rotate(-7deg); } 30% { transform: rotate(0); } }
+.cr .r-nose { transform-box: fill-box; transform-origin: 50% 50%; animation: cr-sniff .6s ease-in-out infinite alternate; }
+@keyframes cr-sniff { from { transform: scale(1); } to { transform: scale(1.2); } }
+.cr .h-hover { animation: cr-hover 3.2s ease-in-out infinite; }
+@keyframes cr-hover { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(-2px, -3px); } 70% { transform: translate(1.5px, 1.5px); } }
+.cr .h-wing { transform-box: fill-box; transform-origin: 40% 100%; animation: cr-buzz .08s linear infinite alternate; }
+@keyframes cr-buzz { from { transform: rotate(-18deg) scaleY(1); } to { transform: rotate(14deg) scaleY(.78); } }
+.cr .f-tail { transform-box: fill-box; transform-origin: 0% 100%; animation: cr-swish 5s ease-in-out infinite; }
+@keyframes cr-swish { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
+.cr .f-head { transform-box: fill-box; transform-origin: 85% 90%; animation: cr-look 8s ease-in-out infinite; }
+@keyframes cr-look { 0%, 40%, 100% { transform: rotate(0); } 48%, 66% { transform: rotate(9deg); } 74% { transform: rotate(0); } }
+.cr .b-head { transform-box: fill-box; transform-origin: 30% 90%; animation: cr-preen 7.5s ease-in-out infinite; }
+@keyframes cr-preen { 0%, 50%, 100% { transform: rotate(0); } 56%, 64% { transform: rotate(38deg); } 70% { transform: rotate(0); } 82% { transform: rotate(-10deg); } 90% { transform: rotate(0); } }
+.cr .b-tail { transform-box: fill-box; transform-origin: 100% 0%; animation: cr-flicktail 3.6s ease-in-out infinite; }
+@keyframes cr-flicktail { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(10deg); } 90% { transform: rotate(0); } }
+.cr .s-tail { transform-box: fill-box; transform-origin: 10% 100%; animation: cr-flick 3s ease-in-out infinite; }
+@keyframes cr-flick { 0%, 100% { transform: rotate(0); } 12% { transform: rotate(-5deg); } 20% { transform: rotate(2deg); } 28% { transform: rotate(0); } }
+.cr .s-nibble { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-nibble .5s ease-in-out infinite alternate; }
+@keyframes cr-nibble { from { transform: translateY(0); } to { transform: translateY(-1.6px); } }
+.cr .fr-throat { transform-box: fill-box; transform-origin: 60% 20%; animation: cr-croak 3.4s ease-in-out infinite; }
+@keyframes cr-croak { 0%, 60%, 100% { transform: scale(1); } 68% { transform: scale(1.18, 1.25); } 76% { transform: scale(1); } }
+.cr .o-head { transform-box: fill-box; transform-origin: 50% 90%; animation: cr-owl 10s ease-in-out infinite; }
+@keyframes cr-owl { 0%, 25%, 100% { transform: rotate(0); } 32%, 48% { transform: rotate(14deg); } 56%, 70% { transform: rotate(-10deg); } 78% { transform: rotate(0); } }
+.cr .d-head { transform-box: fill-box; transform-origin: 70% 100%; animation: cr-graze 10s ease-in-out infinite; }
+@keyframes cr-graze { 0%, 45%, 100% { transform: rotate(0); } 55%, 75% { transform: rotate(-28deg); } 85% { transform: rotate(0); } }
+.cr .d-ear { transform-box: fill-box; transform-origin: 10% 100%; animation: cr-ear 4.4s ease-in-out infinite; }
+.cr .l-ant { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-ant 2.2s ease-in-out infinite alternate; }
+@keyframes cr-ant { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+.cr .l-wingL { transform-box: fill-box; transform-origin: 100% 0%; animation: cr-shellL 7s ease-in-out infinite; }
+.cr .l-wingR { transform-box: fill-box; transform-origin: 0% 0%; animation: cr-shellR 7s ease-in-out infinite; }
+@keyframes cr-shellL { 0%, 76%, 100% { transform: rotate(0); } 82%, 88% { transform: rotate(10deg); } }
+@keyframes cr-shellR { 0%, 76%, 100% { transform: rotate(0); } 82%, 88% { transform: rotate(-10deg); } }
+.cr .l-walk { animation: cr-walk 9s ease-in-out infinite; }
+@keyframes cr-walk { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3px, -2px); } }
+.cr .bee-a { animation: cr-beeA 3.8s ease-in-out infinite; }
+.cr .bee-b { animation: cr-beeB 3.1s ease-in-out infinite; }
+@keyframes cr-beeA { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(5px, -5px); } 50% { transform: translate(9px, 1px); } 75% { transform: translate(3px, 5px); } }
+@keyframes cr-beeB { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(-6px, -3px); } 60% { transform: translate(-2px, 4px); } }
+.cr .bw { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-buzz .07s linear infinite alternate; }
+.cr .g-glide { animation: cr-glide 4s ease-in-out infinite; }
+@keyframes cr-glide { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.cr .g-wing { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-flap 1.6s ease-in-out infinite; }
+.cr .g-wing2 { transform-box: fill-box; transform-origin: 50% 0%; animation: cr-flap2 1.6s ease-in-out infinite; }
+@keyframes cr-flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(-.35); } }
+@keyframes cr-flap2 { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.cr .twinkle { transform-box: fill-box; transform-origin: 50% 50%; animation: cr-twinkle 2.4s ease-in-out infinite; }
+.cr .twinkle.t2 { animation-delay: -1.2s; }
+@keyframes cr-twinkle { 0%, 100% { transform: scale(.4); } 50% { transform: scale(1); } }
+.cr.sil svg { filter: brightness(0); }
+.cr.sil { opacity: .16; }
+.cr.sil *, .cr.still * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .cr * { animation: none !important; } }
+.cr .cr-spark { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cr .cr-spark path { fill: #E0B02F; }
+/* v2.26 visitors in the garden, the Visitors page and a visitor's portrait */
+.gvis { position: absolute; z-index: 32; line-height: 0; }
+.gv-fox, .gv-deer, .gv-owl { z-index: 6; }
+.gvis.arrive.fly { animation: g-arrive-fly 1.4s cubic-bezier(.2, .8, .3, 1) both; }
+.gvis.arrive.hop { animation: g-arrive-hop 1.3s ease-out both; }
+.gvis.arrive.trot { animation: g-arrive-trot 1.8s ease-out both; }
+.gvis.arrive.crawl { animation: g-arrive-trot 2.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .gvis.arrive { animation: none; } }
+.ctile .ctart .cr { width: 40px; height: 40px; }
+.vpage .vsum { margin: 0 4px 12px; color: var(--muted); font-size: .95rem; }
+.vpage .vhead { margin: 22px 4px 4px; font-size: 1.1rem; font-weight: 600; }
+.vgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.vcard { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--surface); border-radius: 20px; padding: 12px 6px 10px; color: var(--fg); text-decoration: none; text-align: center; }
+.vcard b { font-size: .9rem; font-weight: 600; } .vcard span { font-size: .78rem; color: var(--muted); min-height: 1em; }
+.vcard.unfound b { color: var(--muted); font-weight: 500; }
+.vcard .cr.sil { opacity: .22; }
+:root[data-theme="dark"] .vcard .cr.sil svg { filter: brightness(0) invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vcard .cr.sil svg { filter: brightness(0) invert(1); } }
+.vdetail { margin: -4px -4px 0; }
+.vstage { position: relative; height: 380px; border-radius: 26px; overflow: hidden; }
+.vstage .vland, .vstage .vstars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vstage .vbig { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); width: 230px; height: 230px; }
+.vstage .vbig.sil svg { filter: brightness(0) invert(1); } .vstage .vbig.sil { opacity: .2; }
+.vinfo { padding: 18px 8px 8px; display: flex; flex-direction: column; gap: 8px; }
+.vinfo h1 { margin: 0; font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.vinfo .vmood { font-style: italic; color: var(--muted); font-size: 1.05rem; }
+.vinfo .vsub { color: var(--muted); font-size: .95rem; }
+.vinfo .vcoat { align-self: flex-start; font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #F7ECCB; color: #7A5A10; }
+.vinfo .vwhy { margin-top: 6px; background: var(--surface); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 1rem; line-height: 1.45; }
+.vinfo .vwhy .vk { font-size: .75rem; font-weight: 600; color: var(--red); }
+.gcard .btn.sm { flex: none; }

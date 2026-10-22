@@ -115,9 +115,6 @@
   const svgEl = (html, cls, style) => { const d = document.createElement('div'); d.innerHTML = html; const el = d.firstChild; if (cls) el.setAttribute('class', cls); if (style) el.setAttribute('style', style); return el; };
   const FLY = '<svg aria-hidden="true" viewBox="0 0 16 14"><g class="w"><ellipse cx="4.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="11.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="5" cy="10.5" rx="3" ry="3" class="f2"/><ellipse cx="11" cy="10.5" rx="3" ry="3" class="f2"/></g><rect x="7.3" y="3" width="1.4" height="10" rx=".7" class="fb"/></svg>';
   // v2.23 rare visitors: by chance, only when the garden is doing well. Purely decorative.
-  const HUM = '<svg aria-hidden="true" viewBox="0 0 26 16"><g class="hw"><ellipse cx="11" cy="4" rx="6" ry="2.4" transform="rotate(-24 11 4)" class="hwing"/></g><ellipse cx="11" cy="9" rx="6" ry="3.4" class="hb"/><circle cx="17" cy="7" r="2.8" class="hb"/><path d="M19.4 6.8 L26 6 L19.6 7.8 Z" class="hk"/><circle cx="17.8" cy="6.4" r=".8" fill="#FFFFFF"/><path d="M5.5 9.5 L0 12 L5 11.4 Z" class="hb"/><ellipse cx="12" cy="10.4" rx="3" ry="1.6" class="hth"/></svg>';
-  const RABBIT = '<svg aria-hidden="true" viewBox="0 0 26 24"><ellipse cx="12" cy="17" rx="9" ry="6.5" class="rb"/><circle cx="19" cy="11" r="4.6" class="rb"/><ellipse cx="17.5" cy="3.6" rx="1.6" ry="4.4" transform="rotate(-12 17.5 3.6)" class="rb"/><ellipse cx="21" cy="4" rx="1.6" ry="4.4" transform="rotate(14 21 4)" class="rb"/><ellipse cx="21" cy="4.4" rx=".6" ry="2.8" transform="rotate(14 21 4.4)" class="ri"/><circle cx="3.6" cy="16" r="2.6" class="rt"/><circle cx="20.6" cy="10.4" r=".9" class="re"/><ellipse cx="16" cy="23" rx="3.4" ry="1.1" class="rb"/></svg>';
-  const FOX = '<svg aria-hidden="true" viewBox="0 0 40 26"><path d="M4 18 C0 12 6 8 10 14 C14 20 8 24 4 18 Z" class="fx"/><path d="M3 19 C2 17 4 16 5 18 Z" class="ft"/><ellipse cx="18" cy="17" rx="10" ry="6" class="fx"/><path d="M26 14 L36 13 L32 20 L26 19 Z" class="fx"/><path d="M27 13 L28 6 L31 12 Z" class="fx"/><path d="M31 12 L33 6 L34 12.6 Z" class="fx"/><path d="M33 17 L36 13.4 L35 18 Z" class="fd"/><circle cx="31.5" cy="15" r=".9" class="fd"/><path d="M12 22 V26 M16 22 V26 M21 22 V26 M24 21 V26" stroke-width="2" stroke-linecap="round" class="fl"/><path d="M14 18 C17 21 22 21 25 18" class="ft" stroke-width="0"/></svg>';
   const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
   function skySvg(t) {
     const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
@@ -161,16 +158,22 @@
     // v2.24 visitors: rolled once a day; they arrive the first time they are seen that day; tap to learn why they came
     const vis = opt.visitors || G.visitors(ST.items(), S.settings, now);
     const fresh = new Set(G.newVisitors(vis, S.settings, now));
-    const VNAME = Object.fromEntries(G.VISITORS.map(([k, n, why]) => [k, [n, why]]));
-    const visEl = (art, k, cls, style, where) => {
-      const el = svgEl(art, cls + ' gvis' + (fresh.has(k) ? ' arrive' : ''), style);
-      el.removeAttribute('aria-hidden'); el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Rare visitor: ' + VNAME[k][0]);
+    const VINFO = Object.fromEntries(G.VISITORS.map(([k, n, why, , mood]) => [k, { n, why, mood }]));
+    const COATN = Object.fromEntries(G.COATS.map(([c, n]) => [c, n]));
+    // v2.26: each visitor drawn by RV.critters at its garden size; it arrives in its own way the first time each day
+    const VSIZE = { hum: 40, rabbit: 46, fox: 58, bluebird: 40, squirrel: 44, frog: 40, owl: 54, deer: 66, ladybug: 26 };
+    const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl' };
+    const visEl = (k, style, where) => {
+      const kind = G.visitorKey(vis, k), name = COATN[kind] || VINFO[k].n;
+      const el = h('span', { class: 'gvis gv-' + k + (fresh.has(k) ? ' arrive ' + ARRIVE[k] : ''), style, role: 'button', tabindex: '0', 'aria-label': 'Visitor: ' + name });
+      el.appendChild(RV.critters.make(kind, { size: VSIZE[k] }));
       const show = (e) => {
         e.stopPropagation();
         if (selEl === el) return unpick();
         if (selEl) selEl.classList.remove('sel');
         selEl = el;
-        card.replaceChildren(h('div', { class: 'gct' }, h('span', { class: 'gvk' }, 'Rare visitor'), h('b', null, VNAME[k][0] + (where ? ' in ' + where : '')), h('span', null, VNAME[k][1])), closeBtn());
+        card.replaceChildren(h('div', { class: 'gct' }, h('span', { class: 'gvk' }, COATN[kind] ? 'Rare coat' : VINFO[k].mood), h('b', null, name + (where ? ' in ' + where : '')), h('span', null, VINFO[k].why)),
+          h('a', { class: 'btn sm', href: '#/insights/visitors/' + kind }, 'See'), closeBtn());
         card.hidden = false;
       };
       el.addEventListener('click', show);
@@ -181,10 +184,11 @@
       const day = U.toDateStr(now);
       setTimeout(() => ST.saveSettings((s) => {
         s.visitors = Object.assign({}, s.visitors || {});
-        for (const [k] of G.VISITORS) if (vis[k] && fresh.has(k)) { const o = s.visitors[k] || {}; if (o.seen === day) continue; s.visitors[k] = { first: o.first || now.toISOString(), seen: day, days: (o.days || (o.first ? 1 : 0)) + 1 }; }
+        const mark = (kk) => { const o = s.visitors[kk] || {}; if (o.seen === day) return; s.visitors[kk] = { first: o.first || now.toISOString(), seen: day, days: (o.days || (o.first ? 1 : 0)) + 1 }; };
+        for (const [k] of G.VISITORS) if (vis[k] && fresh.has(k)) { const kk = G.visitorKey(vis, k); mark(kk); if (kk !== k && !(s.visitors[k] && s.visitors[k].first)) mark(k); }
       }), 1600);
     }
-    let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0;
+    let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0, bi = 0;
     const ROW = 52; // depth between rows of a bed
     const beds = plots.map((p) => {
       // fit the bed to the screen: up to 4 plants a row, a little closer together on narrow phones
@@ -210,11 +214,19 @@
         if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
         if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
         // a hummingbird, now and then, by a flowering shrub that is doing well
-        if (vis.hum === x.it.rv.id && !hums) { hums++; bed.appendChild(visEl(HUM, 'hum', 'ghum', 'left:' + (left + 50) + 'px;top:' + (top + 4) + 'px')); }
+        if (vis.hum === x.it.rv.id && !hums) { hums++; bed.appendChild(visEl('hum', 'left:' + (left + 46) + 'px;top:' + (top - 2) + 'px')); }
+        // a squirrel by the plant that grew today; a ladybug on a lush plant
+        if (vis.squirrel === x.it.rv.id) bed.appendChild(visEl('squirrel', 'left:' + (left - 22) + 'px;top:' + (top + 50) + 'px'));
+        if (vis.ladybug === x.it.rv.id) bed.appendChild(visEl('ladybug', 'left:' + (left + 30) + 'px;top:' + (top + 34) + 'px'));
       });
       const due = p.wilting + p.thirsty;
       // a rabbit, sometimes, at the front of a bed where nobody is thirsty
-      if (vis.rabbit && vis.rabbit === p.name && !rabbits) { rabbits++; bed.appendChild(visEl(RABBIT, 'rabbit', 'grab', 'right:' + (rows > 1 ? 4 : -18) + 'px;bottom:6px', p.name)); }
+      if (vis.rabbit && vis.rabbit === p.name && !rabbits) { rabbits++; bed.appendChild(visEl('rabbit', 'right:' + (rows > 1 ? 4 : -22) + 'px;bottom:2px', p.name)); }
+      // the first bed: a bluebird on its lip, a frog at its foot
+      if (bi++ === 0) {
+        if (vis.bluebird) bed.appendChild(visEl('bluebird', 'right:10px;top:-30px'));
+        if (vis.frog) bed.appendChild(visEl('frog', 'left:-12px;bottom:-14px'));
+      }
       return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
         h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
@@ -225,7 +237,9 @@
         // bunting over the path while a campaign is running; a fox at dusk after a week with the ring closed
         opt.campaign ? svgEl('<svg class="gbunt" aria-hidden="true" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="M0 4 Q100 22 200 4" class="bl"/>' +
           Array.from({ length: 11 }, (_, i) => { const x = 10 + i * 18, y = 4 + 18 * (1 - Math.pow((x - 100) / 100, 2)) * 0.5; return '<path d="M' + (x - 5) + ' ' + y.toFixed(1) + ' L' + (x + 5) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 10).toFixed(1) + ' Z" class="b' + (i % 3) + '"/>'; }).join('') + '</svg>') : null,
-        vis.fox ? visEl(FOX, 'fox', 'gfox', '') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
+        vis.fox ? visEl('fox', 'right:12%;top:-50px') : null,
+        vis.deer ? visEl('deer', 'left:10%;top:-58px') : null,
+        vis.owl ? visEl('owl', 'left:44%;top:-62px') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
       card,
       // v2.25: a light rain over the beds when today's tending is all done (once a day)
       opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
@@ -274,8 +288,7 @@
     if (!top.size) return null;
     return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)));
   }
-  const VART = { hum: () => HUM, rabbit: () => RABBIT, fox: () => FOX };
-  // v2.25: Milestones (formerly Exhibits) and Visitors are separate pages
+  // v2.25: Milestones (formerly Exhibits)
   function exhibitSheet(earned) {
     UI.sheet('Milestones', (close) => h('div', null,
       h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name, fam]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
@@ -284,20 +297,56 @@
         h('span', null, earned[id] ? U.fmtDate(new Date(earned[id])) : 'Not yet')))),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
   }
-  // Rare visitors met so far, like a field guide: first seen, days visited, why they come; unmet ones as silhouettes.
-  function visitorSheet() {
+  // ---------- visitors page (v2.26): found ones in colour, the rest as outlines; tap for the portrait ----------
+  const SCENES = {
+    day: { sky: '#24474D', hill: '#2F5A5E', ground: '#3B6B5A', shadow: '#2F5A4B' },
+    dusk: { sky: '#3A2B45', hill: '#4A3858', ground: '#5A4A3E', shadow: '#4A3C32' },
+    night: { sky: '#1C1F2E', hill: '#262A3D', ground: '#34394D', shadow: '#2A2E40', stars: true },
+    dawn: { sky: '#B98235', hill: '#9E6E2E', ground: '#6E7A4A', shadow: '#5D683D' },
+  };
+  const seenLine = (o) => !o ? '' : (o.days || 1) > 1 ? 'Seen on ' + o.days + ' days' : 'Seen once';
+  function visitorsScreen() {
     const seen = S.settings.visitors || {};
-    UI.sheet('Visitors', (close) => h('div', null,
-      h('div', { class: 'exgrid' }, G.VISITORS.map(([k, name, why]) => {
-        const got = seen[k] && seen[k].first;
-        const art = h('div', { class: 'gobj vobj v-' + k + (got ? '' : ' locked'), role: 'img', 'aria-label': got ? name : 'Not seen yet' });
-        art.innerHTML = VART[k]();
-        const days = got ? seen[k].days || 1 : 0;
-        return h('div', { class: 'exitem' + (got ? '' : ' locked') }, art, h('b', null, got ? name : '?'),
-          h('span', null, got ? 'First seen ' + U.fmtDate(new Date(seen[k].first)) + (days > 1 ? ' · ' + days + ' days' : '') : 'Not seen yet'),
-          got ? h('span', { class: 'why' }, why) : null);
-      })),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+    const card = (kind, name) => {
+      const o = seen[kind], got = !!(o && o.first);
+      return h('a', { class: 'vcard' + (got ? '' : ' unfound'), href: '#/insights/visitors/' + kind, 'aria-label': got ? name : 'Not found yet' },
+        RV.critters.make(kind, { size: 72, sil: !got }), h('b', null, got ? name : 'Not found yet'), h('span', null, got ? seenLine(o) : ''));
+    };
+    const found = G.VISITORS.filter(([k]) => seen[k] && seen[k].first).length, coats = G.COATS.filter(([c]) => seen[c] && seen[c].first).length;
+    return {
+      title: 'Visitors', back: '#/insights',
+      el: h('div', { class: 'vpage' },
+        h('p', { class: 'vsum' }, found + ' of ' + G.VISITORS.length + ' found · ' + coats + ' of ' + G.COATS.length + ' rare coats'),
+        h('div', { class: 'vgrid' }, G.VISITORS.map(([k, n]) => card(k, n))),
+        h('h2', { class: 'vhead' }, 'Rare coats'),
+        h('p', { class: 'vsum' }, 'About 1 sighting in 20 comes in a rare coat.'),
+        h('div', { class: 'vgrid' }, G.COATS.map(([c, n]) => card(c, n)))),
+    };
+  }
+  function visitorScreen(kind) {
+    const seen = S.settings.visitors || {}, o = seen[kind], got = !!(o && o.first);
+    const coat = G.COATS.find(([c]) => c === kind), base = coat ? coat[2] : kind;
+    const v = G.VISITORS.find(([k]) => k === base);
+    if (!v) return { title: 'Visitors', back: '#/insights/visitors', el: UI.emptyState('alert', 'No such visitor.') };
+    const [, name, why, hint, mood, scene] = v;
+    const sc = SCENES[scene] || SCENES.day;
+    const stage = h('div', { class: 'vstage', style: { background: sc.sky } });
+    stage.innerHTML = (sc.stars ? '<svg class="vstars" viewBox="0 0 390 430" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="#F2F0F5"><circle cx="48" cy="60" r="1.6"/><circle cx="120" cy="34" r="1.2"/><circle cx="300" cy="52" r="1.6"/><circle cx="350" cy="110" r="1.1"/><circle cx="210" cy="80" r="1.3"/><circle cx="80" cy="140" r="1"/></g></svg>' : '') +
+      '<svg class="vland" viewBox="0 0 390 430" preserveAspectRatio="none" aria-hidden="true"><path d="M0 300 C80 270 150 280 210 292 C280 306 330 286 390 276 L390 430 L0 430 Z" fill="' + sc.hill + '"/><path d="M0 340 C90 324 170 330 240 338 C300 344 350 336 390 330 L390 430 L0 430 Z" fill="' + sc.ground + '"/><ellipse cx="195" cy="388" rx="92" ry="12" fill="' + sc.shadow + '"/></svg>';
+    const big = RV.critters.make(kind, { size: 250, sil: !got }); big.classList.add('vbig');
+    stage.appendChild(big);
+    const title = got ? (coat ? coat[1] : name) : 'Not found yet';
+    return {
+      title: got ? title : 'Visitor', back: '#/insights/visitors', titleWatch: '.vinfo h1',
+      el: h('div', { class: 'vdetail' }, stage,
+        h('div', { class: 'vinfo' },
+          coat ? h('span', { class: 'vcoat' }, 'Rare coat') : null,
+          h('h1', null, title),
+          got ? h('div', { class: 'vmood' }, mood) : null,
+          h('div', { class: 'vsub' }, got ? 'First seen ' + U.fmtDate(new Date(o.first)) + ' · ' + seenLine(o) : 'Its outline shows until you find it.'),
+          h('section', { class: 'vwhy' }, h('div', { class: 'vk' }, got ? 'Why it came' : 'How to find it'),
+            h('div', null, got ? (coat ? 'A rare coat. About 1 ' + name.toLowerCase() + ' sighting in 20.' : why) : (coat ? 'Sometimes comes instead of the ' + name.toLowerCase() + '.' : hint))))),
+    };
   }
   // the two collection tiles under the garden
   function collectTiles(earned) {
@@ -309,7 +358,7 @@
     };
     return h('div', { class: 'ctiles' },
       tile('ms', 'Milestones', n + ' of ' + G.EXHIBITS.length, EXH_ART.rv, () => exhibitSheet(earned)),
-      tile('vs', 'Visitors', v + ' of ' + G.VISITORS.length, HUM, visitorSheet));
+      tile('vs', 'Visitors', v + ' of ' + G.VISITORS.length, RV.critters.html('fox', { size: 40, still: true }), () => { location.hash = '#/insights/visitors'; }));
   }
   // the nearest milestones, with how close they are
   function nextCard(items, earned, sk, now) {
@@ -504,6 +553,7 @@
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();
     if (sub === 'plot') return plotScreen(key || '-');
+    if (sub === 'visitors') return key ? visitorScreen(key) : visitorsScreen();
     return garden();
   }
   RV.screens.insights = insights;

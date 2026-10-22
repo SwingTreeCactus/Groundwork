@@ -258,7 +258,8 @@ test('visitors: rolled once a day; conditions reward recent effort; the first si
   const b = G.visitors(items, s3, NOW), c = G.visitors(items, s3, new Date(2026, 9, 21, 15, 0));
   assert.deepEqual([b.hum, b.rabbit], [c.hum, c.rabbit]);
   global.__RV_SURPRISE = 1;
-  assert.deepEqual(G.newVisitors(G.visitors(items, s3, NOW), s2, NOW).sort(), ['hum', 'rabbit']);
+  const nv = G.newVisitors(G.visitors(items, s3, NOW), s2, NOW);
+  assert.ok(nv.includes('hum') && nv.includes('rabbit'), nv.join());
   // no visit to Oak Park in the last 3 days: no rabbit
   const old = items.map((x) => it(x.rv, [v(x.rv, 10, { plan: true })]));
   assert.equal(G.visitors(old, s3, NOW).rabbit, null);
@@ -269,8 +270,32 @@ test('visitors: rolled once a day; conditions reward recent effort; the first si
   assert.equal(G.visitors(fx, s3, NOW).fox, false);   // not before 5 pm
   assert.equal(G.visitors(items, s3, eve).fox, false); // not out on two days last week
   global.__RV_SURPRISE = 0;
-  assert.deepEqual(G.visitors(items, s2, NOW), { hum: null, rabbit: null, fox: false });
+  const none = G.visitors(items, s2, NOW);
+  assert.ok(G.VISITORS.every(([k]) => !none[k]), JSON.stringify(none));
   global.__RV_SURPRISE = undefined;
+});
+test('visitors v2.26: bluebird, squirrel, frog, owl, deer, ladybug and rare coats', () => {
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  const at = (d, h, m) => new Date(2026, 9, 21 - d, h, m || 0).toISOString();
+  const a = rv({ stage: 'return', neighborhood: 'Oak Park' }), b = rv({ stage: 'study', neighborhood: 'Oak Park' });
+  // yesterday: a round of three logs; today: b grew
+  const ea = [v(a, 1, { at: at(1, 9) }), { id: 'q1', rvId: a.id, type: 'nh', at: at(1, 9, 40) }, v(a, 1, { at: at(1, 10, 30) })];
+  const eb = [v(b, 2, { plan: true }), { id: 'q2', rvId: b.id, type: 'stage', grew: true, from: 'return', to: 'study', at: at(0, 9) }];
+  const items = [it(a, ea), it(b, eb)];
+  const noon = G.visitors(items, s2, NOW);
+  assert.equal(noon.bluebird, true);
+  assert.equal(noon.squirrel, b.id);
+  assert.equal(noon.owl, false);                                       // only at night
+  assert.equal(G.visitors(items, s2, new Date(2026, 9, 21, 22, 0)).owl, true); // night, with a study
+  assert.equal(G.visitors(items, s2, NOW).ladybug, null);              // October: no ladybugs
+  // rare coats only once the usual animal has been found
+  global.__RV_SURPRISE = 1; global.__RV_COATS = true;
+  const s3 = Object.assign({}, s2, { visitors: { hum: { first: ago(9) } } });
+  const r = G.visitors(items, s3, NOW);
+  assert.equal(r.coat.hum, 'hum-gold'); assert.equal(G.visitorKey(r, 'hum'), 'hum-gold');
+  assert.equal(r.coat.rabbit, undefined);
+  global.__RV_SURPRISE = undefined; global.__RV_COATS = undefined;
+  assert.equal(G.VISITORS.length, 9); assert.equal(G.COATS.length, 3);
 });
 test("today's tending: water the thirsty, leave a plan, grow one that's close (v2.25)", () => {
   const at = (h) => new Date(2026, 9, 21, h, 0).toISOString();
