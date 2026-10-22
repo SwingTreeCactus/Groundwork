@@ -248,6 +248,18 @@
     };
   }
 
+  // Grow one step if the record's timeline now completes one (used after a visit is edited into a study).
+  // Returns {grew: {from, to}, undo} or null.
+  function growNow(rvId) {
+    const G = RV.garden, rv = rvById(rvId);
+    if (!G || !rv) return null;
+    const from = rv.stage;
+    const to = G.growth(rv, S.entries.filter((e) => e.rvId === rvId), S.settings, new Date());
+    if (!to) return null;
+    const res = setStage(rvId, to, { grew: true });
+    return res ? { grew: { from, to }, undo: res.undo } : null;
+  }
+
   function snooze(rvId, dateStr) {
     const rv = rvById(rvId);
     if (!rv) return null;
@@ -337,7 +349,7 @@
   RV.store = {
     S, subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
     load, items, itemFor, rvById, saveSettings, persistRv: (rv) => { touch(rv); persist('rvs', rv); }, blankRv, addRv, updateRv, deleteRv, restoreRvSnapshot,
-    addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze,
+    addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze, growNow,
     libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags, publications,
     flush: () => pending, clearError: () => { S.error = ''; emit(); },
   };

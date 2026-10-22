@@ -1191,3 +1191,4 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .home-today { margin-top: 18px; }
 .upnext { margin-top: 8px; }
 .btn.logstudy { width: 100%; justify-content: center; min-height: 48px; }
+.snap-row.lastv { cursor: pointer; } .snap-row.lastv:active { opacity: .7; }

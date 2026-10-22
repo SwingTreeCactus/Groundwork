@@ -654,7 +654,7 @@
             h('div', { class: 'snap-v' + (rv.whatsNext ? '' : ' empty') }, rv.whatsNext || 'Tap to add'))
           : null,
         lastVisit
-          ? h('div', { class: 'snap-row' },
+          ? h('button', { class: 'snap-row lastv', type: 'button', 'aria-label': 'Edit the last visit', onclick: () => UI.editEntrySheet(lastVisit.id) },
             h('div', { class: 'snap-k' }, 'Last visit · ' + U.fmtDateTime(lastVisit.at)),
             h('div', { class: 'snap-v' }, lastVisit.text))
           : null)

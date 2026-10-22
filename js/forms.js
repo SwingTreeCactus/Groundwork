@@ -528,5 +528,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

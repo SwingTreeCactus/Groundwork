@@ -174,27 +174,55 @@
   function editEntrySheet(entryId) {
     const e = S.entries.find((x) => x.id === entryId);
     if (!e) return;
-    const isStage = e.type === 'stage';
-    const text = h('textarea', { value: e.text || '', placeholder: 'What happened?', 'data-autofocus': true });
+    const rv = S.rvs.find((r) => r.id === e.rvId) || {};
+    const isStage = e.type === 'stage', isVisit = e.type === 'visit';
+    const text = h('textarea', { value: e.text || '', placeholder: 'What happened?' });
     const when = h('input', { type: 'datetime-local', value: dateTimeLocal(e.at) });
     const typeName = { nh: lbl('notHome'), visit: 'Visit', note: 'Note', stage: 'Stage change' }[e.type] || e.type;
-    const prog = e.progress !== undefined ? h('input', { type: 'text', value: e.progress || '', autocomplete: 'off' }) : null;
     const camp = e.campaignId ? S.lib.find((x) => x.id === e.campaignId) : null;
     const campOn = h('input', { type: 'checkbox', checked: true });
+    // a visit can be turned into a study session (or back): Publication, Covered, Start next time
+    const firstStage = (S.settings.stages.find((x) => !x.closed) || {}).id;
+    const canStudy = isVisit && rv.stage !== firstStage;
+    let study = isVisit && (e.study === true || !!(e.progress || e.nextStart));
+    const pub = h('input', { type: 'text', value: e.publication || rv.publication || '', autocomplete: 'off', list: 'pub-list-e', placeholder: 'e.g. Enjoy Life Forever' });
+    const pubList = h('datalist', { id: 'pub-list-e' }, ST.publications().map((n) => h('option', { value: n })));
+    const prog = h('input', { type: 'text', value: e.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 1' });
+    const nxt = h('input', { type: 'text', value: e.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 2' });
+    const studyBox = h('div', null, field('Publication', pub), h('div', { class: 'two' }, field('Covered', prog), field('Start next time', nxt)));
+    studyBox.hidden = !study;
+    const studySw = canStudy ? h('div', { class: 'switchrow', style: { marginBottom: '8px' } }, h('div', { class: 'grow' }, 'Study session'),
+      toggle(study, (v) => { study = v; studyBox.hidden = !v; }, 'Study session')) : null;
     sheet('Edit ' + typeName.toLowerCase(), (close) =>
       h('form', {
         onsubmit: (ev) => {
           ev.preventDefault();
           const d = parseLocalDT(when.value);
           const patch = { text: text.value.trim() };
-          if (prog) patch.progress = prog.value.trim();
           if (d) patch.at = d.toISOString();
           if (camp && !campOn.checked) patch.campaignId = null;
+          if (canStudy) {
+            if (study) Object.assign(patch, { study: true, publication: pub.value.trim(), progress: prog.value.trim(), nextStart: nxt.value.trim(), plan: !!nxt.value.trim() });
+            else if (e.study || e.progress || e.nextStart) Object.assign(patch, { study: false, progress: '', nextStart: '' });
+          }
           ST.updateEntry(e.id, patch);
+          if (canStudy) {
+            // the newest study session sets where the record's study stands
+            const studies = S.entries.filter((x) => x.rvId === e.rvId && !x.deletedAt && x.type === 'visit' && (x.study === true || x.progress || x.nextStart)).sort((a, b) => (a.at < b.at ? 1 : -1));
+            if (study && studies[0] && studies[0].id === e.id) ST.updateRv(e.rvId, { publication: pub.value.trim() || rv.publication || '', progress: prog.value.trim() || rv.progress || '', nextStart: nxt.value.trim() });
+            // a study added this way can complete a growth step
+            const grew = ST.growNow(e.rvId);
+            close();
+            if (grew && RV.forms && RV.forms.afterVisit) RV.forms.afterVisit(e.rvId, grew, 'Saved as a study');
+            else toast(study ? 'Saved as a study' : 'Visit saved');
+            return;
+          }
           close();
         },
       },
-        prog ? field('Where you stopped', prog) : null,
+        pubList,
+        studySw,
+        studyBox,
         field('Notes', text),
         isStage ? null : field('When', when),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
