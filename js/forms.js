@@ -373,7 +373,28 @@
     const noteTools = noteBox.lastChild;
     const topicBox = topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
       h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;
-    const nextBox = field('Discuss next time', whatsNext);
+    // plan nudge (v2.22): a plan left on each visit is what makes a plant lush; say where this one stands
+    const nudge = h('div', { class: 'plannudge', 'aria-live': 'polite' });
+    const G = RV.garden, gOn = S.settings.garden !== false && G;
+    const gForm = gOn ? G.formOf(S.settings, rv.stage) : 0;
+    const runBefore = gOn ? G.lushRun(rv, ST.itemFor(rvId) ? ST.itemFor(rvId).entries : [], S.settings, new Date()) : 0;
+    let hadPlan = null;
+    const paintNudge = () => {
+      if (!gOn) { nudge.hidden = true; return; }
+      const has = !!whatsNext.value.trim();
+      nudge.replaceChildren();
+      if (has) {
+        const n = Math.min(G.LUSH_RUN, runBefore + 1);
+        nudge.append(icon('sparkle', 16), h('span', null, gForm <= 2 ? 'Plan set' : n >= G.LUSH_RUN ? 'Plan set · lush' : 'Plan set · ' + n + ' of ' + G.LUSH_RUN + ' toward lush'));
+      } else if (gForm > 2) nudge.append(h('span', null, 'A plan each visit grows it lush'));
+      nudge.classList.toggle('on', has);
+      if (has && hadPlan === false) { nudge.classList.remove('pop'); void nudge.offsetWidth; nudge.classList.add('pop'); }
+      nudge.hidden = !nudge.childNodes.length;
+      hadPlan = has;
+    };
+    whatsNext.addEventListener('input', paintNudge);
+    paintNudge();
+    const nextBox = h('div', null, field('Discuss next time', whatsNext), nudge);
     const campBox = camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null;
     // no study session for Potential (no real conversation yet)
     const isFirst = (S.settings.stages.find((x) => !x.closed) || {}).id === rv.stage;

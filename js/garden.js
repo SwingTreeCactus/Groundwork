@@ -363,6 +363,65 @@
     const earned = Object.keys(settings.exhibits || {}).filter((id) => { const t = new Date(settings.exhibits[id]); return t >= ws && t < we; });
     return { key, ws, we, ring, grew, revived, lush, streak: sk.streak, exhibits: earned };
   }
+  // A field-service round: the latest run of live logs (Not Homes, visits, new contacts) no more than
+  // ROUND_GAP minutes apart. Shown once (seen = the round's key, its last log time) when it has at least
+  // ROUND_MIN logs, ended at least ROUND_REST minutes ago (force skips that) and within the last 18 hours.
+  const ROUND_GAP = 90, ROUND_MIN = 3, ROUND_REST = 30;
+  function round(items, settings, now, seen, force) {
+    now = now || new Date();
+    const ev = [];
+    for (const it of items) {
+      if (it.rv.deletedAt) continue;
+      if (!it.rv.imported) ev.push({ t: ms(it.rv.createdAt), kind: 'new', it });
+      for (const e of it.entries) {
+        if (e.deletedAt || e.imported) continue;
+        if (e.type === 'nh' || e.type === 'visit') ev.push({ t: ms(e.at), kind: e.type, e, it });
+        else if (e.type === 'stage' && e.grew) ev.push({ t: ms(e.at), kind: 'grew', e, it });
+      }
+    }
+    const nowMs = now.getTime();
+    const past = ev.filter((x) => x.t <= nowMs).sort((a, b) => a.t - b.t);
+    if (!past.length) return null;
+    let i = past.length - 1;
+    while (i > 0 && past[i].t - past[i - 1].t <= ROUND_GAP * 60000) i--;
+    const run = past.slice(i);
+    const end = run[run.length - 1].t;
+    const key = new Date(end).toISOString();
+    if (seen && seen >= key) return null;
+    if (nowMs - end > 18 * 3600000) return null;
+    if (!force && nowMs - end < ROUND_REST * 60000) return null;
+    const logs = run.filter((x) => x.kind !== 'grew');
+    if (logs.length < ROUND_MIN) return null;
+    const tried = new Set(logs.filter((x) => x.kind === 'nh' || x.kind === 'visit').map((x) => x.it.rv.id));
+    const talks = logs.filter((x) => x.kind === 'visit');
+    const talked = []; const seenIds = new Set();
+    for (const x of talks) if (!seenIds.has(x.it.rv.id)) { seenIds.add(x.it.rv.id); talked.push(x.it); }
+    return {
+      key, start: new Date(run[0].t), end: new Date(end),
+      tried: tried.size, talks: talks.length, nh: logs.filter((x) => x.kind === 'nh').length,
+      plans: talks.filter((x) => x.e.plan === true || (x.e.study && x.e.nextStart)).length,
+      revived: talks.filter((x) => x.e.revived).length,
+      grew: run.filter((x) => x.kind === 'grew').map((x) => ({ rv: x.it.rv, from: x.e.from, to: x.e.to })),
+      added: logs.filter((x) => x.kind === 'new').length,
+      talked,
+    };
+  }
+  // How many planned conversations in a row this record has toward Lush (0..LUSH_RUN), counting back from
+  // the newest while each came within the gap of the one before and the newest is within the gap of now.
+  function lushRun(rv, entries, settings, now) {
+    now = now || new Date();
+    const gap = gapFor(settings, rv);
+    const all = conversations(entries);
+    let n = 0, next = now;
+    for (let i = all.length - 1; i >= 0 && n < LUSH_RUN; i--) {
+      const e = all[i];
+      if (gap != null && U.daysBetween(U.startOfDay(next), dayOf(e.at)) > gap) break;
+      if (!planned(e, rv, i === all.length - 1)) break;
+      n++; next = new Date(e.at);
+    }
+    return n;
+  }
+
   // Time of day for the garden sky.
   const skyOf = (d) => { const h = d.getHours(); return h < 6 || h >= 20 ? 'night' : h < 9 ? 'morning' : h < 17 ? 'day' : 'dusk'; };
 
@@ -376,7 +435,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

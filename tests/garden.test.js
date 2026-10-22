@@ -206,6 +206,31 @@ test('a recent Not Home keeps a thirsty plant from wilting; only a conversation 
   assert.equal(G.care(r, [v(r, 40), nh(r, 1)], S, NOW), G.CARE.DRY);     // a Not Home never revives
   assert.equal(G.care(r, [v(r, 40), nh(r, 1), v(r, 0)], S, NOW), G.CARE.HEALTHY);
 });
+test('round: the latest run of logs within 90 minutes, shown once, after a 30-minute rest (v2.22)', () => {
+  const at = (h, m) => new Date(2026, 9, 21, h, m).toISOString();
+  const a = rv({ stage: 'return' }), b = rv({ stage: 'return' }), c = rv({ stage: 'yet', createdAt: at(10, 40), stageChangedAt: at(10, 40) });
+  const items = [
+    it(a, [v(a, 20), { id: 'x1', rvId: a.id, type: 'nh', at: at(9, 0) }, { id: 'x2', rvId: a.id, type: 'visit', at: at(10, 20), plan: true, revived: true }]),
+    it(b, [{ id: 'x3', rvId: b.id, type: 'visit', at: at(9, 30), plan: false }, { id: 'x4', rvId: b.id, type: 'stage', grew: true, from: 'cultivating', to: 'return', at: at(9, 30) }]),
+    it(c, []),
+  ];
+  const noon = new Date(2026, 9, 21, 11, 30);
+  const r = G.round(items, S, noon, null);
+  assert.deepEqual([r.tried, r.talks, r.nh, r.plans, r.revived, r.added, r.grew.length, r.talked.length], [2, 2, 1, 1, 1, 1, 1, 2]);
+  assert.equal(r.start.getHours(), 9);
+  assert.equal(G.round(items, S, noon, r.key), null);                          // shown once
+  assert.equal(G.round(items, S, new Date(2026, 9, 21, 10, 50), null), null);  // still out (rest not reached)
+  assert.ok(G.round(items, S, new Date(2026, 9, 21, 10, 50), null, true));      // unless forced
+  assert.equal(G.round(items, S, new Date(2026, 9, 22, 12, 0), null), null);   // stale after 18 hours
+  assert.equal(G.round([it(a, [{ id: 'y', rvId: a.id, type: 'nh', at: at(9, 0) }])], S, noon, null), null); // too few logs
+});
+test('lush run: planned conversations in a row within the gap (v2.22)', () => {
+  const r = rv({ stage: 'return' });
+  assert.equal(G.lushRun(r, [v(r, 50, { plan: true }), v(r, 30, { plan: true }), v(r, 10, { plan: true })], S, NOW), 3);
+  assert.equal(G.lushRun(r, [v(r, 30, { plan: false }), v(r, 10, { plan: true })], S, NOW), 1);
+  assert.equal(G.lushRun(r, [v(r, 80, { plan: true }), v(r, 10, { plan: true })], S, NOW), 1); // 70-day gap
+  assert.equal(G.lushRun(r, [v(r, 40, { plan: true })], S, NOW), 0);                           // too long ago
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due

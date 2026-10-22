@@ -280,10 +280,10 @@
   // ---------- week's-end recap ----------
   // Shown once, the first time the app is opened after the Sunday-to-Saturday week ends.
   function maybeRecap() {
-    if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap')) return;
+    if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap')) return false;
     const now = new Date();
     const r = G.recap(ST.items(), S.settings, now, S.settings.gardenSince, S.settings.recapSeen);
-    if (!r) return;
+    if (!r) return false;
     ST.saveSettings((s) => { s.recapSeen = r.key; });
     const close = () => ov.remove();
     const mk = (stageId, care, vid) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true, vid });
@@ -319,8 +319,47 @@
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Close'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights'; } }, 'See the garden'))));
     document.body.appendChild(ov);
+    return true;
   }
-  RV.gardenRecap = { maybeShow: maybeRecap };
+
+  // ---------- round recap (v2.22) ----------
+  // After a stretch of field service (three or more logs, each within 90 minutes of the last), shown once
+  // the next time the app is opened or returned to at least 30 minutes after the last log.
+  function maybeRound(force) {
+    if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap')) return false;
+    const now = new Date();
+    const r = G.round(ST.items(), S.settings, now, S.settings.roundSeen, force);
+    if (!r) return false;
+    ST.saveSettings((s) => { s.roundSeen = r.key; });
+    const close = () => ov.remove();
+    const hm = (d) => { const x = d.getHours() % 12 || 12, m = String(d.getMinutes()).padStart(2, '0'); return x + ':' + m; };
+    const part = (d) => { const hr = d.getHours(); return hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening'; };
+    const day = U.toDateStr(r.start) === U.toDateStr(now) ? 'This ' + part(r.start) : 'Yesterday ' + part(r.start);
+    const mk = (stageId, care, vid) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true, vid });
+    const stat = (n, label) => h('div', { class: 'rst' }, h('div', { class: 'n' }, String(n)), h('div', { class: 'small' }, label));
+    const talked = r.talked.slice(0, 8).map((it) => ({ it, st: G.forItem(it, S.settings, now) })).filter((x) => x.st.form);
+    const ov = h('div', { class: 'recap', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your round' },
+      h('div', { class: 'rin' },
+        h('div', { class: 'rdate' }, day + ' · ' + (hm(r.start) === hm(r.end) ? hm(r.start) : hm(r.start) + '–' + hm(r.end))),
+        h('h1', null, 'Your round'),
+        h('section', { class: 'rcard pop rstats' }, stat(r.tried, r.tried === 1 ? 'door' : 'doors'), stat(r.talks, r.talks === 1 ? 'talk' : 'talks'), stat(r.plans, r.plans === 1 ? 'plan left' : 'plans left')),
+        talked.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Talked with'),
+          h('div', { class: 'rppl' }, talked.map((x) => h('a', { href: '#/rv/' + x.it.rv.id, onclick: close },
+            SC.plantOf(x.st, 'sm', { still: true }), h('span', null, x.it.rv.name.split(' ')[0]))))) : null,
+        r.revived ? h('section', { class: 'rcard pop', style: { animationDelay: '.3s' } }, h('div', { class: 'n acc' }, String(r.revived)),
+          h('div', null, h('b', null, 'Revived'), h('div', { class: 'muted' }, (r.revived === 1 ? 'A plant' : 'Plants') + ' brought back from thirsty.'))) : null,
+        r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('h2', null, 'Grew'),
+          r.grew.slice(0, 4).map((g) => h('div', { class: 'rgrew' },
+            h('div', { class: 'pair' }, mk(g.from, 4, g.rv.id), icon('right', 16), mk(g.to, 4, g.rv.id)),
+            h('div', null, h('b', null, g.rv.name), h('div', { class: 'acc' }, G.growthName(S.settings, g.from, g.to)))))) : null,
+        r.added ? h('section', { class: 'rcard pop', style: { animationDelay: '.6s' } }, h('div', { class: 'n acc' }, String(r.added)),
+          h('div', null, h('b', null, r.added === 1 ? 'New contact' : 'New contacts'))) : null,
+        h('div', { class: 'grow1' }),
+        h('div', { class: 'ract' }, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Close'))));
+    document.body.appendChild(ov);
+    return true;
+  }
+  RV.gardenRecap = { maybeShow: () => maybeRecap() || maybeRound(), round: maybeRound };
 
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();

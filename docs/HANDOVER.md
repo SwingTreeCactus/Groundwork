@@ -8,7 +8,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
 - Current release: v2.20.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v61` (sw.js). Last commit a2fdd3f.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.21.1 / rvapp-v63), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.22.1 / rvapp-v64), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
 - Accent colour: purple is the default, blue is an option. Never red. He dislikes transparency in the plant art.
@@ -42,7 +42,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
   4. Add the variables: GOOGLE_CLIENT_ID (text), GOOGLE_CLIENT_SECRET (secret), ALLOWED_ORIGIN = https://mygroundwork.app.
   5. Send the Worker URL.
   6. After the update, Reconnect once in Settings → Data. Every user does this once.
-- **Next action when Mark sends the URL:** set `tokenHelper` in js/config.js to that URL, release v2.21.1 (cache rvapp-v63), and send the zip and design-doc line.
+- **Next action when Mark sends the URL:** set `tokenHelper` in js/config.js to that URL, release v2.22.1 (cache rvapp-v64), and send the zip and design-doc line.
   - Optional first check: a curl OPTIONS request with the Origin header should return 204.
 
 ## Tests (all passing at v2.20.0)

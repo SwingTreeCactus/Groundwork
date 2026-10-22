@@ -71,6 +71,7 @@
       gardenSince: null,
       exhibits: {},
       recapSeen: null,
+      roundSeen: null,
       nhToastSeconds: 6,
       notHomeBanner: { on: true, minAttempts: 2 },
       lists: {

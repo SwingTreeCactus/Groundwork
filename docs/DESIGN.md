@@ -417,3 +417,10 @@ From the gamification review (claude/gamification-review.md), items 1, 2 and the
 - Revive moment: a live visit that lifts a Thirsty or Wilting plant to Healthy or better plays the growth-style moment with the same form (drooping plant to upright, chip "Revived"; `P.revive`). The visit is flagged `entry.revived`. Growth takes priority when both happen. The week's-end recap shows a Revived count.
 - Garden scene: each bed is ordered by height (fruit tree, shrub, leafy, sprout, seed; then thirstiest first), so tall plants stand in the back rows; three plants a row on phones (four on wider screens), spacing 64–96 px, rows 52 px deep (was 40).
 - Tests: garden 35, logic 48, smoke 256, screens 42, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.21.0, cache rvapp-v62.
+
+## 34. v2.22.0 your round, and a nudge to leave a plan (built 2026-10-22)
+
+From the gamification review, items 3 and 5.
+- Round recap: the latest run of live logs (Not Homes, visits, new contacts; each within 90 minutes of the one before) with at least 3 logs is shown once, the next time the app is opened or returned to at least 30 minutes after the last log and within 18 hours (`G.round`, `RV.gardenRecap.round`; `settings.roundSeen` = the round's last log time, so it syncs). Card: "This morning · 9:10–11:40", Your round, doors tried (people with a Not Home or visit), talks, plans left; who you talked with as plants (tap to open); Revived, Grew and New contacts when there are any. The week's-end recap takes priority; the round waits for the next open. Garden off: no recap.
+- Plan nudge: under Discuss next time in the visit sheet, "A plan each visit grows it lush" while empty (leafy plant and up), and "Plan set · N of 3 toward lush" in the accent once filled, with a small pop (`G.lushRun` counts the planned conversations in a row, within the gap). Seeds and sprouts just say "Plan set". Not shown for study sessions.
+- Tests: garden 37, smoke 263, screens 42, logic 48, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.22.0, cache rvapp-v63.

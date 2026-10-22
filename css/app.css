@@ -1119,6 +1119,11 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .recap .rgrew { display: flex; align-items: flex-end; gap: 10px; }
 .recap .rgrew .pair { display: flex; align-items: flex-end; gap: 2px; } .recap .rgrew .pair .icon { color: var(--red); margin-bottom: 16px; }
 .recap .rgrew b { font-size: .98rem; }
+.recap .rstats { justify-content: space-around; text-align: center; }
+.recap .rstats .rst { flex: 1; } .recap .rstats .rst + .rst { border-left: 1px solid var(--line); }
+.recap .rppl { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.recap .rppl a { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 60px; color: inherit; text-decoration: none; font-size: .82rem; }
+.recap .rppl a span { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recap .acc { color: var(--red); font-weight: 600; font-size: .85rem; }
 .recap .rtwo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .recap .n { font-family: var(--font-dot); font-weight: 700; font-size: 2rem; line-height: 1; }
@@ -1192,3 +1197,10 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .upnext { margin-top: 8px; }
 .btn.logstudy { width: 100%; justify-content: center; min-height: 48px; }
 .snap-row.lastv { cursor: pointer; } .snap-row.lastv:active { opacity: .7; }
+
+/* v2.22 plan nudge under Discuss next time */
+.plannudge { display: flex; align-items: center; gap: 6px; margin: -4px 0 10px; font-size: .88rem; color: var(--muted); }
+.plannudge.on { color: var(--red); font-weight: 600; }
+.plannudge.pop { animation: nudgepop .5s ease-out; }
+@keyframes nudgepop { 0% { transform: scale(.9); opacity: .4; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .plannudge.pop { animation: none; } }

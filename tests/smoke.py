@@ -727,6 +727,34 @@ with sync_playwright() as p:
     page.click('.grow-ov'); page.wait_for_selector('.grow-ov', state='detached')
     check(ev('''(id) => RV.store.S.entries.some(e => e.rvId === id && e.type === 'visit' && e.revived)''', tid), 'the reviving visit is flagged for the recap')
     page.goto(URL + '#/rv/' + gid); page.wait_for_selector('.ghero')
+    # v2.22: the plan nudge under Discuss next time
+    page.goto(URL + '#/rv/' + tid); page.wait_for_selector('.ghero')
+    page.click('button.btn.big:has-text("Record a visit")'); page.wait_for_selector('.sheet')
+    page.fill('.sheet textarea[placeholder="Discuss next time"]', '')
+    check(page.locator('.plannudge:not(.on)').inner_text() == 'A plan each visit grows it lush', 'nudge: no plan yet')
+    page.fill('.sheet textarea[placeholder="Discuss next time"]', 'Ask about the garden')
+    check('toward lush' in page.locator('.plannudge.on').inner_text(), 'nudge: plan set counts toward lush')
+    shot('31c-plan-nudge')
+    page.click('.sheet button:has-text("Cancel")'); time.sleep(0.3)
+    # v2.22: the round recap after a stretch of field service
+    rn = ev('''() => { const ST = RV.store; const t = m => new Date(Date.now() - m*60000).toISOString();
+      ST.saveSettings(s => { s.roundSeen = null; });
+      const ids = ST.S.rvs.filter(r => !r.deletedAt && r.stage !== 'archived').slice(0, 3).map(r => r.id);
+      ST.logVisit(ids[0], {text: 'round 1', whatsNext: 'x', at: t(150)});
+      ST.logVisit(ids[1], {text: 'round 2', whatsNext: '', at: t(120)});
+      return ids.length; }''')
+    ev('''() => { const ST = RV.store; const id = ST.S.rvs.filter(r => !r.deletedAt && r.stage !== 'archived')[2].id;
+      const e = ST.logNH(id); }''')
+    # the Not Home just logged is "now", so the round is still going: nothing shows yet
+    check(ev('RV.gardenRecap.maybeShow()') is False, 'no round recap while still out')
+    check(ev('RV.gardenRecap.round(true)') is True, 'round recap when the round is over')
+    page.wait_for_selector('.recap[aria-label="Your round"]'); time.sleep(0.8); shot('31d-round-recap')
+    st = page.locator('.recap .rstats').inner_text()
+    check('talk' in st and 'plan' in st and 'door' in st, 'round recap: doors, talks, plans (%s)' % st.replace('\n', ' '))
+    check(page.locator('.recap .rppl a').count() >= 2, 'round recap shows who you talked with')
+    page.click('.recap button:has-text("Close")'); time.sleep(0.2)
+    check(ev('RV.gardenRecap.round(true)') is False, 'round recap shows once')
+    page.goto(URL + '#/rv/' + gid); page.wait_for_selector('.ghero')
     # a talk a day counts once
     ev('''(id) => RV.store.logVisit(id, {text: 'again', whatsNext: 'x'})''', gid)
     check(ev('RV.store.rvById("%s").stage' % gid) == 'initial', 'a second talk the same day does not count')
