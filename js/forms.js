@@ -371,7 +371,10 @@
       h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;
     const nextBox = field('Discuss next time', whatsNext);
     const campBox = camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null;
-    const studySw = h('div', { class: 'switchrow', style: { marginBottom: '8px' } }, h('div', { class: 'grow' }, 'Study session'),
+    // no study session for Potential (no real conversation yet)
+    const isFirst = (S.settings.stages.find((x) => !x.closed) || {}).id === rv.stage;
+    if (isFirst) study = false;
+    const studySw = isFirst ? null : h('div', { class: 'switchrow', style: { marginBottom: '8px' } }, h('div', { class: 'grow' }, 'Study session'),
       UI.toggle(study, (v) => { study = v; paint(); }, 'Study session'));
     const title = h('span');
     const saveBtn = h('button', { class: 'btn primary', type: 'submit' });

@@ -396,3 +396,4 @@ Mockups: canvas boards "Care as posture" and "Variety".
 - Tabs: Home, Contacts, Insights. Home keeps the campaign banner and topics at the top, then who to see today (Today / All, the three stage tiles, Almost growing), then Up next (the three longest since a visit) at the foot; Up next left the Contacts tiles. The due count sits on the Home tab. #/today opens Home; #/today/<stage> lists remain (back goes to Home).
 - Tests: smoke 245, screens 42, garden 33, logic 48. VERSION 2.19.4, cache rvapp-v57.
 - v2.19.5: the map's toggle is All / Today (who to see today, the same people as Home's Today) instead of Thirsty only. Cache rvapp-v58.
+- v2.19.6: every RV (Initial Call, Cultivating, Return Visit, even brand new) has a Log study button under Record NH / Record a visit, opening the visit sheet with Study session on. Potential has no Log study and no Study session switch (no conversation yet). Cache rvapp-v59.

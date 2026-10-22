@@ -680,7 +680,11 @@
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), 'Record ' + lbl('notHomeShort')),
-            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))))
+            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
+          // any RV can log a study, even on the first visit (not Potential: no conversation yet)
+          L.shownStage(S.settings, rv.stage).key === 'rv'
+            ? h('button', { class: 'btn logstudy', type: 'button', onclick: () => F.visitDialog(rv.id, { study: true }) }, icon('note', 18), lbl('logStudy'))
+            : null)
         : null);
     els.push(head);
 

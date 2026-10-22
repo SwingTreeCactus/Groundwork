@@ -1190,3 +1190,4 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 /* v2.19.4: Home holds who to see today, then Up next */
 .home-today { margin-top: 18px; }
 .upnext { margin-top: 8px; }
+.btn.logstudy { width: 100%; justify-content: center; min-height: 48px; }
