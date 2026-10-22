@@ -119,6 +119,27 @@
   // Study sessions logged, ever (live ones; imports never count toward growth).
   const studyCount = (entries) => conversations(entries, { liveOnly: true }).filter(isStudySession).length;
 
+  // Shrub flowers (v2.23): at the shrub (form 4), each completed chain of FLOWER_RUN conversations sets one
+  // flower, up to FLOWER_MAX; a break empties the run toward the next one. Counted from when the plant became a
+  // shrub and from the day flowers arrived (settings.flowersSince; nothing earlier counts), live talks only.
+  // Flowers never fall off; they close while the plant is Thirsty or Wilting (drawn by plant.js).
+  const FLOWER_RUN = 3, FLOWER_MAX = 5;
+  function flowers(rv, entries, settings) {
+    if (formOf(settings, rv.stage) !== 4 || !settings.flowersSince) return 0;
+    const gap = gapFor(settings, rv);
+    const start = Math.max(ms(sinceOf(rv)), ms(settings.flowersSince));
+    const convs = conversations(entries, { liveOnly: true }).filter((e) => ms(e.at) > start);
+    let n = 0, run = 0, prev = U.startOfDay(new Date(start));
+    for (const e of convs) {
+      const d = dayOf(e.at);
+      const within = gap == null || U.daysBetween(d, prev) <= gap || e.chainHeld === true;
+      run = within ? run + 1 : 1;
+      prev = d;
+      if (run >= FLOWER_RUN) { n++; run = 0; if (n >= FLOWER_MAX) break; }
+    }
+    return n;
+  }
+
   // Progress toward the next form.
   function progress(rv, entries, settings, now) {
     const form = formOf(settings, rv.stage);
@@ -201,7 +222,7 @@
     const c = care(rv, entries, settings, now);
     const p = progress(rv, entries, settings, now);
     const word = c === CARE.WILTED ? CARE_NAMES[1] : c === CARE.DRY ? CARE_NAMES[2] : '';
-    return Object.assign({ vid: rv.id, care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, studied: studyCount(entries) > 0 }, p);
+    return Object.assign({ vid: rv.id, care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, flowers: form === 4 ? flowers(rv, entries, settings) : 0, studied: studyCount(entries) > 0 }, p);
   }
 
   // State for a list item ({rv, entries}), memoised on the item (store items are rebuilt each minute or edit).
@@ -314,27 +335,42 @@
     })).sort((a, b) => (!a.name) - (!b.name) || (b.wilting + b.thirsty) - (a.wilting + a.thirsty) || U.cmp(a.name, b.name));
   }
   // Exhibits: one-time milestones, from live activity since the garden started (nothing backfilled).
+  // v2.23: twenty milestones in families; each family is one object in the garden that grows richer by tier.
+  // [id, short, name, family, tier]. Ids from v2.16 are kept so earned dates carry over.
   const EXHIBITS = [
-    ['first-study', '1st', 'First study'], ['rv25', '25', '25 return visits'], ['area', 'All', 'Area all watered'], ['streak26', '26', '6-month streak'],
-    ['rv50', '50', '50 return visits'], ['studies3', '3', 'Three studies'], ['first10', '10', '10 first talks'], ['streak52', '1y', 'One-year streak'],
+    ['first-plan', '1st', 'First plan left', 'plan', 1],
+    ['round1', '1st', 'First round', 'round', 1],
+    ['ring1', '1st', 'First full week', 'streak', 1], ['streak4', '4', '4-week streak', 'streak', 2], ['streak12', '12', '12-week streak', 'streak', 3],
+    ['streak26', '26', '6-month streak', 'streak', 4], ['streak52', '1y', 'One-year streak', 'streak', 5],
+    ['revive1', '1st', 'First revival', 'revive', 1], ['revive5', '5', '5 revivals', 'revive', 2], ['revive25', '25', '25 revivals', 'revive', 3],
+    ['rv10', '10', '10 return visits', 'rv', 1], ['rv25', '25', '25 return visits', 'rv', 2], ['rv50', '50', '50 return visits', 'rv', 3], ['rv100', '100', '100 return visits', 'rv', 4],
+    ['first10', '10', '10 first talks', 'first', 1], ['first25', '25', '25 first talks', 'first', 2],
+    ['first-study', '1st', 'First study', 'study', 1], ['studies3', '3', 'Three studies', 'study', 2], ['studies5', '5', 'Five studies', 'study', 3],
+    ['area', 'All', 'Area all watered', 'area', 1],
   ];
   function exhibitsEarned(items, settings, now, since, best) {
     const t0 = since ? new Date(since) : new Date(0);
     const after = (e) => !e.imported && !e.deletedAt && new Date(e.at) >= t0;
-    let visits = 0, firsts = 0;
+    let visits = 0, firsts = 0, plans = 0, revived = 0;
     const studied = new Set();
     for (const it of items) {
       const live = it.entries.filter((e) => e.type === 'visit' && !e.imported);
       visits += live.filter(after).length;
+      plans += live.filter((e) => after(e) && (e.plan === true || (e.study && e.nextStart))).length;
+      revived += live.filter((e) => after(e) && e.revived).length;
       if (live.some(isStudySession) && live.filter(isStudySession).some(after)) studied.add(it.rv.id);
       const firstConv = live.reduce((m, e) => (!m || e.at < m.at ? e : m), null);
       if (firstConv && after(firstConv)) firsts++;
     }
     const pl = plots(items, settings, now);
     return {
-      'first-study': studied.size >= 1, rv25: visits >= 25, rv50: visits >= 50, studies3: studied.size >= 3, first10: firsts >= 10,
+      'first-plan': plans >= 1, round1: !!settings.roundSeen,
+      ring1: best >= 1, streak4: best >= 4, streak12: best >= 12, streak26: best >= 26, streak52: best >= 52,
+      revive1: revived >= 1, revive5: revived >= 5, revive25: revived >= 25,
+      rv10: visits >= 10, rv25: visits >= 25, rv50: visits >= 50, rv100: visits >= 100,
+      first10: firsts >= 10, first25: firsts >= 25,
+      'first-study': studied.size >= 1, studies3: studied.size >= 3, studies5: studied.size >= 5,
       area: pl.some((p) => p.name && p.plants.length >= 3 && !p.wilting && !p.thirsty),
-      streak26: best >= 26, streak52: best >= 52,
     };
   }
 
@@ -435,7 +471,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

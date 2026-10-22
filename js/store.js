@@ -45,6 +45,8 @@
     // 2.16: the garden starts today. Care and chains are read from the timeline silently; streaks and
     // exhibits only count from here.
     if (!S.settings.gardenSince) { S.settings.gardenSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
+    // v2.23: shrub flowers count only conversations from the day they arrived (no retroactive flowers)
+    if (!S.settings.flowersSince) { S.settings.flowersSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
     S.ready = true;
     emit();
   }

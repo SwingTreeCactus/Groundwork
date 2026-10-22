@@ -69,6 +69,7 @@
       // counts toward streaks or exhibits); exhibits earned {id: ISO date}.
       garden: true,
       gardenSince: null,
+      flowersSince: null,
       exhibits: {},
       recapSeen: null,
       roundSeen: null,

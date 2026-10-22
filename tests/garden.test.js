@@ -231,6 +231,19 @@ test('lush run: planned conversations in a row within the gap (v2.22)', () => {
   assert.equal(G.lushRun(r, [v(r, 80, { plan: true }), v(r, 10, { plan: true })], S, NOW), 1); // 70-day gap
   assert.equal(G.lushRun(r, [v(r, 40, { plan: true })], S, NOW), 0);                           // too long ago
 });
+test('shrub flowers: one per chain of three talks at the shrub, from the day flowers arrived, up to five (v2.23)', () => {
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  const r = rv({ stage: 'return', stageChangedAt: ago(190) });
+  const es = []; for (let n = 180; n >= 0; n -= 10) es.push(v(r, n)); // 19 talks, 10 days apart
+  assert.equal(G.flowers(r, es, s2), 5);                                      // 6 chains of 3, capped at 5
+  assert.equal(G.flowers(r, es.slice(0, 5), s2), 1);
+  assert.equal(G.flowers(r, [v(r, 100), v(r, 90), v(r, 40), v(r, 30), v(r, 20)], s2), 1); // the 50-day gap restarts the run
+  assert.equal(G.flowers(r, es, Object.assign({}, s2, { flowersSince: ago(15) })), 0); // no retroactive flowers
+  assert.equal(G.flowers(rv({ stage: 'cultivating' }), es, s2), 0);             // only the shrub flowers
+  assert.equal(G.stateOf(r, es.slice(0, 5), s2, NOW).flowers, 1);
+  assert.equal(G.EXHIBITS.length, 20);
+  assert.ok(['first-study', 'rv25', 'rv50', 'studies3', 'first10', 'streak26', 'streak52', 'area'].every((id) => G.EXHIBITS.some((e) => e[0] === id)), 'v2.16 exhibit ids kept');
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due

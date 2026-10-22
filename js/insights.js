@@ -114,6 +114,12 @@
   // Butterflies visit lush plants; a bird sits on a lush study's tree. Tap a plant for its card.
   const svgEl = (html, cls, style) => { const d = document.createElement('div'); d.innerHTML = html; const el = d.firstChild; if (cls) el.setAttribute('class', cls); if (style) el.setAttribute('style', style); return el; };
   const FLY = '<svg aria-hidden="true" viewBox="0 0 16 14"><g class="w"><ellipse cx="4.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="11.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="5" cy="10.5" rx="3" ry="3" class="f2"/><ellipse cx="11" cy="10.5" rx="3" ry="3" class="f2"/></g><rect x="7.3" y="3" width="1.4" height="10" rx=".7" class="fb"/></svg>';
+  // v2.23 rare visitors: by chance, only when the garden is doing well. Purely decorative.
+  const HUM = '<svg aria-hidden="true" viewBox="0 0 26 16"><g class="hw"><ellipse cx="11" cy="4" rx="6" ry="2.4" transform="rotate(-24 11 4)" class="hwing"/></g><ellipse cx="11" cy="9" rx="6" ry="3.4" class="hb"/><circle cx="17" cy="7" r="2.8" class="hb"/><path d="M19.4 6.8 L26 6 L19.6 7.8 Z" class="hk"/><circle cx="17.8" cy="6.4" r=".8" fill="#FFFFFF"/><path d="M5.5 9.5 L0 12 L5 11.4 Z" class="hb"/><ellipse cx="12" cy="10.4" rx="3" ry="1.6" class="hth"/></svg>';
+  const RABBIT = '<svg aria-hidden="true" viewBox="0 0 26 24"><ellipse cx="12" cy="17" rx="9" ry="6.5" class="rb"/><circle cx="19" cy="11" r="4.6" class="rb"/><ellipse cx="17.5" cy="3.6" rx="1.6" ry="4.4" transform="rotate(-12 17.5 3.6)" class="rb"/><ellipse cx="21" cy="4" rx="1.6" ry="4.4" transform="rotate(14 21 4)" class="rb"/><ellipse cx="21" cy="4.4" rx=".6" ry="2.8" transform="rotate(14 21 4.4)" class="ri"/><circle cx="3.6" cy="16" r="2.6" class="rt"/><circle cx="20.6" cy="10.4" r=".9" class="re"/><ellipse cx="16" cy="23" rx="3.4" ry="1.1" class="rb"/></svg>';
+  const FOX = '<svg aria-hidden="true" viewBox="0 0 40 26"><path d="M4 18 C0 12 6 8 10 14 C14 20 8 24 4 18 Z" class="fx"/><path d="M3 19 C2 17 4 16 5 18 Z" class="ft"/><ellipse cx="18" cy="17" rx="10" ry="6" class="fx"/><path d="M26 14 L36 13 L32 20 L26 19 Z" class="fx"/><path d="M27 13 L28 6 L31 12 Z" class="fx"/><path d="M31 12 L33 6 L34 12.6 Z" class="fx"/><path d="M33 17 L36 13.4 L35 18 Z" class="fd"/><circle cx="31.5" cy="15" r=".9" class="fd"/><path d="M12 22 V26 M16 22 V26 M21 22 V26 M24 21 V26" stroke-width="2" stroke-linecap="round" class="fl"/><path d="M14 18 C17 21 22 21 25 18" class="ft" stroke-width="0"/></svg>';
+  // chance: window.__RV_SURPRISE = 1 (always) or 0 (never) for tests
+  const chance = (p) => { const f = root.__RV_SURPRISE; return f === 1 ? true : f === 0 ? false : Math.random() < p; };
   const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
   function skySvg(t) {
     const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
@@ -136,7 +142,8 @@
     }
     return box;
   }
-  function gardenScene(plots, now, earned) {
+  function gardenScene(plots, now, earned, opt) {
+    opt = opt || {};
     const t = G.skyOf(now);
     const card = h('div', { class: 'gcard', hidden: true });
     let selEl = null;
@@ -144,14 +151,14 @@
       if (selEl) selEl.classList.remove('sel');
       if (selEl === el) { selEl = null; card.hidden = true; return; }
       selEl = el; el.classList.add('sel'); P.water(el);
-      const word = x.st.word || L.shownName(S.settings, x.it.rv.stage);
+      const word = L.shownName(S.settings, x.it.rv.stage);
       card.replaceChildren(
         h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
-          h('span', { class: x.st.word ? 'gword' : '' }, word)),
+          h('span', null, word)),
         h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'));
       card.hidden = false;
     };
-    let seed = 0, flies = 0, birds = 0;
+    let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0;
     const ROW = 52; // depth between rows of a bed
     const beds = plots.map((p) => {
       // fit the bed to the screen: up to 4 plants a row, a little closer together on narrow phones
@@ -176,45 +183,62 @@
         bed.appendChild(el);
         if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
         if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
+        // a hummingbird, now and then, by a flowering shrub that is doing well
+        if (x.st.form === 4 && x.st.care >= G.CARE.HEALTHY && !hums && chance(0.35)) { hums++; bed.appendChild(svgEl(HUM, 'ghum', 'left:' + (left + 50) + 'px;top:' + (top + 4) + 'px')); }
       });
       const due = p.wilting + p.thirsty;
+      // a rabbit, sometimes, at the front of a bed where nobody is thirsty
+      if (!due && p.plants.length >= 2 && !rabbits && chance(0.3)) { rabbits++; bed.appendChild(svgEl(RABBIT, 'grab', 'right:' + (rows > 1 ? 4 : -18) + 'px;bottom:6px')); }
       return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
         h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
     });
     return h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
-      h('div', { class: 'gground' }, tufts(), svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
+      h('div', { class: 'gground' }, tufts(),
+        // bunting over the path while a campaign is running; a fox at dusk after a week with the ring closed
+        opt.campaign ? svgEl('<svg class="gbunt" aria-hidden="true" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="M0 4 Q100 22 200 4" class="bl"/>' +
+          Array.from({ length: 11 }, (_, i) => { const x = 10 + i * 18, y = 4 + 18 * (1 - Math.pow((x - 100) / 100, 2)) * 0.5; return '<path d="M' + (x - 5) + ' ' + y.toFixed(1) + ' L' + (x + 5) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 10).toFixed(1) + ' Z" class="b' + (i % 3) + '"/>'; }).join('') + '</svg>') : null,
+        (opt.sky || t) === 'dusk' && opt.ringClosed && chance(0.5) ? svgEl(FOX, 'gfox') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
       card);
   }
 
   // ---------- exhibits: earned milestones stand in the garden as objects ----------
   const STONE = 'class="o1"', STONE2 = 'class="o2"', ACC = 'class="oa"', WATER = 'class="ow"';
+  // One object per family (v2.23); tiers add a pot of flowers, a second pot, a sparkle, then a ring of blooms.
   const EXH_ART = {
-    'first-study': '<svg viewBox="0 0 30 64" aria-hidden="true"><rect x="13.5" y="22" width="3" height="40" rx="1.5" ' + STONE2 + '/><rect x="8" y="10" width="14" height="15" rx="4" ' + STONE + '/><rect x="11" y="13" width="8" height="9" rx="2" ' + ACC + '/><path d="M6 10 L15 3 L24 10 Z" ' + STONE2 + '/><rect x="9" y="60" width="12" height="3" rx="1.5" ' + STONE2 + '/></svg>',
-    rv25: '<svg viewBox="0 0 64 36" aria-hidden="true"><rect x="4" y="8" width="56" height="5" rx="2.5" ' + STONE2 + '/><rect x="4" y="17" width="56" height="6" rx="3" ' + STONE + '/><rect x="9" y="23" width="4" height="11" rx="2" ' + STONE2 + '/><rect x="51" y="23" width="4" height="11" rx="2" ' + STONE2 + '/></svg>',
+    study: '<svg viewBox="0 0 30 64" aria-hidden="true"><rect x="13.5" y="22" width="3" height="40" rx="1.5" ' + STONE2 + '/><rect x="8" y="10" width="14" height="15" rx="4" ' + STONE + '/><rect x="11" y="13" width="8" height="9" rx="2" ' + ACC + '/><path d="M6 10 L15 3 L24 10 Z" ' + STONE2 + '/><rect x="9" y="60" width="12" height="3" rx="1.5" ' + STONE2 + '/></svg>',
+    rv: '<svg viewBox="0 0 64 36" aria-hidden="true"><rect x="4" y="8" width="56" height="5" rx="2.5" ' + STONE2 + '/><rect x="4" y="17" width="56" height="6" rx="3" ' + STONE + '/><rect x="9" y="23" width="4" height="11" rx="2" ' + STONE2 + '/><rect x="51" y="23" width="4" height="11" rx="2" ' + STONE2 + '/></svg>',
     area: '<svg viewBox="0 0 60 56" aria-hidden="true"><path d="M8 38 H52 L48 52 H12 Z" ' + STONE + '/><rect x="6" y="34" width="48" height="6" rx="3" ' + STONE2 + '/><rect x="27" y="14" width="6" height="22" rx="3" ' + STONE2 + '/><path d="M18 18 C22 10 38 10 42 18" stroke-width="4" fill="none" stroke-linecap="round" class="o2s"/><g ' + WATER + '><circle cx="30" cy="8" r="3"/><circle cx="22" cy="24" r="2"/><circle cx="38" cy="24" r="2"/><circle cx="30" cy="30" r="2"/></g></svg>',
-    studies3: '<svg viewBox="0 0 50 50" aria-hidden="true"><ellipse cx="25" cy="14" rx="21" ry="6" ' + STONE + '/><ellipse cx="25" cy="13" rx="16" ry="3.6" ' + WATER + '/><path d="M20 18 H30 L28 44 H22 Z" ' + STONE2 + '/><rect x="14" y="44" width="22" height="5" rx="2.5" ' + STONE + '/><ellipse cx="34" cy="7" rx="4" ry="3" ' + ACC + '/><circle cx="37" cy="5" r="2" ' + ACC + '/></svg>',
-    rv50: '<svg viewBox="0 0 60 70" aria-hidden="true"><path d="M8 68 V30 C8 12 52 12 52 30 V68" stroke-width="5" fill="none" class="o2s"/><path d="M8 40 C4 36 4 30 8 28 M52 40 C56 36 56 30 52 28 M14 18 C10 14 12 10 16 12 M46 18 C50 14 48 10 44 12 M30 12 C28 8 32 6 32 10" stroke-width="3" fill="none" stroke-linecap="round" class="oas"/><g ' + ACC + '><circle cx="12" cy="24" r="3"/><circle cx="48" cy="24" r="3"/><circle cx="30" cy="11" r="3"/><circle cx="21" cy="14" r="2.5"/><circle cx="39" cy="14" r="2.5"/></g></svg>',
-    streak26: '<svg viewBox="0 0 50 50" aria-hidden="true"><rect x="19" y="20" width="12" height="26" rx="2" ' + STONE2 + '/><rect x="12" y="44" width="26" height="5" rx="2.5" ' + STONE + '/><ellipse cx="25" cy="18" rx="20" ry="7" ' + STONE + '/><path d="M25 18 L25 6 L33 18 Z" ' + ACC + '/></svg>',
-    first10: '<svg viewBox="0 0 64 50" aria-hidden="true"><rect x="4" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><rect x="53" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><path d="M11 18 H53 M11 40 H53" stroke-width="3" class="o2s"/><path d="M17 16 V46 M24 15 V46 M32 14 V46 M40 15 V46 M47 16 V46" stroke-width="3" stroke-linecap="round" class="o1s"/><circle cx="7.5" cy="7" r="4" ' + ACC + '/><circle cx="56.5" cy="7" r="4" ' + ACC + '/></svg>',
-    streak52: '<svg viewBox="0 0 70 84" aria-hidden="true"><rect x="31" y="44" width="8" height="38" rx="3" ' + STONE2 + '/><path d="M35 58 L22 46 M35 52 L48 42" stroke-width="4" stroke-linecap="round" class="o2s"/><g ' + ACC + '><circle cx="35" cy="22" r="18"/><circle cx="18" cy="36" r="14"/><circle cx="52" cy="34" r="14"/><circle cx="35" cy="40" r="12"/></g><g class="ofr"><circle cx="26" cy="26" r="2.6"/><circle cx="44" cy="20" r="2.6"/><circle cx="52" cy="38" r="2.6"/><circle cx="18" cy="40" r="2.6"/><circle cx="35" cy="34" r="2.6"/></g></svg>',
+    revive: '<svg viewBox="0 0 50 50" aria-hidden="true"><ellipse cx="25" cy="14" rx="21" ry="6" ' + STONE + '/><ellipse cx="25" cy="13" rx="16" ry="3.6" ' + WATER + '/><path d="M20 18 H30 L28 44 H22 Z" ' + STONE2 + '/><rect x="14" y="44" width="22" height="5" rx="2.5" ' + STONE + '/><ellipse cx="34" cy="7" rx="4" ry="3" ' + ACC + '/><circle cx="37" cy="5" r="2" ' + ACC + '/></svg>',
+    plan: '<svg viewBox="0 0 60 70" aria-hidden="true"><path d="M8 68 V30 C8 12 52 12 52 30 V68" stroke-width="5" fill="none" class="o2s"/><path d="M8 40 C4 36 4 30 8 28 M52 40 C56 36 56 30 52 28 M14 18 C10 14 12 10 16 12 M46 18 C50 14 48 10 44 12 M30 12 C28 8 32 6 32 10" stroke-width="3" fill="none" stroke-linecap="round" class="oas"/><g ' + ACC + '><circle cx="12" cy="24" r="3"/><circle cx="48" cy="24" r="3"/><circle cx="30" cy="11" r="3"/><circle cx="21" cy="14" r="2.5"/><circle cx="39" cy="14" r="2.5"/></g></svg>',
+    streak: '<svg viewBox="0 0 50 50" aria-hidden="true"><rect x="19" y="20" width="12" height="26" rx="2" ' + STONE2 + '/><rect x="12" y="44" width="26" height="5" rx="2.5" ' + STONE + '/><ellipse cx="25" cy="18" rx="20" ry="7" ' + STONE + '/><path d="M25 18 L25 6 L33 18 Z" ' + ACC + '/></svg>',
+    first: '<svg viewBox="0 0 64 50" aria-hidden="true"><rect x="4" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><rect x="53" y="8" width="7" height="42" rx="2" ' + STONE2 + '/><path d="M11 18 H53 M11 40 H53" stroke-width="3" class="o2s"/><path d="M17 16 V46 M24 15 V46 M32 14 V46 M40 15 V46 M47 16 V46" stroke-width="3" stroke-linecap="round" class="o1s"/><circle cx="7.5" cy="7" r="4" ' + ACC + '/><circle cx="56.5" cy="7" r="4" ' + ACC + '/></svg>',
+    round: '<svg viewBox="0 0 60 46" aria-hidden="true"><path d="M14 18 H42 L40 44 H16 Z" ' + STONE + '/><path d="M20 18 C20 6 36 6 36 18" stroke-width="4" fill="none" stroke-linecap="round" class="o2s"/><path d="M40 26 L54 14" stroke-width="4" stroke-linecap="round" class="o2s"/><rect x="50" y="9" width="8" height="5" rx="2" transform="rotate(-40 54 11)" ' + STONE2 + '/><g ' + WATER + '><circle cx="57" cy="20" r="1.6"/><circle cx="55" cy="25" r="1.4"/><circle cx="59" cy="26" r="1.2"/></g><rect x="14" y="26" width="28" height="4" ' + ACC + '/></svg>',
   };
-  function exhibitObj(id, name, locked) {
-    const d = h('div', { class: 'gobj o-' + id + (locked ? ' locked' : ''), role: 'img', 'aria-label': name + (locked ? ' (not yet)' : '') });
-    d.innerHTML = EXH_ART[id] || '';
-    return d;
+  const POT = '<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M3 11 H13 L11.5 19 H4.5 Z" class="o2"/><path d="M8 11 V6" stroke-width="1.4" class="oas"/><g class="oa"><circle cx="8" cy="3.6" r="2.4"/><circle cx="4.6" cy="6.4" r="2"/><circle cx="11.4" cy="6.4" r="2"/></g></svg>';
+  const SPARK = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 0 L8.4 5.6 14 7 8.4 8.4 7 14 5.6 8.4 0 7 5.6 5.6Z" class="oa"/></svg>';
+  function exhibitObj(fam, name, locked, tier) {
+    const d = h('div', { class: 'gobj o-' + fam + (locked ? ' locked' : ''), role: 'img', 'aria-label': name + (locked ? ' (not yet)' : '') });
+    d.innerHTML = EXH_ART[fam] || '';
+    if (!tier || tier < 2) return d;
+    const deco = (cls, art) => { const x = h('span', { class: cls, 'aria-hidden': 'true' }); x.innerHTML = art; return x; };
+    return h('div', { class: 'gfam t' + tier },
+      deco('gpot l', POT), d, tier >= 3 ? deco('gpot r', POT) : null,
+      tier >= 4 ? deco('gspark', SPARK) : null,
+      tier >= 5 ? h('span', { class: 'gbloom', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('i'), h('i')) : null);
   }
-  // the earned ones, standing together at the foot of the garden
+  // the earned ones, standing together at the foot of the garden: one object per family at its highest tier
   function exhibitSquare(earned) {
-    const got = G.EXHIBITS.filter(([id]) => earned[id]);
-    if (!got.length) return null;
-    return h('div', { class: 'gsquare' }, got.map(([id, , name]) => exhibitObj(id, name, false)));
+    const top = new Map();
+    for (const [id, , name, fam, tier] of G.EXHIBITS) if (earned[id] && (!top.has(fam) || top.get(fam).tier < tier)) top.set(fam, { name, tier });
+    if (!top.size) return null;
+    return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)));
   }
   function exhibitSheet(earned) {
     UI.sheet('Exhibits', (close) => h('div', null,
-      h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
-        exhibitObj(id, name, !earned[id]),
+      h('div', { class: 'exgrid' }, G.EXHIBITS.map(([id, , name, fam]) => h('div', { class: 'exitem' + (earned[id] ? '' : ' locked') },
+        exhibitObj(fam, name, !earned[id]),
         h('b', null, name),
         h('span', null, earned[id] ? U.fmtDate(new Date(earned[id])) : 'Not yet')))),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
@@ -255,7 +279,9 @@
     }
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now, earned) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
+    const last = G.weekRing(items, S.settings, U.addDays(G.weekStart(now), -7), now);
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), ringClosed: last.due > 0 && last.perfect }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    return { title: 'Insights', el: h('div', null, plots.length ? gardenScene(plots, now, earned, opt) : null, ringCard(sk), exhibitCard(earned), goingCard(items, now), keep) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.

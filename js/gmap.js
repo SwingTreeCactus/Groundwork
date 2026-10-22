@@ -129,16 +129,16 @@
     function pick(x) {
       if (sel) sel.classList.remove('sel');
       const m = markers.get(x.it.rv.id); sel = m ? m.getElement() : null; if (sel) sel.classList.add('sel');
-      const word = x.st.word || L.shownName(S.settings, x.it.rv.stage);
+      const word = L.shownName(S.settings, x.it.rv.stage);
       card.replaceChildren(
-        h('div', { class: 'gct' }, h('b', null, x.it.rv.name), h('span', { class: x.st.word ? 'gword' : '' }, word)),
+        h('div', { class: 'gct' }, h('b', null, x.it.rv.name), h('span', null, word)),
         h('a', { class: 'btn sm', href: '#/rv/' + x.it.rv.id }, 'Open'),
         h('button', { class: 'btn primary sm', type: 'button', onclick: () => UI.openNav(UI.navTarget(x.it.rv)) }, 'Directions'));
       card.hidden = false;
     }
     function markerEl(x, pt) {
       const b = h('button', { class: 'gpin' + (pt.approx ? ' approx' : ''), type: 'button', 'aria-label': x.it.rv.name + ', ' + (x.st.word || L.shownName(S.settings, x.it.rv.stage)) + (pt.approx ? ', placed from the address' : '') });
-      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, still: false, vid: x.it.rv.id }));
+      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, flowers: x.st.flowers, still: false, vid: x.it.rv.id }));
       b.addEventListener('click', (e) => { e.stopPropagation(); pick(x); });
       return b;
     }

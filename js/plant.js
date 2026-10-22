@@ -102,6 +102,18 @@
       for (let k = 0; k < (c > 1 ? 5 : 3); k++) out += '<circle cx="' + f(cx + Math.sin(rad(ha + k * 72)) * spread) + '" cy="' + f(cy - Math.cos(rad(ha + k * 72)) * spread) + '" r="' + f(r) + '" class="tint"/>';
       out += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r * .72) + '" fill="currentColor"/>';
     }
+    // v2.23: one small flower per completed chain of talks (up to five), open when cared for, closed buds when dry
+    const FP = [[0.3, 1], [0.44, -1], [0.58, 1], [0.72, -1], [0.86, 1]];
+    for (let k = 0; k < Math.min(5, ctx.flowers || 0); k++) {
+      const [t, side] = FP[k], [fx0, fy0, fa] = at(sp, t);
+      const ang = fa + side * (c >= 4 ? 62 : 110), d = c >= 4 ? 9 : 6;
+      const fx = fx0 + Math.sin(rad(ang)) * d, fy = fy0 - Math.cos(rad(ang)) * d;
+      if (c >= 4) {
+        let fl = '';
+        for (let p = 0; p < 5; p++) fl += '<circle cx="' + f(fx + Math.sin(rad(p * 72)) * 2.3) + '" cy="' + f(fy - Math.cos(rad(p * 72)) * 2.3) + '" r="' + (c === 5 ? 2 : 1.7) + '" class="tint"/>';
+        out += '<g class="sfl">' + fl + '<circle cx="' + f(fx) + '" cy="' + f(fy) + '" r="1.3" fill="currentColor"/></g>';
+      } else out += '<ellipse cx="' + f(fx) + '" cy="' + f(fy) + '" rx="1.4" ry="2.3" class="tint" transform="rotate(' + f(ang + 180) + ' ' + f(fx) + ' ' + f(fy) + ')"/>';
+    }
     // one small fruit bud per study session logged (up to three), on the healthy stem
     for (let k = 0; k < Math.min(3, ctx.buds || 0) && c >= 4; k++) { const [bx, by] = at(sp, [0.35, 0.55, 0.72][k]); out += '<circle cx="' + f(bx + (k % 2 ? -5 : 5)) + '" cy="' + f(by) + '" r="2.4" fill="currentColor"/>'; }
     return out + (c === 1 ? fallen(2) : c === 2 ? fallen(1) : '');
@@ -132,8 +144,8 @@
   const STAR = (x, y, s) => '<path d="M0 -3.4 L.9 -.9 3.4 0 .9 .9 0 3.4 -.9 .9 -3.4 0 -.9 -.9Z" class="star" transform="translate(' + x + ' ' + y + ') scale(' + s + ')"/>';
   // care 3 (the old "steady") draws as healthy; seeds and sprouts top out at healthy
   const careOf = (form, care) => { let c = care === 3 ? 4 : care || 4; if (c === 5 && form <= 2) c = 4; return c; };
-  function plantSvg(form, care, v, buds) {
-    const ctx = { care: careOf(form, care), v, buds };
+  function plantSvg(form, care, v, buds, flowers) {
+    const ctx = { care: careOf(form, care), v, buds, flowers };
     const stars = ctx.care === 5 ? '<g class="stars">' + STAR(8, 30, 1) + STAR(52, 22, 1.2) + STAR(14, 8, .8) + STAR(49, 52, .8) + '</g>' : '';
     return '<svg class="plant-svg" aria-hidden="true" viewBox="0 0 60 92"><g class="lean"><g class="body"><g class="sway">' + DRAW[form](ctx) + '</g></g></g>' + stars + '</svg>';
   }
@@ -286,7 +298,7 @@
     el.className = 'pl ' + size + ' s' + form + ' h' + c + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '');
     el.setAttribute('aria-hidden', 'true');
     if (!o.ghost) { const col = colours(c, v.shade); el.style.color = col.c; el.style.setProperty('--pl-tint', col.t); }
-    el.innerHTML = plantSvg(form, c, o.ghost ? variant('base') : v, buds) + (o.potless ? '' : potSvg(small));
+    el.innerHTML = plantSvg(form, c, o.ghost ? variant('base') : v, buds, form === 4 && !o.ghost ? o.flowers || 0 : 0) + (o.potless ? '' : potSvg(small));
     if (!o.still) watch(el);
     return el;
   }

@@ -11,17 +11,17 @@
   const G = RV.garden, P = RV.plant;
   const gardenOn = () => S.settings.garden !== false;
   const gstate = (it) => G.forItem(it, S.settings, new Date());
-  const plantOf = (st, size, o) => P.make(st.form, st.care, Object.assign({ size, buds: st.buds, vid: st.vid }, o || {}));
+  const plantOf = (st, size, o) => P.make(st.form, st.care, Object.assign({ size, buds: st.buds, flowers: st.flowers, vid: st.vid }, o || {}));
   // One segment per step needed; faded when the chain is about to break; a calendar mark while a follow-up holds it.
   function miniBar(st) {
     const bar = h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need + ' toward ' + st.nextName },
       Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' })));
     return st.held ? [bar, h('span', { class: 'gcal', title: 'Follow-up date holds this' }, icon('calendar', 14))] : [bar];
   }
-  // The row's one status line: Thirsty / Wilting, else the growth bar, or where a study starts next.
+  // The row's one status line: the growth bar, or where a study starts next. Care shows in the plant itself
+  // (v2.23: no Thirsty / Wilting words).
   function statusLine(it, st) {
     const rv = it.rv;
-    if (st.word) return h('span', { class: 'gword' }, st.word);
     if (st.need && st.next) return miniBar(st);
     if (rv.nextStart) return h('span', null, 'Next: ' + rv.nextStart);
     return h('span', null, UI.lastText(it));
@@ -598,7 +598,7 @@
     path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
     return h('div', null,
       h('div', { class: 'ghero' }, big,
-        h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage', onclick: () => F.stageFlow(rv.id) }, stName, st.word ? h('small', { class: 'gword' }, st.word) : null)),
+        h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage', onclick: () => F.stageFlow(rv.id) }, stName)),
       bar, path);
   }
 
