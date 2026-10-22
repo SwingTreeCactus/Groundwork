@@ -109,14 +109,17 @@
     const box = h('div', { class: 'gmap', role: 'region', 'aria-label': 'Map of your ' + UI.lbl('rvs') });
     const msg = h('div', { class: 'gmap-msg', hidden: true });
     const card = h('div', { class: 'gcard', hidden: true });
-    let dryOnly = false, map = null, open = true, markers = new Map(), you = null, sel = null;
+    // the toggle: everyone, or just who to see today (the same people as Home's Today)
+    let todayOnly = false, map = null, open = true, markers = new Map(), you = null, sel = null;
+    const todayIds = () => new Set(L.todaySet(RV.store.items(), new Date()).map((i) => i.rv.id));
     const live = () => RV.store.items().filter((i) => i.att.state !== 'closed').map((it) => ({ it, st: G.forItem(it, S.settings, new Date()) })).filter((x) => x.st.form);
-    const chip = h('button', { class: 'gmap-chip', type: 'button', 'aria-pressed': 'false', onclick: () => { dryOnly = !dryOnly; paintChip(); paintMarkers(); } });
+    const chip = h('button', { class: 'gmap-chip', type: 'button', 'aria-pressed': 'false', onclick: () => { todayOnly = !todayOnly; paintChip(); paintMarkers(); } });
     const locate = h('button', { class: 'gmap-loc', type: 'button', 'aria-label': 'Show where I am', onclick: () => findMe() }, icon('navigation', 18));
     function paintChip() {
-      const n = live().filter((x) => x.st.care <= G.CARE.DRY).length;
-      chip.textContent = dryOnly ? 'Thirsty only · ' + n : 'All · ' + live().filter((x) => RV.geo.pointOf(x.it.rv)).length;
-      chip.setAttribute('aria-pressed', String(dryOnly)); chip.classList.toggle('on', dryOnly);
+      const today = todayIds();
+      const n = live().filter((x) => today.has(x.it.rv.id) && RV.geo.pointOf(x.it.rv)).length;
+      chip.textContent = todayOnly ? 'Today · ' + n : 'All · ' + live().filter((x) => RV.geo.pointOf(x.it.rv)).length;
+      chip.setAttribute('aria-pressed', String(todayOnly)); chip.classList.toggle('on', todayOnly);
     }
     function pick(x) {
       if (sel) sel.classList.remove('sel');
@@ -137,11 +140,11 @@
     function paintMarkers(fit) {
       if (!map) return;
       const lib = root.maplibregl;
-      const want = new Set();
+      const want = new Set(), today = todayIds();
       const pts = [];
       for (const x of live()) {
         const pt = RV.geo.pointOf(x.it.rv);
-        if (!pt || (dryOnly && x.st.care > G.CARE.DRY)) continue;
+        if (!pt || (todayOnly && !today.has(x.it.rv.id))) continue;
         want.add(x.it.rv.id); pts.push(pt);
         const old = markers.get(x.it.rv.id);
         if (old) { old.setLngLat([pt.lng, pt.lat]); continue; }
@@ -156,7 +159,7 @@
           map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: { top: 90, bottom: 120, left: 40, right: 40 }, maxZoom: 16, duration: 0 });
         }
       }
-      if (!pts.length && !dryOnly) { msg.textContent = 'Geotag an ' + UI.lbl('rv') + ' or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
+      if (!pts.length && !todayOnly) { msg.textContent = 'Geotag an ' + UI.lbl('rv') + ' or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
     }
     function findMe() {
       if (!navigator.geolocation || !map) return;
