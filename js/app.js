@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.24.0';
+  RV.VERSION = '2.24.1';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -121,7 +121,20 @@
     if (screen.back) {
       topbar.appendChild(h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Back', onclick: () => { if (history.length > 1) history.back(); else location.hash = screen.back; } }, icon('left')));
     }
-    topbar.appendChild(h('h1', null, screen.title, screen.sub ? h('span', { class: 'sub' }, screen.sub) : null));
+    const h1 = h('h1', null, screen.title, screen.sub ? h('span', { class: 'sub' }, screen.sub) : null);
+    topbar.appendChild(h1);
+    // a screen that shows its title large in the page (a person's name by their plant) hides the bar's copy until it scrolls away
+    if (screen.titleWatch) {
+      h1.classList.add('watch', 'hide');
+      const check = () => {
+        if (!h1.isConnected) { root.removeEventListener('scroll', check); return; }
+        const big = view.querySelector(screen.titleWatch); // looked up each time: the screen may repaint its parts
+        const bar = topbar.getBoundingClientRect().bottom;
+        h1.classList.toggle('hide', !!big && big.getBoundingClientRect().bottom > bar);
+      };
+      root.addEventListener('scroll', check, { passive: true });
+      requestAnimationFrame(check);
+    }
     (screen.actions || []).forEach((a) => topbar.appendChild(a));
     if (!screen.back) topbar.appendChild(h('button', { class: 'iconbtn menubtn', type: 'button', 'aria-label': 'Menu', onclick: openMenu }, icon('menu', 24)));
     view.replaceChildren(screen.el);

@@ -597,8 +597,11 @@
           P.make(f, f === st.form ? st.care : 4, { size: 'sm', ghost: f > st.form, still: f !== st.form, seed: f, vid: st.vid })))));
     path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
     return h('div', null,
+      // v2.24.1: the person's name leads, beside their plant; the stage sits under it (tap to change)
       h('div', { class: 'ghero' }, big,
-        h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage', onclick: () => F.stageFlow(rv.id) }, stName)),
+        h('div', { class: 'gwho' },
+          h('h2', { class: 'gperson' }, rv.name),
+          h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName))),
       bar, path);
   }
 
@@ -750,7 +753,8 @@
       }),
     }, icon('more'));
     return {
-      title: rv.name, back: '#/rvs', actions: [h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Edit', onclick: () => F.rvForm(rv) }, icon('edit')), more],
+      title: rv.name, back: '#/rvs', titleWatch: hero ? '.gperson' : null, // the bar shows the name once the big one scrolls away
+      actions: [h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Edit', onclick: () => F.rvForm(rv) }, icon('edit')), more],
       el: h('div', null, els),
     };
   }

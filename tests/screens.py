@@ -137,6 +137,11 @@ with sync_playwright() as p:
     # detail screen
     rid = pg.evaluate("RV.store.items().find(i=>i.att.state==='overdue').rv.id")
     pg.goto(base+'#/rv/'+rid); pg.wait_for_timeout(300); shot('detail')
+    op = lambda: pg.evaluate("getComputedStyle(document.querySelector('.topbar h1')).opacity")
+    pg.wait_for_timeout(300); o1 = op()
+    pg.evaluate("window.scrollTo(0, 600)"); pg.wait_for_timeout(400); o2 = op()
+    pg.evaluate("window.scrollTo(0, 0)"); pg.wait_for_timeout(300)
+    check(pg.locator('.ghero .gperson').inner_text().strip() != '' and o1 == '0' and o2 == '1', 'record: the name sits large beside the plant; the bar shows it only once scrolled away (%s, %s)' % (o1, o2))
     check('overdue' not in pg.locator('.view').inner_text().lower(), 'no "overdue" on a person\'s screen')
     # dark
     pg.evaluate("document.documentElement.setAttribute('data-theme','dark')")

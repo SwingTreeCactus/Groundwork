@@ -1252,3 +1252,8 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .vobj.v-rabbit .rb { fill: #B7A898; } .vobj.v-rabbit .ri { fill: #E3C9C0; } .vobj.v-rabbit .rt { fill: #F4F1EC; } .vobj.v-rabbit .re { fill: #3D3A44; }
 .vobj.v-fox .fx { fill: #C98A4B; } .vobj.v-fox .ft { fill: #F4EEE6; } .vobj.v-fox .fd { fill: #3D3A44; } .vobj.v-fox .fl { stroke: #3D3A44; }
 .gvis:focus { outline: none; } .gvis:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 6px; }
+/* v2.24.1 record screen: the name beside the plant, stage under it */
+.ghero .gwho { flex: 1; min-width: 0; padding-bottom: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.ghero .gperson { margin: 0; font-size: 1.75rem; line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
+.ghero .gwho .gname { font-size: 1rem; font-weight: 500; color: var(--muted); padding: 2px 0 0; }
+.topbar h1.watch { transition: opacity .2s; } .topbar h1.watch.hide { opacity: 0; }

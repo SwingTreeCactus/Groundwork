@@ -443,3 +443,4 @@ From the gamification review, items 4 and 6, plus Mark's request to drop care la
 - Tap a visitor: a card reads "Rare visitor", its name (and the area for the rabbit), and why it came, e.g. "Rabbits come to a bed where nobody is thirsty." Visitors are buttons for screen readers ("Rare visitor: Fox").
 - Exhibits sheet: a Visitors section with each visitor's first-seen date and why it comes; unseen ones are grey silhouettes with "Not seen yet". No counts or points.
 - Tests: garden 39, smoke 266, screens 48, logic 48, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.24.0, cache rvapp-v65.
+- v2.24.1: record screen leads with the person's name, large and bold beside the plant (`.gperson`), with the stage under it in smaller grey text (still tap to change stage). The top bar's copy of the name stays hidden until the big name scrolls up under the bar (`screen.titleWatch`, checked on scroll). Screens 49. Cache rvapp-v66.
