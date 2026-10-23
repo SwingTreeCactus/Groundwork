@@ -155,8 +155,12 @@
       card.hidden = false;
     };
     // v2.24 visitors: rolled once a day; they arrive the first time they are seen that day; tap to learn why they came
-    const vis = opt.visitors || G.visitors(ST.items(), S.settings, now);
-    const fresh = new Set(G.newVisitors(vis, S.settings, now));
+    // v2.27: the visitors staying in the garden (settings.visitorsHere); one that has not played its arrival waits,
+    // hidden, until it scrolls into view, then arrives; only then does it count as seen (or once announced)
+    const here = opt.here || S.settings.visitorsHere || {};
+    const vis = opt.visitors || G.hereAsVis(here);
+    const fresh = new Set(opt.visitors ? [] : G.VISITORS.map(([k]) => k).filter((k) => here[k] && !here[k].played));
+    const placed = new Set();
     const VINFO = Object.fromEntries(G.VISITORS.map(([k, n, why, , mood]) => [k, { n, why, mood }]));
     const COATN = Object.fromEntries(G.COATS.map(([c, n]) => [c, n]));
     // v2.26: each visitor drawn by RV.critters at its garden size; it arrives in its own way the first time each day
@@ -164,8 +168,10 @@
     const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl' };
     const visEl = (k, style, where) => {
       const kind = G.visitorKey(vis, k), name = COATN[kind] || VINFO[k].n;
-      const el = h('span', { class: 'gvis gv-' + k + (fresh.has(k) ? ' arrive ' + ARRIVE[k] : ''), style, role: 'button', tabindex: '0', 'aria-label': 'Visitor: ' + name });
-      el.appendChild(RV.critters.make(kind, { size: VSIZE[k] }));
+      const rest = G.resting(k, now);
+      const el = h('span', { class: 'gvis gv-' + k + (fresh.has(k) ? ' waiting' : ''), style, role: 'button', tabindex: '0', 'aria-label': 'Visitor: ' + name + (rest ? ', resting' : '') });
+      el.appendChild(RV.critters.make(kind, { size: VSIZE[k], still: rest, cls: rest ? 'asleep' : '' }));
+      el.dataset.v = k; placed.add(k);
       const show = (e) => {
         e.stopPropagation();
         if (selEl === el) return unpick();
@@ -179,14 +185,6 @@
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(e); } });
       return el;
     };
-    if (fresh.size) { // only when someone new came today, so saving does not re-render the garden in a loop
-      const day = U.toDateStr(now);
-      setTimeout(() => ST.saveSettings((s) => {
-        s.visitors = Object.assign({}, s.visitors || {});
-        const mark = (kk) => { const o = s.visitors[kk] || {}; if (o.seen === day) return; s.visitors[kk] = { first: o.first || now.toISOString(), seen: day, days: (o.days || (o.first ? 1 : 0)) + 1 }; };
-        for (const [k] of G.VISITORS) if (vis[k] && fresh.has(k)) { const kk = G.visitorKey(vis, k); mark(kk); if (kk !== k && !(s.visitors[k] && s.visitors[k].first)) mark(k); }
-      }), 1600);
-    }
     let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0, bi = 0;
     const ROW = 52; // depth between rows of a bed
     const beds = plots.map((p) => {
@@ -230,6 +228,14 @@
         bed,
         h('a', { class: 'gsign', href: '#/insights/plot/' + areaKey(p.name) }, h('i', { class: due ? 'due' : '' }), p.name || 'No area'));
     });
+    // a visitor whose plant or area is gone waits by the first bed
+    const firstBed = beds.length ? beds[0].firstChild : null;
+    if (firstBed) {
+      if (vis.hum && !placed.has('hum')) firstBed.appendChild(visEl('hum', 'left:40%;top:-70px'));
+      if (vis.squirrel && !placed.has('squirrel')) firstBed.appendChild(visEl('squirrel', 'left:24%;bottom:6px'));
+      if (vis.ladybug && !placed.has('ladybug')) firstBed.appendChild(visEl('ladybug', 'left:60%;bottom:14px'));
+      if (vis.rabbit && !placed.has('rabbit')) firstBed.appendChild(visEl('rabbit', 'right:-22px;bottom:2px'));
+    }
     const scene = h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
       h('div', { class: 'gground' }, tufts(),
@@ -242,6 +248,37 @@
       card,
       // v2.25: a light rain over the beds when today's tending is all done (once a day)
       opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
+    // v2.27: arrivals play when the visitor is on screen; the sighting is saved after the animation, so the redraw
+    // that follows the save never cuts it short
+    const waiting = Array.from(scene.querySelectorAll('.gvis.waiting'));
+    const played = [];
+    let saveT = null;
+    const flush = () => { const ks = played.splice(0); if (!ks.length) return; ST.saveSettings((s) => { for (const k of ks) { G.markVisitorSeen(s, k, now); if (s.visitorsHere && s.visitorsHere[k]) s.visitorsHere[k] = Object.assign({}, s.visitorsHere[k], { played: true }); } }); };
+    const arrive = (el) => {
+      if (!el.classList.contains('waiting')) return;
+      const k = el.dataset.v;
+      el.classList.remove('waiting'); el.classList.add('arrive', ARRIVE[k]);
+      played.push(k); clearTimeout(saveT); saveT = setTimeout(flush, 2200);
+    };
+    if (waiting.length) {
+      if (root.IntersectionObserver) {
+        const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); arrive(e.target); } }), { threshold: 0.6 });
+        setTimeout(() => waiting.forEach((el) => io.observe(el)), 60);
+      } else waiting.forEach(arrive);
+    }
+    // v2.27: "See it in your garden": scroll to the visitor, let it arrive, ring it, then open its card
+    // the request survives redraws (a save redraws the garden) until the card has opened
+    if (opt.focus) setTimeout(() => {
+      const el = scene.querySelector('.gv-' + opt.focus);
+      if (!scene.isConnected) return;
+      if (!el) { focusReq = null; return; }
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setTimeout(() => {
+        if (!el.isConnected) return;
+        arrive(el); el.classList.add('spot');
+        setTimeout(() => { if (!el.isConnected) return; el.click(); el.classList.remove('spot'); focusReq = null; }, 2200);
+      }, 600);
+    }, 120);
     // v2.24: the card closes on a tap anywhere else in the garden, or when the page scrolls
     scene.addEventListener('click', (e) => { if (!card.hidden && !e.target.closest('.gp, .gvis, .gcard')) unpick(); });
     let y0 = null;
@@ -253,6 +290,27 @@
     };
     root.addEventListener('scroll', onScroll, { passive: true });
     return scene;
+  }
+
+  // ---------- the empty garden (v2.27): what it will be, with a few bubbles ----------
+  function emptyGarden(now) {
+    const t = G.skyOf(now);
+    const bed = h('div', { class: 'gbed gempty', style: { width: '300px', height: '86px' } });
+    [0, 1, 2].forEach((i) => {
+      const el = P.make(1, 4, { size: 'lg', ghost: true, still: true, bare: true, seed: i });
+      el.classList.add('gp'); el.style.left = (18 + i * 92) + 'px'; el.style.top = '-78px';
+      bed.appendChild(el);
+    });
+    const bub = (cls, text) => h('div', { class: 'gbub ' + cls }, text);
+    return h('section', { class: 'gscene gscene-empty', 'data-t': t, 'aria-label': 'Your garden, empty for now' },
+      svgEl(skySvg(t)),
+      h('div', { class: 'gground' }, tufts(),
+        svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'),
+        bub('b1', 'Everyone you add grows here as a plant.'),
+        h('div', { class: 'gbeds' }, h('div', { class: 'gplot' }, bed)),
+        bub('b2', 'Talk with them and it grows. Leave a plan and it thrives.'),
+        bub('b3', 'Animals visit when you have been out in service.'),
+        h('div', { class: 'gstart' }, h('button', { class: 'btn primary', type: 'button', onclick: () => RV.forms.quickAdd() }, icon('plus', 18), 'Add your first contact'))));
   }
 
   // ---------- exhibits: earned milestones stand in the garden as objects ----------
@@ -417,9 +475,13 @@
       h('div', { class: 'wkn', style: { marginTop: '-6px' } }, 'Last 12 weeks · darker = more conversations'));
   }
 
-  function garden() {
+  let focusReq = null; // "See it in your garden": the visitor to go to
+  function garden(focus) {
     const items = ST.items();
     const now = new Date();
+    // v2.27: settle who is staying (new arrivals, leavers) before drawing
+    const settled = G.settleVisitors(items, S.settings, now);
+    if (settled.changed) setTimeout(() => ST.saveSettings((s) => { s.visitorsHere = G.settleVisitors(ST.items(), s, new Date()).here; }), 0);
     const live = items.filter((i) => i.att.state !== 'closed');
     const sk = G.streak(items, S.settings, now, S.settings.gardenSince);
     const plots = G.plots(live, S.settings, now);
@@ -435,12 +497,14 @@
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
     const tend = G.tending(items, S.settings, now);
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now) }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
     if (opt.rain && !(root.__RV_GARDEN_OPT && root.__RV_GARDEN_OPT.rain)) setTimeout(() => ST.saveSettings((s) => { s.tendDone = U.toDateStr(now); }), 3200);
     // v2.25: the game first (how it works, this week, today, next, collections); field stats folded at the foot
     const stats = h('details', { class: 'fstats' }, h('summary', null, icon('down', 18), 'Field stats'), goingCard(items, now), keep);
+    // v2.27: nobody yet: an empty garden that explains itself
+    if (!plots.length) return { title: 'My garden', el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works')) };
     return { title: 'My garden', el: h('div', null,
-      plots.length ? gardenScene(plots, now, earned, opt) : null,
+      gardenScene(plots, now, earned, opt),
       h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'),
       ringCard(sk), tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };
   }
@@ -546,12 +610,55 @@
     document.body.appendChild(ov);
     return true;
   }
-  RV.gardenRecap = { maybeShow: () => maybeRecap() || maybeRound(), round: maybeRound };
+  // ---------- a visitor arrives (v2.27) ----------
+  // The first time the app is opened or returned to after a visitor arrives: a short full-screen moment, the animal
+  // coming in on its own scene, with its name and mood. Counts as seen. "See it in your garden" goes to it.
+  const ARRIVE_BIG = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl' };
+  function maybeVisitor() {
+    if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap, .vann')) return false;
+    const now = new Date();
+    const st = G.settleVisitors(ST.items(), S.settings, now);
+    const k = G.VISITORS.map(([x]) => x).find((x) => st.here[x] && !st.here[x].told && !st.here[x].seen);
+    if (!st.changed && !k) return false;
+    ST.saveSettings((s) => {
+      s.visitorsHere = st.here;
+      if (k) { G.markVisitorSeen(s, k, now); s.visitorsHere[k] = Object.assign({}, s.visitorsHere[k], { told: true }); }
+    });
+    if (!k) return false;
+    const e = st.here[k], v = G.VISITORS.find(([x]) => x === k), coat = G.COATS.find(([c]) => c === e.kind);
+    const sc = SCENES[v[5]] || SCENES.day;
+    const stage = h('div', { class: 'vstage', style: { background: sc.sky } });
+    stage.innerHTML = (sc.stars ? '<svg class="vstars" viewBox="0 0 390 430" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="#F2F0F5"><circle cx="48" cy="60" r="1.6"/><circle cx="120" cy="34" r="1.2"/><circle cx="300" cy="52" r="1.6"/><circle cx="350" cy="110" r="1.1"/><circle cx="210" cy="80" r="1.3"/><circle cx="80" cy="140" r="1"/></g></svg>' : '') +
+      '<svg class="vland" viewBox="0 0 390 430" preserveAspectRatio="none" aria-hidden="true"><path d="M0 300 C80 270 150 280 210 292 C280 306 330 286 390 276 L390 430 L0 430 Z" fill="' + sc.hill + '"/><path d="M0 340 C90 324 170 330 240 338 C300 344 350 336 390 330 L390 430 L0 430 Z" fill="' + sc.ground + '"/><ellipse cx="195" cy="388" rx="92" ry="12" fill="' + sc.shadow + '"/></svg>';
+    const big = h('div', { class: 'vbigw arrive ' + ARRIVE_BIG[k] }, RV.critters.make(e.kind, { size: 240 }));
+    stage.appendChild(big);
+    const close = () => ov.remove();
+    const ov = h('div', { class: 'vann', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'A visitor: ' + (coat ? coat[1] : v[1]) },
+      h('div', { class: 'vann-in' }, stage,
+        h('div', { class: 'vinfo' },
+          h('div', { class: 'vk' }, coat ? 'A rare visitor' : 'A visitor'),
+          h('h1', null, coat ? coat[1] : v[1]),
+          h('div', { class: 'vmood' }, v[4])),
+        h('div', { class: 'grow1' }),
+        h('div', { class: 'ract' },
+          h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights/focus/' + k; } }, 'See it in your garden'))));
+    document.body.appendChild(ov);
+    try { if (navigator.vibrate) navigator.vibrate(20); } catch (err) { /* ignore */ }
+    return true;
+  }
+  RV.gardenRecap = { maybeShow: () => maybeRecap() || maybeRound() || maybeVisitor(), round: maybeRound, visitor: maybeVisitor };
 
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();
     if (sub === 'plot') return plotScreen(key || '-');
     if (sub === 'visitors') return key ? visitorScreen(key) : visitorsScreen();
+    if (sub === 'focus') {
+      focusReq = key;
+      try { history.replaceState(null, '', '#/insights'); } catch (err) { /* ignore */ }
+      return garden(key);
+    }
+    if (focusReq) return garden(focusReq);
     return garden();
   }
   RV.screens.insights = insights;

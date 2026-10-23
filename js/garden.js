@@ -593,6 +593,49 @@
   }
   // The key a present visitor is recorded under: its rare coat if it wears one today.
   const visitorKey = (v, k) => (v.coat && v.coat[k]) || k;
+  // ---------- visitors that stay (v2.27) ----------
+  // An arrival is kept in settings.visitorsHere[k] = {kind, day, until, ref, seen, told, played}: it stays the rest of
+  // that day and all of the next (until), and while nobody has seen it, up to 3 days after it came. kind carries a rare
+  // coat; ref is where it is (a record id for hum/squirrel/ladybug, an area for the rabbit). seen: shown in the
+  // announcement or on screen in the garden; told: announced; played: its arrival played in the garden.
+  const WINDOW = { fox: (h) => h >= 17, deer: (h) => h >= 6 && h < 9, owl: (h) => h >= 20 || h < 6 };
+  // Outside its own time of day a staying visitor rests (eyes closed, still).
+  const resting = (k, now) => !!WINDOW[k] && !WINDOW[k]((now || new Date()).getHours());
+  function settleVisitors(items, settings, now) {
+    now = now || new Date();
+    const today = U.toDateStr(now), old = settings.visitorsHere || {}, here = {};
+    for (const [k] of VISITORS) {
+      const e = old[k];
+      if (!e) continue;
+      const keep = today <= e.until || (!e.seen && today <= U.toDateStr(U.addDays(U.parseDateStr(e.day), 3)));
+      if (keep) here[k] = Object.assign({}, e);
+    }
+    const v = visitors(items, settings, now);
+    for (const [k] of VISITORS) {
+      if (!v[k] || here[k]) continue;
+      here[k] = { kind: visitorKey(v, k), day: today, until: U.toDateStr(U.addDays(U.startOfDay(now), 1)), ref: typeof v[k] === 'string' ? v[k] : null, seen: false, told: false, played: false };
+    }
+    return { here, changed: JSON.stringify(here) !== JSON.stringify(old) };
+  }
+  // The staying visitors in the shape visitors() returns (for placing them), with the rare coats.
+  function hereAsVis(here) {
+    const v = { coat: {} };
+    for (const [k, e] of Object.entries(here || {})) { v[k] = e.ref || true; if (e.kind && e.kind !== k) v.coat[k] = e.kind; }
+    return v;
+  }
+  const unseenHere = (here) => VISITORS.map(([k]) => k).filter((k) => here && here[k] && !here[k].seen);
+  // Record a sighting in a settings draft: the visitor (and its coat), first seen, the days seen.
+  function markVisitorSeen(s, k, now) {
+    now = now || new Date();
+    const day = U.toDateStr(now), e = (s.visitorsHere || {})[k];
+    s.visitors = Object.assign({}, s.visitors || {});
+    const mark = (kk) => { const o = s.visitors[kk] || {}; if (o.seen === day) return; s.visitors[kk] = { first: o.first || now.toISOString(), seen: day, days: (o.days || (o.first ? 1 : 0)) + 1 }; };
+    const kind = (e && e.kind) || k;
+    mark(kind);
+    if (kind !== k && !(s.visitors[k] && s.visitors[k].first)) mark(k);
+    if (e) { s.visitorsHere = Object.assign({}, s.visitorsHere); s.visitorsHere[k] = Object.assign({}, e, { seen: true }); }
+  }
+
   // Present visitors not yet seen today (for the dot on the garden tab).
   function newVisitors(v, settings, now) {
     const day = U.toDateStr(now || new Date()), seen = settings.visitors || {};
@@ -612,7 +655,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, visitors, visitorKey, newVisitors, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

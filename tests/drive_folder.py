@@ -50,7 +50,7 @@ def run():
     D = FakeDrive()
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        ctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block')
+        ctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block'); ctx.add_init_script('window.__RV_SURPRISE = 0')
         ctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'")
 
         auths = []; bearer = []; silent_says = ['ok']
@@ -202,7 +202,7 @@ def run():
         page.close()
 
         print('with the sign-in helper: stays connected')
-        hctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block')
+        hctx = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block'); hctx.add_init_script('window.__RV_SURPRISE = 0')
         hctx.add_init_script("window.__RV_CLIENT_ID = 'test-client.apps.googleusercontent.com'; window.__RV_TOKEN_HELPER = 'https://helper.test/'")
         hctx.route('https://accounts.google.com/**', google_auth)
         hctx.route('https://www.googleapis.com/**', api)

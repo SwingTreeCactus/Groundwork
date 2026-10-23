@@ -43,6 +43,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles', service_workers='block')
     ctx.route('https://api.anthropic.com/**', api)
+    ctx.add_init_script('window.__RV_SURPRISE = 0') # no surprise visitors unless a test asks
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and 'api.anthropic.com' not in m.text and 'status of' not in m.text else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))

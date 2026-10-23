@@ -1393,3 +1393,34 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .vinfo .vwhy { margin-top: 6px; background: var(--surface); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 1rem; line-height: 1.45; }
 .vinfo .vwhy .vk { font-size: .75rem; font-weight: 600; color: var(--red); }
 .gcard .btn.sm { flex: none; }
+/* v2.27 visitors that wait to be seen, the arrival moment, the empty garden */
+.gvis.waiting { visibility: hidden; }
+.cr.asleep .eyes { transform: scaleY(.12) !important; }
+.gvis.spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 120%; padding-top: 120%; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid var(--red); animation: g-spot 1.1s ease-out 2; pointer-events: none; }
+@keyframes g-spot { from { opacity: 1; transform: translate(-50%, -50%) scale(.6); } to { opacity: 0; transform: translate(-50%, -50%) scale(1.5); } }
+.vann { position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; animation: v-fade .3s ease-out; }
+.vann-in { min-height: 100%; box-sizing: border-box; max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+.vann .vstage { height: min(58vh, 430px); }
+.vann .vinfo .vk { font-size: .8rem; font-weight: 600; color: var(--red); letter-spacing: .02em; }
+.vann .vinfo h1 { font-size: 2.2rem; }
+.vann .grow1 { flex: 1; min-height: 16px; }
+.vann .ract { display: flex; gap: 10px; } .vann .ract .btn { flex: 1; min-height: 52px; }
+.vbigw { position: absolute; left: 50%; bottom: 26px; margin-left: -120px; width: 240px; height: 240px; }
+.vbigw.arrive.fly { animation: g-arrive-fly 1.6s cubic-bezier(.2, .8, .3, 1) .25s both; }
+.vbigw.arrive.hop { animation: g-arrive-hop 1.5s ease-out .25s both; }
+.vbigw.arrive.trot { animation: g-arrive-trot 2s ease-out .25s both; }
+.vbigw.arrive.crawl { animation: g-arrive-trot 2.4s ease-out .25s both; }
+@keyframes v-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vann, .vbigw.arrive { animation: none; } .gvis.spot::after { animation: none; } }
+.gscene-empty .gground { padding-top: 24px; padding-bottom: 28px; }
+.gbed.gempty .pl { opacity: .55; }
+.gbub { position: relative; z-index: 40; max-width: 230px; background: var(--surface); color: var(--fg); border-radius: 16px; padding: 10px 14px; font-size: .92rem; line-height: 1.35; box-shadow: 0 4px 14px rgba(14, 14, 16, .08); }
+.gbub::after { content: ""; position: absolute; width: 14px; height: 14px; background: var(--surface); transform: rotate(45deg); }
+.gbub.b1 { margin: 0 0 96px auto; } .gbub.b1::after { left: 30px; bottom: -6px; }
+.gbub.b2 { margin: 18px auto 12px 0; } .gbub.b2::after { left: 40px; top: -6px; }
+.gbub.b3 { margin: 6px 0 12px auto; } .gbub.b3::after { right: 40px; top: -6px; }
+.gstart { display: flex; justify-content: center; padding: 10px 0 4px; position: relative; z-index: 40; }
+.gstart .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; }
+.gscene-empty .gbeds { padding-top: 0; }
+.gscene-empty .gbub.b1 { margin-bottom: 92px; }
+.vann .ract .btn:first-child { flex: 0 0 auto; padding-left: 26px; padding-right: 26px; } .vann .ract .btn { white-space: nowrap; }

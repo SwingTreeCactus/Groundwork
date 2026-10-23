@@ -63,6 +63,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles')
+    ctx.add_init_script('window.__RV_SURPRISE = 0') # no surprise visitors unless a test asks
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -798,9 +799,26 @@ with sync_playwright() as p:
     check(page.locator('.gsquare .gfam.t4 .gpot').count() == 2 and page.locator('.gsquare .gfam.t4 .gspark').count() == 1, 'top tier of a family: two pots and a sparkle')
     check(page.locator('.gscene .gv-fox').count() == 1, 'the day\'s visitors appear in the garden')
     shot('34b-garden-surprises')
-    page.reload(); page.wait_for_selector('.gscene'); ev('window.__RV_SURPRISE = 0; window.__RV_GARDEN_OPT = null')
+    page.reload(); page.wait_for_selector('.gscene'); ev('window.__RV_SURPRISE = 0; window.__RV_GARDEN_OPT = null'); ev('RV.store.saveSettings(s => { s.visitorsHere = {}; })')
     page.goto(URL + '#/rvs'); page.goto(URL + '#/insights'); page.wait_for_selector('.gscene'); time.sleep(0.2)
     check(page.locator('.gscene .gvis').count() == 0, 'and none when chance says no')
+    # v2.27: a visitor announces itself once, then waits in the garden and arrives when on screen
+    time.sleep(0.9); ev("document.querySelectorAll('.vann').forEach(e => e.remove())")
+    ev("window.__RV_SURPRISE = 1"); ev("RV.store.saveSettings(s => { s.visitorsHere = {}; s.visitors = {}; })"); time.sleep(0.3)
+    page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab')
+    check(ev('RV.gardenRecap.visitor()') is True, 'a new visitor is announced')
+    page.wait_for_selector('.vann'); time.sleep(1.2); shot('35-visitor-arrives')
+    check('A visitor' in page.locator('.vann').inner_text() or 'A rare visitor' in page.locator('.vann').inner_text(), 'the announcement says a visitor came')
+    page.click('.vann button:has-text("See it in your garden")'); page.wait_for_selector('.gscene')
+    try:
+        page.wait_for_selector('.gcard:not([hidden])', timeout=8000); opened = True
+    except Exception:
+        opened = False
+    check(opened and page.locator('.gvis').count() >= 1 and ev('location.hash') == '#/insights', 'See it in your garden goes to it and opens its card')
+    check(ev('RV.garden.unseenHere(RV.store.S.settings.visitorsHere).length') < ev('Object.keys(RV.store.S.settings.visitorsHere).length'), 'the announced visitor counts as seen')
+    check(ev('RV.gardenRecap.visitor()') is False or page.locator('.vann').count() <= 1, 'it is announced only once')
+    page.keyboard.press('Escape'); ev("document.querySelectorAll('.vann').forEach(e => e.remove())")
+    ev("window.__RV_SURPRISE = 0"); ev("RV.store.saveSettings(s => { s.visitorsHere = {}; })")
     page.click('.ctile.ms'); page.wait_for_selector('.exgrid')
     page.keyboard.press('Escape'); time.sleep(0.2)
     style = json.dumps({'version': 8, 'sources': {}, 'layers': [{'id': 'background', 'type': 'background', 'paint': {'background-color': '#ffffff'}}, {'id': 'poi_label', 'type': 'symbol', 'source-layer': 'poi', 'paint': {}}]})

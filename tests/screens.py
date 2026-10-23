@@ -38,7 +38,7 @@ def check(c, label):
     if c: ok+=1
     else: bad+=1
 with sync_playwright() as p:
-    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); pg=c.new_page()
+    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); c.add_init_script('window.__RV_SURPRISE = 0'); pg=c.new_page()
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
     base=f'http://127.0.0.1:{PORT}/'
     shot=lambda n: pg.screenshot(path=f'{OUT}/b-{n}.png')
@@ -186,6 +186,7 @@ with sync_playwright() as p:
     pg.locator('.gscene').screenshot(path=f'{OUT}/b-scene-360.png')
     pg.set_viewport_size({'width': 390, 'height': 844}); pg.reload(); pg.wait_for_selector('.gscene')
     # v2.23: shrub flowers, tiered exhibits, rare visitors, bunting
+    pg.wait_for_timeout(900)
     pg.evaluate("() => { window.__RV_SURPRISE = 1; window.__RV_GARDEN_OPT = { campaign: true }; RV.store.saveSettings(s => { const t = new Date().toISOString(); s.flowersSince = new Date(Date.now() - 400*864e5).toISOString(); s.exhibits = { 'first-study': t, studies3: t, rv10: t, rv25: t, rv50: t, rv100: t, area: t, ring1: t, streak4: t, streak12: t, streak26: t, streak52: t, revive1: t, round1: t, 'first-plan': t }; }); }")
     pg.evaluate("() => { const v = RV.garden.visitors(RV.store.items(), RV.store.S.settings, new Date()); v.fox = true; v.deer = true; v.owl = true; v.bluebird = true; v.frog = true; const ids = RV.store.items().filter(i => RV.garden.forItem(i, RV.store.S.settings, new Date()).form >= 3).map(i => i.rv.id); v.squirrel = ids[1]; v.ladybug = ids[2]; window.__RV_GARDEN_OPT.visitors = v; }")
     pg.goto(base+'#/rvs'); pg.goto(base+'#/insights'); pg.wait_for_selector('.gscene'); pg.wait_for_timeout(300)
@@ -202,6 +203,7 @@ with sync_playwright() as p:
     pg.locator('.gscene .gp').first.click(); pg.wait_for_timeout(150)
     pg.locator('.gcard .gx').click(); pg.wait_for_timeout(150)
     check(pg.locator('.gcard').is_hidden(), 'the close button closes the card')
+    pg.evaluate("() => RV.store.saveSettings(s => { const t = new Date().toISOString(); s.visitors = { hum: { first: t, seen: '', days: 4 }, rabbit: { first: t, days: 2 }, fox: { first: t, days: 1 }, bluebird: { first: t, days: 3 }, owl: { first: t, days: 1 } }; })"); pg.wait_for_timeout(200)
     pg.click('.ctile.vs'); pg.wait_for_selector('.vgrid'); pg.wait_for_timeout(300)
     check(pg.locator('.vcard').count() == 12, 'the Visitors page: nine visitors and three rare coats')
     shot('visitors-sheet')

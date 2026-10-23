@@ -323,6 +323,31 @@ test('next milestones: the lowest open tier of each family, closest first (v2.25
   assert.ok(n2.some((m) => m.id === 'rv25' && m.have === 12));
   assert.ok(!n2.some((m) => m.id === 'rv10'));
 });
+test('visitors stay (v2.27): rest of today and tomorrow; unseen ones wait up to 3 days; resting outside their hours', () => {
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  const r = rv({ stage: 'return', neighborhood: 'Oak Park' });
+  const items = [it(r, [v(r, 1, { plan: true })])];
+  global.__RV_SURPRISE = 1;
+  const a = G.settleVisitors(items, s2, NOW);
+  assert.ok(a.changed && a.here.hum && a.here.hum.until === U.toDateStr(U.addDays(NOW, 1)) && !a.here.hum.seen);
+  global.__RV_SURPRISE = 0;
+  // the next day it is still there, even though today's roll says no
+  const b = G.settleVisitors(items, Object.assign({}, s2, { visitorsHere: a.here }), U.addDays(NOW, 1));
+  assert.ok(b.here.hum);
+  // two days on: gone if seen, still waiting if not
+  const seen = JSON.parse(JSON.stringify(a.here)); seen.hum.seen = true;
+  assert.ok(!G.settleVisitors(items, Object.assign({}, s2, { visitorsHere: seen }), U.addDays(NOW, 2)).here.hum);
+  assert.ok(G.settleVisitors(items, Object.assign({}, s2, { visitorsHere: a.here }), U.addDays(NOW, 2)).here.hum);
+  assert.ok(!G.settleVisitors(items, Object.assign({}, s2, { visitorsHere: a.here }), U.addDays(NOW, 4)).here.hum);
+  global.__RV_SURPRISE = undefined;
+  // marking seen records the sighting
+  const draft = { visitorsHere: a.here, visitors: {} };
+  G.markVisitorSeen(draft, 'hum', NOW);
+  assert.ok(draft.visitors.hum.first && draft.visitorsHere.hum.seen && G.unseenHere(draft.visitorsHere).indexOf('hum') < 0);
+  assert.equal(G.resting('fox', NOW), true);  // noon: the fox rests
+  assert.equal(G.resting('fox', new Date(2026, 9, 21, 19, 0)), false);
+  assert.equal(G.resting('hum', NOW), false);
+});
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
   // a visit every 10 days keeps it from ever coming due

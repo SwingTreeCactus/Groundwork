@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.26.1';
+  RV.VERSION = '2.27.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -60,13 +60,13 @@
     // v2.24: the third tab is My garden (Insights when the garden is off), with a dot when a rare visitor came today
     const gOn = S.settings.garden !== false && RV.garden;
     let fresh = 0;
-    if (gOn) { try { const now = new Date(); fresh = RV.garden.newVisitors(RV.garden.visitors(ST.items(), S.settings, now), S.settings, now).length; } catch (e) { fresh = 0; } }
+    if (gOn) { try { fresh = RV.garden.unseenHere(S.settings.visitorsHere).length; } catch (e) { fresh = 0; } }
     const tabs = [['home', '#/home', 'home', 'Home'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', gOn ? 'sprout' : 'chart', gOn ? 'My garden' : 'Insights']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
         icon(ic, 22), label, id === 'home' && due ? h('span', { class: 'dot', 'aria-label': due + ' due for a visit' }, due > 99 ? '99+' : String(due)) : null,
-        id === 'insights' && fresh ? h('span', { class: 'vdot', 'aria-label': 'A rare visitor came to your garden' }) : null)));
+        id === 'insights' && fresh ? h('span', { class: 'vdot', 'aria-label': 'A visitor is waiting in your garden' }) : null)));
   }
 
 
