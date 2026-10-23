@@ -288,6 +288,28 @@
   // Older name for the same form.
   const quickAdd = (opts) => rvForm(null, opts);
 
+  // v2.28: tap the address on a record to fix it (address and area); directions stay on their own button
+  function addressSheet(rvId) {
+    const rv = ST.rvById(rvId);
+    if (!rv) return;
+    const addr = h('input', { type: 'text', value: rv.address || '', autocomplete: 'off', placeholder: 'Street address', 'data-autofocus': '' });
+    const area = areaPicker(rv.neighborhood || '');
+    sheet(rv.address ? 'Address' : 'Add address', (close) => h('form', { onsubmit: (e) => {
+      e.preventDefault();
+      const before = { address: rv.address || '', neighborhood: rv.neighborhood || '' };
+      const next = { address: addr.value.trim(), neighborhood: area.get() };
+      close();
+      if (next.address === before.address && next.neighborhood === before.neighborhood) return;
+      ST.updateRv(rvId, next);
+      toast('Address saved', { seconds: 4, actions: [{ label: 'Undo', fn: () => ST.updateRv(rvId, before) }] });
+    } },
+      field('Address', addr),
+      field(lbl('neighborhood'), area.el),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+        h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+  }
+
   // ---------- record visit ----------
   function presetDates(input) {
     const mk = (label, days) =>
@@ -553,5 +575,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { addressSheet, afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

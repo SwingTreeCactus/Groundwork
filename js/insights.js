@@ -164,8 +164,8 @@
     const VINFO = Object.fromEntries(G.VISITORS.map(([k, n, why, , mood]) => [k, { n, why, mood }]));
     const COATN = Object.fromEntries(G.COATS.map(([c, n]) => [c, n]));
     // v2.26: each visitor drawn by RV.critters at its garden size; it arrives in its own way the first time each day
-    const VSIZE = { hum: 40, rabbit: 46, fox: 58, bluebird: 40, squirrel: 44, frog: 40, owl: 54, deer: 66, ladybug: 26 };
-    const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl' };
+    const VSIZE = { hum: 40, rabbit: 46, fox: 58, bluebird: 40, squirrel: 44, frog: 40, owl: 54, deer: 66, ladybug: 26, snake: 54, snail: 32, robin: 42 };
+    const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop' };
     const visEl = (k, style, where) => {
       const kind = G.visitorKey(vis, k), name = COATN[kind] || VINFO[k].n;
       const rest = G.resting(k, now);
@@ -215,6 +215,9 @@
         // a squirrel by the plant that grew today; a ladybug on a lush plant
         if (vis.squirrel === x.it.rv.id) bed.appendChild(visEl('squirrel', 'left:' + (left - 22) + 'px;top:' + (top + 50) + 'px'));
         if (vis.ladybug === x.it.rv.id) bed.appendChild(visEl('ladybug', 'left:' + (left + 30) + 'px;top:' + (top + 34) + 'px'));
+        // v2.28: a snail low on the stem of someone kept up for months; a snake on a stone at the bed's left end
+        if (vis.snail === x.it.rv.id) bed.appendChild(visEl('snail', 'left:' + (left + 4) + 'px;top:' + (top + 62) + 'px'));
+        if (vis.snake === x.it.rv.id && !placed.has('snake')) bed.appendChild(visEl('snake', 'left:-30px;top:2px'));
       });
       const due = p.wilting + p.thirsty;
       // a rabbit, sometimes, at the front of a bed where nobody is thirsty
@@ -223,6 +226,7 @@
       if (bi++ === 0) {
         if (vis.bluebird) bed.appendChild(visEl('bluebird', 'right:10px;top:-30px'));
         if (vis.frog) bed.appendChild(visEl('frog', 'left:-12px;bottom:-14px'));
+        if (vis.robin) bed.appendChild(visEl('robin', 'left:40%;bottom:-44px'));
       }
       return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
@@ -235,6 +239,8 @@
       if (vis.squirrel && !placed.has('squirrel')) firstBed.appendChild(visEl('squirrel', 'left:24%;bottom:6px'));
       if (vis.ladybug && !placed.has('ladybug')) firstBed.appendChild(visEl('ladybug', 'left:60%;bottom:14px'));
       if (vis.rabbit && !placed.has('rabbit')) firstBed.appendChild(visEl('rabbit', 'right:-22px;bottom:2px'));
+      if (vis.snake && !placed.has('snake')) firstBed.appendChild(visEl('snake', 'left:-30px;top:2px'));
+      if (vis.snail && !placed.has('snail')) firstBed.appendChild(visEl('snail', 'left:70%;bottom:10px'));
     }
     const scene = h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
@@ -308,7 +314,7 @@
         svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'),
         bub('b1', 'Everyone you add grows here as a plant.'),
         h('div', { class: 'gbeds' }, h('div', { class: 'gplot' }, bed)),
-        bub('b2', 'Talk with them and it grows. Leave a plan and it thrives.'),
+        bub('b2', 'Have conversations and it grows. Leave a plan and it thrives.'),
         bub('b3', 'Animals visit when you have been out in service.'),
         h('div', { class: 'gstart' }, h('button', { class: 'btn primary', type: 'button', onclick: () => RV.forms.quickAdd() }, icon('plus', 18), 'Add your first contact'))));
   }
@@ -449,11 +455,11 @@
       h('p', { class: 'gdlead' }, 'Everyone you visit is a plant. Your visits grow it.'),
       h('h3', null, 'It grows'),
       h('div', { class: 'gdrow' }, pl(1, 4, L.shownName(S.settings, (S.settings.stages.find((x) => !x.closed) || {}).id) || 'Potential'), pl(2, 4, 'Sprout'), pl(3, 4, 'Leafy'), pl(4, 4, 'Shrub'), pl(5, 4, 'Study')),
-      h('p', { class: 'muted small' }, 'Each talk grows it. Keep talks less than a month apart. A study grows a tree.'),
+      h('p', { class: 'muted small' }, 'Each conversation grows it. Keep them less than a month apart. A study grows a tree.'),
       h('h3', null, 'It shows how it is doing'),
       h('div', { class: 'gdrow four' }, pl(3, 5, 'Lush'), pl(3, 4, 'Healthy'), pl(3, 2, 'Thirsty'), pl(3, 1, 'Wilting')),
       line('sparkle', 'Leave a plan (Discuss next time) on each visit and it grows lush.'),
-      line('clock', 'It goes thirsty when a visit is due. A talk revives it; a knock keeps it from wilting.'),
+      line('clock', 'It goes thirsty when a visit is due. A conversation revives it; a knock keeps it from wilting.'),
       line('check', 'Nothing ever dies, and nothing you have grown is lost.'),
       h('h3', null, 'Your week and your garden'),
       line('calendar', 'Visit or knock on everyone who comes due each week to keep your streak.'),
@@ -593,8 +599,8 @@
       h('div', { class: 'rin' },
         h('div', { class: 'rdate' }, day + ' · ' + (hm(r.start) === hm(r.end) ? hm(r.start) : hm(r.start) + '–' + hm(r.end))),
         h('h1', null, 'Your round'),
-        h('section', { class: 'rcard pop rstats' }, stat(r.tried, r.tried === 1 ? 'door' : 'doors'), stat(r.talks, r.talks === 1 ? 'talk' : 'talks'), stat(r.plans, r.plans === 1 ? 'plan left' : 'plans left')),
-        talked.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Talked with'),
+        h('section', { class: 'rcard pop rstats' }, stat(r.tried, r.tried === 1 ? 'door' : 'doors'), stat(r.talks, r.talks === 1 ? 'conversation' : 'conversations'), stat(r.plans, r.plans === 1 ? 'plan left' : 'plans left')),
+        talked.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Conversations with'),
           h('div', { class: 'rppl' }, talked.map((x) => h('a', { href: '#/rv/' + x.it.rv.id, onclick: close },
             SC.plantOf(x.st, 'sm', { still: true }), h('span', null, x.it.rv.name.split(' ')[0]))))) : null,
         r.revived ? h('section', { class: 'rcard pop', style: { animationDelay: '.3s' } }, h('div', { class: 'n acc' }, String(r.revived)),
@@ -613,7 +619,7 @@
   // ---------- a visitor arrives (v2.27) ----------
   // The first time the app is opened or returned to after a visitor arrives: a short full-screen moment, the animal
   // coming in on its own scene, with its name and mood. Counts as seen. "See it in your garden" goes to it.
-  const ARRIVE_BIG = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl' };
+  const ARRIVE_BIG = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop' };
   function maybeVisitor() {
     if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap, .vann')) return false;
     const now = new Date();

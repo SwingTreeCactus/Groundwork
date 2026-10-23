@@ -344,7 +344,7 @@
     ['streak26', '26', '6-month streak', 'streak', 4], ['streak52', '1y', 'One-year streak', 'streak', 5],
     ['revive1', '1st', 'First revival', 'revive', 1], ['revive5', '5', '5 revivals', 'revive', 2], ['revive25', '25', '25 revivals', 'revive', 3],
     ['rv10', '10', '10 return visits', 'rv', 1], ['rv25', '25', '25 return visits', 'rv', 2], ['rv50', '50', '50 return visits', 'rv', 3], ['rv100', '100', '100 return visits', 'rv', 4],
-    ['first10', '10', '10 first talks', 'first', 1], ['first25', '25', '25 first talks', 'first', 2],
+    ['first10', '10', '10 first conversations', 'first', 1], ['first25', '25', '25 first conversations', 'first', 2],
     ['first-study', '1st', 'First study', 'study', 1], ['studies3', '3', 'Three studies', 'study', 2], ['studies5', '5', 'Five studies', 'study', 3],
     ['area', 'All', 'Area all watered', 'area', 1],
   ];
@@ -422,13 +422,13 @@
     if (dry.length) {
       const need = Math.min(2, dry.length);
       goals.push({ key: 'water', label: need === 1 ? 'Water a thirsty plant' : 'Water 2 thirsty plants', need, have: Math.min(need, dry.filter((x) => touched.has(x.it.rv.id)).length) });
-    } else goals.push({ key: 'talk', label: 'Talk with 2 people', need: 2, have: Math.min(2, talked.size) });
+    } else goals.push({ key: 'talk', label: 'Have 2 conversations', need: 2, have: Math.min(2, talked.size) });
     goals.push({ key: 'plan', label: 'Leave a plan on a visit', need: 1, have: planned ? 1 : 0 });
     const near = morning.filter((x) => x.p.need && x.p.next && !x.p.broken && x.p.need - x.p.have === 1).sort((a, b) => U.cmp(a.it.rv.name, b.it.rv.name));
     if (near.length) {
       const x = near[0], first = String(x.it.rv.name || '').split(' ')[0];
       const grew = x.it.entries.some((e) => today(e) && e.type === 'stage' && e.grew);
-      goals.push({ key: 'grow', label: 'Grow ' + first + ': ' + (x.p.kind === 'study' ? 'one more study' : 'one more talk'), need: 1, have: grew ? 1 : 0, rvId: x.it.rv.id });
+      goals.push({ key: 'grow', label: 'Grow ' + first + ': ' + (x.p.kind === 'study' ? 'one more study' : 'one more conversation'), need: 1, have: grew ? 1 : 0, rvId: x.it.rv.id });
     } else goals.push({ key: 'doors', label: 'Knock on 3 doors', need: 3, have: Math.min(3, touched.size) });
     goals.forEach((g) => { g.done = g.have >= g.need; });
     return { goals, all: goals.every((g) => g.done) };
@@ -533,10 +533,13 @@
     ['owl', 'Owl', 'You have someone in the Bible study stage.', 'Have someone in the Bible study stage, then look in at night.', 'Skeptical', 'night'],
     ['deer', 'Deer', 'Last week you went out on 3 or more days.', 'Go out on 3 or more days in a week, then look in early in the morning.', 'Gentle', 'dawn'],
     ['ladybug', 'Ladybug', 'One of your plants is lush.', 'Grow a plant to lush in spring or summer.', 'Shy', 'day'],
+    ['snake', 'Garter snake', 'You found someone home after several Not Homes.', 'Have a conversation with someone after 3 or more Not Homes in a row.', 'Patient', 'dawn'],
+    ['snail', 'Snail', 'You have kept visiting someone for six months.', 'Keep visiting someone on time for six months or more.', 'Unhurried', 'day'],
+    ['robin', 'Robin', 'You added someone new today.', 'Add a new contact.', 'Cheerful', 'day'],
   ];
   // Rare coats: about 1 sighting in 20 of the usual animal. [coat key, name, animal]
   const COATS = [['rabbit-white', 'White rabbit', 'rabbit'], ['hum-gold', 'Golden hummingbird', 'hum'], ['fox-silver', 'Silver fox', 'fox']];
-  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25, bluebird: 1, squirrel: 1, frog: 1, owl: 0.5, deer: 0.5, ladybug: 0.25 };
+  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25, bluebird: 1, squirrel: 1, frog: 1, owl: 0.5, deer: 0.5, ladybug: 0.25, snake: 1, snail: 0.15, robin: 1 };
   const COAT_ODDS = 0.05;
   function dayRoll(day, key) {
     const f = root.__RV_SURPRISE;
@@ -553,7 +556,7 @@
     const liveLog = (e) => !e.deletedAt && !e.imported && (e.type === 'nh' || e.type === 'visit');
     const live = items.filter((it) => !L.isClosed(settings, it.rv)).map((it) => ({ it, st: forItem(it, settings, now) })).filter((x) => x.st.form);
     const byId = (a, b) => U.cmp(a.it.rv.id, b.it.rv.id);
-    const out = { hum: null, rabbit: null, fox: false, bluebird: false, squirrel: null, frog: false, owl: false, deer: false, ladybug: null, coat: {} };
+    const out = { hum: null, rabbit: null, fox: false, bluebird: false, squirrel: null, frog: false, owl: false, deer: false, ladybug: null, snake: null, snail: null, robin: false, coat: {} };
     // hummingbird: beside a plant from leafy up that is Healthy or Lush
     const good = live.filter((x) => x.st.form >= 3 && x.st.care >= CARE.HEALTHY).sort(byId);
     if (good.length && comes('hum')) out.hum = pickOne(good, 'hum').it.rv.id;
@@ -587,6 +590,24 @@
     // ladybug: spring and summer (March to August), on a lush plant
     const m = now.getMonth(), lush = live.filter((x) => x.st.care === CARE.LUSH).sort(byId);
     if (m >= 2 && m <= 7 && lush.length && comes('ladybug')) out.ladybug = pickOne(lush, 'ladybug').it.rv.id;
+    // v2.28 snake: a conversation today with someone after 3 or more Not Homes in a row
+    const t0 = U.startOfDay(now).getTime();
+    const persisted = live.filter((x) => {
+      const logs = x.it.entries.filter(liveLog).sort((a, b) => ms(a.at) - ms(b.at));
+      for (let i = 0; i < logs.length; i++) {
+        if (logs[i].type !== 'visit' || ms(logs[i].at) < t0 || ms(logs[i].at) > t1) continue;
+        let n = 0; for (let j = i - 1; j >= 0 && logs[j].type === 'nh'; j--) n++;
+        if (n >= 3) return true;
+      }
+      return false;
+    }).sort(byId);
+    if (persisted.length && comes('snake')) out.snake = pickOne(persisted, 'snake').it.rv.id;
+    // snail: someone first talked with six months ago or more, still visited on time (healthy or lush)
+    const sixMo = U.addDays(U.startOfDay(now), -182).getTime();
+    const longRun = live.filter((x) => { const c = conversations(x.it.entries); return c.length >= 2 && ms(c[0].at) <= sixMo && x.st.care >= CARE.HEALTHY; }).sort(byId);
+    if (longRun.length && comes('snail')) out.snail = pickOne(longRun, 'snail').it.rv.id;
+    // robin: a contact added today (not imported)
+    if (items.some((it) => !it.rv.deletedAt && !it.rv.imported && ms(it.rv.createdAt) >= t0 && ms(it.rv.createdAt) <= t1) && comes('robin')) out.robin = true;
     // rare coats, once the usual animal has been found
     for (const [coat, , k] of COATS) if (out[k] && seen[k] && seen[k].first && (root.__RV_SURPRISE === 1 ? !!root.__RV_COATS : dayRoll(day, coat) < COAT_ODDS)) out.coat[k] = coat;
     return out;

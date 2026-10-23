@@ -1424,3 +1424,43 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .gscene-empty .gbeds { padding-top: 0; }
 .gscene-empty .gbub.b1 { margin-bottom: 92px; }
 .vann .ract .btn:first-child { flex: 0 0 auto; padding-left: 26px; padding-right: 26px; } .vann .ract .btn { white-space: nowrap; }
+/* v2.28 menu groups, settings groups, Home import choices */
+.drawer-group + .drawer-group { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.drawer-sub { padding: 6px 14px 2px; font-size: .78rem; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+.drawer-foot { display: block; margin: 18px 14px 0; font-size: .85rem; color: var(--muted); text-decoration: none; }
+.setgroup + .setgroup { margin-top: 14px; }
+.sethead { margin: 4px 4px 6px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.setfoot { display: block; margin: 22px 4px 0; font-size: .9rem; color: var(--muted); text-decoration: none; }
+.imports { display: flex; flex-direction: column; gap: 2px; }
+.imports .setrow { width: 100%; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.addrline { display: flex; align-items: center; gap: 6px; }
+.addrline .linkline { flex: 1; min-width: 0; }
+.addrline .lt.add { color: var(--muted); }
+.addrline .navbtn { flex: none; color: var(--red); }
+/* v2.28 snake, snail, robin, quail motion */
+.cr .sn-tongue { transform-box: fill-box; transform-origin: 0% 50%; animation: cr-tongue 4.2s ease-in-out infinite; }
+@keyframes cr-tongue { 0%, 70%, 100% { transform: scaleX(0); } 74%, 80% { transform: scaleX(1); } 84% { transform: scaleX(0); } 88%, 92% { transform: scaleX(1); } 96% { transform: scaleX(0); } }
+.cr .sn-head { transform-box: fill-box; transform-origin: 10% 100%; animation: cr-snhead 9s ease-in-out infinite; }
+@keyframes cr-snhead { 0%, 60%, 100% { transform: translateY(0); } 70%, 85% { transform: translateY(-1.6px); } }
+.cr .sn-coil { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-coil 6s ease-in-out infinite; }
+@keyframes cr-coil { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, .97); } }
+.cr .sl-crawl { animation: cr-crawl 12s ease-in-out infinite; }
+@keyframes cr-crawl { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+.cr .sl-stalk { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-stalk 4.6s ease-in-out infinite alternate; }
+.cr .sl-stalk.s2 { animation-delay: -2.3s; }
+@keyframes cr-stalk { from { transform: rotate(-7deg); } to { transform: rotate(6deg); } }
+.cr .rb-head { transform-box: fill-box; transform-origin: 30% 90%; animation: cr-sing 5.4s ease-in-out infinite; }
+@keyframes cr-sing { 0%, 30%, 100% { transform: rotate(0); } 38%, 70% { transform: rotate(-14deg); } 78% { transform: rotate(0); } }
+.cr .rb-jaw { transform-box: fill-box; transform-origin: 0% 0%; animation: cr-jaw 5.4s ease-in-out infinite; }
+@keyframes cr-jaw { 0%, 38%, 72%, 100% { transform: rotate(0); } 44%, 52%, 60% { transform: rotate(16deg); } 48%, 56%, 66% { transform: rotate(2deg); } }
+.cr .rb-worm { transform-box: fill-box; transform-origin: 30% 0%; animation: cr-worm 1.4s ease-in-out infinite alternate; }
+@keyframes cr-worm { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
+.cr .sl-sprout { transform-box: fill-box; transform-origin: 30% 100%; animation: cr-sprout 4s ease-in-out infinite alternate; }
+@keyframes cr-sprout { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+.cr .q-plume { transform-box: fill-box; transform-origin: 20% 100%; animation: cr-plume 1.8s ease-in-out infinite alternate; }
+@keyframes cr-plume { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
+.cr .q-walk { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-qwalk 1.6s ease-in-out infinite; }
+@keyframes cr-qwalk { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+.cr .q-chick { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-chick .9s ease-in-out infinite alternate; }
+.cr .q-chick.c2 { animation-delay: -.45s; }
+@keyframes cr-chick { from { transform: translateY(0); } to { transform: translateY(-2px); } }

@@ -19,28 +19,37 @@
   }
 
   // ---------- index ----------
-  function index() {
-    const row = (href, title, sub, ic) =>
-      h('a', { class: 'setrow', href }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, title), sub ? h('div', { class: 'sub' }, sub) : null), icon('right', 18));
-    const K = RV.defaults.LIB_KINDS;
+  // v2.28: grouped like the menu: Ministry (Topics, Campaigns), App, Customize; About as the foot line
+  const MENU = () => {
     const cnt = (k) => ST.libItems(k).length;
+    return [
+      ['Ministry', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
+      ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
+        ['ai', 'Note cleanup', RV.ai && RV.ai.hasKey() ? 'Claude is on' : 'Off', 'sparkle'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
+      [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],
+    ];
+  };
+  const setRow = (href, title, sub, ic) =>
+    h('a', { class: 'setrow', href }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, title), sub ? h('div', { class: 'sub' }, sub) : null), icon('right', 18));
+  function index() {
     return {
-      title: 'Settings',
+      title: 'Menu',
       el: h('div', null,
-        row('#/settings/display', 'Display', 'Theme and text size', 'sliders'),
-        row('#/settings/home', 'Home screen', null, 'home'),
-        row('#/settings/lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'),
-        row('#/settings/campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar'),
-        row('#/settings/stages', 'Lead stages', S.settings.stages.filter((s) => !s.closed).map((s) => s.name).join(' › '), 'shuffle'),
-        row('#/settings/reasons', 'Archive reasons', S.settings.archiveReasons.map((r) => r.name).join(', '), 'archive'),
-        row('#/settings/fields', 'Lists and custom fields', null, 'users'),
-        row('#/settings/labels', 'Labels', null, 'edit'),
-        row('#/settings/attention', 'Needs attention', null, 'clock'),
-        row('#/settings/ai', 'Note cleanup', RV.ai && RV.ai.hasKey() ? 'Claude is on' : 'Off', 'sparkle'),
-        row('#/settings/security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock'),
-        row('#/settings/data', 'Data and backup', null, 'download'),
-        row('#/settings/about', 'About', 'Version ' + RV.VERSION, 'alert')),
+        MENU().map(([head, rows]) => h('section', { class: 'setgroup' }, head ? h('h2', { class: 'sethead' }, head) : null,
+          rows.map(([path, title, sub, ic]) => setRow('#/settings/' + path, title, sub, ic)))),
+        h('a', { class: 'setfoot', href: '#/settings/about' }, 'Groundwork ' + RV.VERSION)),
     };
+  }
+  // v2.28: one full page for the things set once (stages, reasons, fields, labels, when someone needs attention)
+  function customize() {
+    const nFields = (S.settings.customFields || []).length;
+    return page('Customize', [
+      setRow('#/settings/stages', 'Lead stages', S.settings.stages.filter((s) => !s.closed).map((s) => s.name).join(' › '), 'shuffle'),
+      setRow('#/settings/reasons', 'Archive reasons', S.settings.archiveReasons.map((r) => r.name).join(', '), 'archive'),
+      setRow('#/settings/fields', 'Lists and custom fields', nFields ? nFields + (nFields === 1 ? ' custom field' : ' custom fields') : null, 'users'),
+      setRow('#/settings/labels', 'Labels', 'What the app calls ' + lbl('rvs') + ', ' + lbl('notHome') + ' and more', 'edit'),
+      setRow('#/settings/attention', 'Needs attention', 'When someone counts as due', 'clock'),
+    ]);
   }
 
   // ---------- display ----------
@@ -67,11 +76,14 @@
         UI.toggle(S.settings.nhRowButton, (v) => save((s) => { s.nhRowButton = v; }), 'Show Not Home button on list rows')),
       h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Garden'), h('div', { class: 'muted small' }, 'Plants show each ' + lbl('rv') + "'s stage and care. Off: plain rows.")),
         UI.toggle(S.settings.garden !== false, (v) => save((s) => { s.garden = v; }), 'Garden')),
+      // v2.28: the Home screen cards live here now
+      h('h2', { class: 'sethead', style: { margin: '22px 0 6px' } }, 'Home screen'),
+      homeCardsBox(),
     ], { noRerender: true });
   }
 
   // ---------- home cards ----------
-  function homeSettings() {
+  function homeCardsBox() {
     const box = h('div');
     function render() {
       box.replaceChildren();
@@ -84,8 +96,9 @@
       });
     }
     render();
-    return page('Home screen', [box], { noRerender: true });
+    return box;
   }
+  function homeSettings() { return page('Home screen', [homeCardsBox()], { noRerender: true }); }
 
   // ---------- topics ----------
   function lib() {
@@ -668,7 +681,7 @@
     const last = (() => { try { return localStorage.getItem('rvapp.lastBackup'); } catch (e) { return null; } })();
     const live = S.rvs.filter((r) => !r.deletedAt).length;
     const btn = (ic, label, sub, fn) => h('button', { class: 'setrow', type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
-    return page('Data and backup', [
+    return page('Backup and import', [
       drivePanel(),
       h('div', { class: 'banner ' + (S.persistent ? 'info' : 'danger') }, icon(S.persistent ? 'lock' : 'alert'), h('div', { class: 'body' },
         S.persistent ? live + ' ' + lbl('rvs') + ' on this device. ' + (last ? 'Last backup: ' + U.fmtDate(last) + '.' : 'No backup yet.') : 'This browser is blocking storage. Nothing will be kept.')),
@@ -693,6 +706,21 @@
     ], { noRerender: true });
   }
 
+  // v2.28: the import choices on Home's welcome card (Ministry Assistant, a spreadsheet, a Groundwork backup)
+  async function restoreChoice() {
+    const D = RV.drive, st = D && D.status();
+    if (!(st && st.connected && st.tokenOk)) return restoreFlow();
+    const how = await UI.pick('Restore a Groundwork backup', [{ value: 'file', label: 'From a file' }, { value: 'drive', label: 'From Google Drive' }]);
+    if (how === 'file') return restoreFlow();
+    if (how !== 'drive') return;
+    try {
+      const list = await D.listBackups();
+      if (!list.length) { toast('No backup found in Drive.'); return; }
+      await restoreData(await D.fetchBackup(list[0].id));
+    } catch (e) { toast(e.message || 'Could not read Drive.'); }
+  }
+  RV.importers = { ministryAssistant: maImport, spreadsheet: importWizard, restore: restoreChoice };
+
   function about() {
     return page('About', [
       h('div', { class: 'card stack' },
@@ -702,5 +730,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about };
+  RV.settingsScreens = { index, customize, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about };
 })(window);

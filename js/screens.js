@@ -28,7 +28,7 @@
   }
   const moreText = (st) => {
     const n = st.need - st.have;
-    return st.kind === 'study' ? n + ' more ' + (n === 1 ? 'study' : 'studies') : n + ' more ' + (n === 1 ? 'talk' : 'talks');
+    return st.kind === 'study' ? n + ' more ' + (n === 1 ? 'study' : 'studies') : n + ' more ' + (n === 1 ? 'conversation' : 'conversations');
   };
 
   // ---------- shared row ----------
@@ -205,10 +205,12 @@
     const items = ST.items();
     const welcome = !S.rvs.some((r) => !r.deletedAt)
       ? card('Welcome', h('div', { class: 'stack' },
-        h('div', { class: 'muted' }, 'Add your first ' + lbl('rv') + ', or import a spreadsheet.'),
-        h('div', { class: 'btn-row' },
-          h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add ' + lbl('rv')),
-          h('a', { class: 'btn', href: '#/settings/data' }, 'Import CSV'))))
+        h('button', { class: 'btn primary block', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add your first ' + lbl('rv')),
+        h('div', { class: 'muted small', style: { marginTop: '6px' } }, 'Or bring in what you have'),
+        h('div', { class: 'imports' },
+          [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
+            .map(([k, t, sub]) => h('button', { class: 'setrow', type: 'button', onclick: () => RV.importers && RV.importers[k]() }, icon('upload', 20),
+              h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18))))))
       : null;
     const d = new Date();
     return {
@@ -668,10 +670,11 @@
       hero
         ? (it.att.state === 'snoozed' ? h('div', { style: { marginBottom: '8px' } }, attBadge(it.att)) : null)
         : h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
-      rv.address
-        ? h('button', { class: 'linkline', type: 'button', 'aria-label': 'Directions to ' + rv.address, onclick: () => UI.openNav(UI.navTarget(rv)) },
-          h('span', { class: 'lt' }, rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '')), icon('navigation', 18))
-        : (rv.neighborhood ? h('div', null, rv.neighborhood) : null),
+      // v2.28: the address edits; the arrow gives directions
+      h('div', { class: 'addrline' },
+        h('button', { class: 'linkline', type: 'button', 'aria-label': rv.address ? 'Edit address: ' + rv.address : 'Add address', onclick: () => F.addressSheet(rv.id) },
+          h('span', { class: 'lt' + (rv.address ? '' : ' add') }, rv.address ? rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '') : (rv.neighborhood ? rv.neighborhood + ' · ' : '') + 'Add address')),
+        rv.address || rv.geo ? h('button', { class: 'iconbtn sm navbtn', type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 18)) : null),
       rv.phone
         ? h('div', { class: 'phoneline' },
           h('button', { class: 'linkline', type: 'button', 'aria-label': 'Call ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, h('span', { class: 'lt' }, rv.phone), icon('phone', 18)),

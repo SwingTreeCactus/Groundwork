@@ -295,7 +295,7 @@ test('visitors v2.26: bluebird, squirrel, frog, owl, deer, ladybug and rare coat
   assert.equal(r.coat.hum, 'hum-gold'); assert.equal(G.visitorKey(r, 'hum'), 'hum-gold');
   assert.equal(r.coat.rabbit, undefined);
   global.__RV_SURPRISE = undefined; global.__RV_COATS = undefined;
-  assert.equal(G.VISITORS.length, 9); assert.equal(G.COATS.length, 3);
+  assert.equal(G.VISITORS.length, 12); assert.equal(G.COATS.length, 3);
 });
 test("today's tending: water the thirsty, leave a plan, grow one that's close (v2.25)", () => {
   const at = (h) => new Date(2026, 9, 21, h, 0).toISOString();
@@ -304,7 +304,7 @@ test("today's tending: water the thirsty, leave a plan, grow one that's close (v
   const base = [it(a, [v(a, 40)]), it(b, [v(b, 45)]), it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true })])];
   let t = G.tending(base, S, NOW);
   assert.deepEqual(t.goals.map((g) => [g.key, g.have, g.need]), [['water', 0, 2], ['plan', 0, 1], ['grow', 0, 1]]);
-  assert.equal(t.goals[2].label, 'Grow Cy: one more talk');
+  assert.equal(t.goals[2].label, 'Grow Cy: one more conversation');
   // a knock on Ann and a planned talk with Bo; Cy grows
   const later = [it(a, [v(a, 40), { id: 'n1', rvId: a.id, type: 'nh', at: at(9) }]), it(b, [v(b, 45), { id: 'v1', rvId: b.id, type: 'visit', at: at(10), plan: true }]),
     it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true }), { id: 'v2', rvId: c.id, type: 'visit', at: at(11), plan: false }, { id: 's1', rvId: c.id, type: 'stage', grew: true, from: 'cultivating', to: 'return', at: at(11) }])];
@@ -347,6 +347,31 @@ test('visitors stay (v2.27): rest of today and tomorrow; unseen ones wait up to 
   assert.equal(G.resting('fox', NOW), true);  // noon: the fox rests
   assert.equal(G.resting('fox', new Date(2026, 9, 21, 19, 0)), false);
   assert.equal(G.resting('hum', NOW), false);
+});
+test('visitors v2.28: snake after Not Homes, snail after months, robin for someone new; no clash with the squirrel', () => {
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  const at = (d, h) => new Date(2026, 9, 21 - d, h, 0).toISOString();
+  const a = rv({ stage: 'return', neighborhood: 'Oak Park' });
+  const nhs = [nh(a, 12), nh(a, 8), nh(a, 4)];
+  const items = [it(a, [v(a, 30, { plan: true })].concat(nhs, [v(a, 0, { at: at(0, 10), plan: true })]))];
+  const r = G.visitors(items, s2, NOW);
+  assert.equal(r.snake, a.id);
+  assert.equal(G.visitors([it(a, [v(a, 30), nh(a, 8), nh(a, 4), v(a, 0, { at: at(0, 10) })])], s2, NOW).snake, null); // only 2
+  // snail: first conversation 7 months ago, still healthy (forced roll)
+  const b = rv({ stage: 'return', neighborhood: 'Oak Park' });
+  global.__RV_SURPRISE = 1;
+  assert.equal(G.visitors([it(b, [v(b, 210, { plan: true }), v(b, 5, { plan: true })])], s2, NOW).snail, b.id);
+  assert.equal(G.visitors([it(b, [v(b, 60, { plan: true }), v(b, 5, { plan: true })])], s2, NOW).snail, null); // only two months
+  global.__RV_SURPRISE = undefined;
+  // robin: added today, not imported; a first conversation alone does not bring it
+  const c = rv({ stage: 'yet', createdAt: at(0, 9), stageChangedAt: at(0, 9) });
+  assert.equal(G.visitors([it(c, [])], s2, NOW).robin, true);
+  const d = rv({ stage: 'yet', createdAt: at(0, 9), stageChangedAt: at(0, 9), imported: true });
+  assert.equal(G.visitors([it(d, [])], s2, NOW).robin, false);
+  const e = rv({ stage: 'initial', createdAt: ago(20), stageChangedAt: at(0, 10) });
+  const ee = [v(e, 0, { at: at(0, 10) }), { id: 'g1', rvId: e.id, type: 'stage', grew: true, from: 'yet', to: 'initial', at: at(0, 10) }];
+  const rr = G.visitors([it(e, ee)], s2, NOW);
+  assert.equal(rr.squirrel, e.id); assert.equal(rr.robin, false);
 });
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
