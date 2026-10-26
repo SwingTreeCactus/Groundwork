@@ -8,7 +8,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
 - Current release: v2.20.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v61` (sw.js). Last commit a2fdd3f.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.28.1 / rvapp-v73), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.28.2 / rvapp-v74), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
 - Accent colour: purple is the default, blue is an option. Never red. He dislikes transparency in the plant art.
@@ -26,7 +26,7 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
 ## Drive reconnect fix (v2.20.0) and what is pending
 - Cause: the browser-only sign-in gives one hour of access and no renewal.
 - Live now: Reconnect first tries `prompt=none` silently, and falls back to normal sign-in on interaction_required, login_required or consent_required.
-- Built, waiting on Mark: worker/token-helper.js, a Cloudflare Worker that holds the client secret.
+- Live since v2.28.1: worker/token-helper.js runs as the Cloudflare Worker groundwork-auth (https://groundwork-auth.swingtreecactus.workers.dev), holding the client secret.
   - `/exchange` swaps a code for access plus a refresh token. `/refresh` gets a new hour. `/revoke` is optional.
   - It only answers `ALLOWED_ORIGIN`, and it stores and logs nothing.
 - With `RV.config.tokenHelper` set (js/config.js, currently ''):
