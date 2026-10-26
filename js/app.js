@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.28.1';
+  RV.VERSION = '2.29.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -157,6 +157,8 @@
   RV.drive.onChange(() => { if (S.ready) renderStatus(); });
   ST.subscribe(() => {
     if (!S.ready) return;
+    // v2.29: the moment Getting started is finished, say so
+    if (RV.garden && RV.garden.starterOn(S.settings)) setTimeout(() => RV.gardenRecap && RV.gardenRecap.starterDone && RV.gardenRecap.starterDone(), 900);
     applyDisplay();
     renderTabs();
     renderStatus();

@@ -1464,3 +1464,60 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .cr .q-chick { transform-box: fill-box; transform-origin: 50% 100%; animation: cr-chick .9s ease-in-out infinite alternate; }
 .cr .q-chick.c2 { animation-delay: -.45s; }
 @keyframes cr-chick { from { transform: translateY(0); } to { transform: translateY(-2px); } }
+/* v2.29 seasons: ground tints, details in the grass, slow falling leaves and snow */
+.gscene[data-season="autumn"] { --ground: #ECE2D2; --soil: #D8C6AA; }
+.gscene[data-season="winter"] { --ground: #EEF0F2; --soil: #D6D2CB; }
+.gscene[data-season="spring"] { --ground: #E8ECDC; }
+.gscene[data-season="winter"] .gtuft .tuft { stroke: #C9CFD6; }
+.gleaf, .gbloss { position: absolute; width: 12px; height: 9px; pointer-events: none; }
+.gbloss { width: 10px; height: 10px; }
+.gleaf svg, .gbloss svg, .gfall .fl svg { width: 100%; height: 100%; display: block; }
+.gleaf .lf, .gfall .lf { fill: #C0662E; } .gleaf .lfv, .gfall .lfv { stroke: #8E4A20; stroke-width: .8; fill: none; }
+.gleaf:nth-child(3n) .lf { fill: #D9A43A; } .gleaf:nth-child(5n) .lf { fill: #9E4A2A; }
+.gbloss .bl { fill: #F2D6DC; } .gbloss .blc { fill: #E3AE3E; } .gbloss:nth-child(2n) .bl { fill: #FFFFFF; }
+.gfall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 45; border-radius: inherit; }
+.gfall .fl { position: absolute; top: -20px; width: 14px; height: 10px; animation-name: g-leaf-fall, g-leaf-sway; animation-timing-function: linear, ease-in-out; animation-iteration-count: infinite, infinite; animation-direction: normal, alternate; }
+.gfall .fl:nth-child(3n) .lf { fill: #D9A43A; } .gfall .fl:nth-child(4n) .lf { fill: #9E4A2A; }
+.gfall .fs { position: absolute; top: -10px; aspect-ratio: 1; border-radius: 50%; background: #FFFFFF; opacity: .85; animation-name: g-snow-fall, g-snow-sway; animation-timing-function: linear, ease-in-out; animation-iteration-count: infinite, infinite; animation-direction: normal, alternate; }
+@keyframes g-leaf-fall { from { transform: translateY(0) rotate(0); } to { transform: translateY(2400px) rotate(540deg); } }
+@keyframes g-leaf-sway { from { margin-left: -14px; } to { margin-left: 14px; } }
+@keyframes g-snow-fall { from { transform: translateY(0); } to { transform: translateY(2400px); } }
+@keyframes g-snow-sway { from { margin-left: -6px; } to { margin-left: 6px; } }
+.gscene[data-t="night"] .gfall .fs { opacity: .95; }
+@media (prefers-reduced-motion: reduce) { .gfall { display: none; } }
+/* v2.29 visitor set objects, the Visitors page by set */
+.gsquare .o-set-times { width: 32px; height: 56px; } .gsquare .o-set-birds { width: 40px; height: 56px; } .gsquare .o-set-ground { width: 60px; height: 40px; }
+.gsquare .o-set-small { width: 70px; height: 30px; } .gsquare .o-set-seasons { width: 40px; height: 46px; } .gsquare .o-set-all { width: 70px; height: 54px; }
+.gobj .osign { font: 600 7px var(--font-ui, sans-serif); fill: #4A4458; }
+.gobj.arrive { animation: g-set-in 1.6s ease-out both; }
+@keyframes g-set-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gobj.arrive { animation: none; } }
+.vset { margin-top: 18px; }
+.vsethead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 4px 8px; }
+.vsethead .vhead { margin: 0; }
+.vsetn { font-size: .85rem; color: var(--muted); text-align: right; }
+.vset.done .vsetn { color: var(--red); font-weight: 600; }
+.vstamp { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 18px; padding: 12px 14px; margin: 4px 0 6px; }
+.vstamp svg { width: 40px; height: 40px; flex: none; } .vstamp .vs1 { fill: var(--accent-soft); } .vstamp .vs2 { fill: none; stroke: var(--red); stroke-width: 2; stroke-dasharray: 3 3; } .vstamp .vs3 { fill: none; stroke: var(--red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.vstamp b { display: block; } .vstamp span { font-size: .85rem; color: var(--muted); }
+/* v2.29 Getting started and its tips */
+.starter .sthead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.starter .sthead h2 { margin: 0; font-size: 1.15rem; }
+.stlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.st { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; }
+.st .stck { flex: none; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--pl-off); display: flex; align-items: center; justify-content: center; color: var(--surface); }
+.st.done .stck { background: var(--red); border-color: var(--red); }
+.st.done .stl { color: var(--muted); }
+.st .stmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.st .stl { font-weight: 500; }
+.st.cur .stl { font-weight: 600; }
+.st .btn.sm { align-self: flex-start; }
+.st .stimp { margin-top: 4px; }
+.stskip { margin-top: 6px; font-size: .85rem; color: var(--muted); }
+.coach { display: flex; align-items: flex-start; gap: 10px; background: var(--accent-soft); border-radius: 16px; padding: 12px 14px; margin: 10px 0; font-size: .95rem; line-height: 1.4; animation: v-fade .4s ease-out; }
+.coach .coachdot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--red); }
+.coach .coachtx { flex: 1; }
+.coach .link { flex: none; font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.stskip { background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.gfall .fs { box-shadow: 0 0 0 1px rgba(110, 122, 140, .28); }

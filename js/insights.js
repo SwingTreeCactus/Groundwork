@@ -123,16 +123,34 @@
       '<path d="M0 150 C60 118 120 120 180 140 C240 160 300 116 366 132 L366 170 L0 170 Z" class="hill"/><path d="M0 162 C80 146 160 152 230 160 C290 166 330 154 366 156 L366 170 L0 170 Z" class="hill2"/></svg>';
   }
   // grass tufts and pebbles scattered over the ground (same spots every time)
-  function tufts() {
+  // v2.29: season details in the grass (fallen leaves in autumn, blossoms in spring, frost in winter)
+  const LEAF = '<svg viewBox="0 0 14 10"><path d="M1 8 C3 2 9 0 13 1 C12 5 8 9 1 8Z" class="lf"/><path d="M2 7.6 L11 2" class="lfv"/></svg>';
+  const BLOSSOM = '<svg viewBox="0 0 12 12"><g class="bl"><circle cx="6" cy="3" r="2.4"/><circle cx="9" cy="5.6" r="2.4"/><circle cx="7.8" cy="9" r="2.4"/><circle cx="4.2" cy="9" r="2.4"/><circle cx="3" cy="5.6" r="2.4"/></g><circle cx="6" cy="6.6" r="1.4" class="blc"/></svg>';
+  function seasonFall(season) {
+    if (season !== 'autumn' && season !== 'winter') return null;
+    const n = season === 'autumn' ? 7 : 16;
+    const box = h('div', { class: 'gfall ' + season, 'aria-hidden': 'true' });
+    let r = 11;
+    const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    for (let i = 0; i < n; i++) {
+      const dur = season === 'autumn' ? 16 + rnd() * 10 : 18 + rnd() * 12;
+      const el = season === 'autumn' ? svgEl(LEAF, 'fl') : h('i', { class: 'fs' });
+      el.setAttribute('style', 'left:' + (rnd() * 96).toFixed(1) + '%;animation-duration:' + dur.toFixed(1) + 's,' + (3 + rnd() * 3).toFixed(1) + 's;animation-delay:-' + (rnd() * dur).toFixed(1) + 's,0s' + (season === 'winter' ? ';width:' + (3 + rnd() * 3).toFixed(1) + 'px;height:auto' : ''));
+      box.appendChild(el);
+    }
+    return box;
+  }
+  function tufts(season) {
     const box = h('div', { class: 'gdecor', 'aria-hidden': 'true' });
     let r = 7;
     const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
     for (let i = 0; i < 22; i++) {
       const x = (rnd() * 92 + 2).toFixed(1), y = (rnd() * 94 + 2).toFixed(1);
-      const html = i % 4 === 3
+      const extra = (season === 'autumn' || season === 'spring') && i % 3 === 1;
+      const html = extra ? (season === 'autumn' ? LEAF : BLOSSOM) : i % 4 === 3
         ? '<svg viewBox="0 0 14 8"><ellipse cx="5" cy="5" rx="4.5" ry="3" class="peb"/><ellipse cx="11" cy="6" rx="2.6" ry="2" class="peb"/></svg>'
         : '<svg viewBox="0 0 16 12"><path d="M3 12 C3 8 2 5 0 3 M7 12 C7 7 7 4 8 0 M11 12 C11 8 12 5 15 3" class="tuft"/></svg>';
-      box.appendChild(svgEl(html, i % 4 === 3 ? 'gpeb' : 'gtuft', 'left:' + x + '%;top:' + y + '%'));
+      box.appendChild(svgEl(html, extra ? (season === 'autumn' ? 'gleaf' : 'gbloss') : i % 4 === 3 ? 'gpeb' : 'gtuft', 'left:' + x + '%;top:' + y + '%' + (extra ? ';transform:rotate(' + Math.round(rnd() * 360) + 'deg)' : '')));
     }
     return box;
   }
@@ -164,8 +182,8 @@
     const VINFO = Object.fromEntries(G.VISITORS.map(([k, n, why, , mood]) => [k, { n, why, mood }]));
     const COATN = Object.fromEntries(G.COATS.map(([c, n]) => [c, n]));
     // v2.26: each visitor drawn by RV.critters at its garden size; it arrives in its own way the first time each day
-    const VSIZE = { hum: 40, rabbit: 46, fox: 58, bluebird: 40, squirrel: 44, frog: 40, owl: 54, deer: 66, ladybug: 26, snake: 54, snail: 32, robin: 42 };
-    const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop' };
+    const VSIZE = { hum: 40, rabbit: 46, fox: 58, bluebird: 40, squirrel: 44, frog: 40, owl: 54, deer: 66, ladybug: 26, snake: 54, snail: 32, robin: 42, geese: 70, bees: 44, quail: 62 };
+    const ARRIVE = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop', geese: 'fly', bees: 'fly', quail: 'trot' };
     const visEl = (k, style, where) => {
       const kind = G.visitorKey(vis, k), name = COATN[kind] || VINFO[k].n;
       const rest = G.resting(k, now);
@@ -221,12 +239,14 @@
       });
       const due = p.wilting + p.thirsty;
       // a rabbit, sometimes, at the front of a bed where nobody is thirsty
+      if (vis.bees && vis.bees === p.name && !placed.has('bees')) bed.appendChild(visEl('bees', 'left:34%;top:-64px', p.name));
       if (vis.rabbit && vis.rabbit === p.name && !rabbits) { rabbits++; bed.appendChild(visEl('rabbit', 'right:' + (rows > 1 ? 4 : -22) + 'px;bottom:2px', p.name)); }
       // the first bed: a bluebird on its lip, a frog at its foot
       if (bi++ === 0) {
         if (vis.bluebird) bed.appendChild(visEl('bluebird', 'right:10px;top:-30px'));
         if (vis.frog) bed.appendChild(visEl('frog', 'left:-12px;bottom:-14px'));
         if (vis.robin) bed.appendChild(visEl('robin', 'left:40%;bottom:-44px'));
+        if (vis.quail) bed.appendChild(visEl('quail', 'right:2%;bottom:-52px'));
       }
       return h('div', { class: 'gplot' + (cols <= 2 ? ' small' : '') },
         bed,
@@ -241,17 +261,20 @@
       if (vis.rabbit && !placed.has('rabbit')) firstBed.appendChild(visEl('rabbit', 'right:-22px;bottom:2px'));
       if (vis.snake && !placed.has('snake')) firstBed.appendChild(visEl('snake', 'left:-30px;top:2px'));
       if (vis.snail && !placed.has('snail')) firstBed.appendChild(visEl('snail', 'left:70%;bottom:10px'));
+      if (vis.bees && !placed.has('bees')) firstBed.appendChild(visEl('bees', 'left:34%;top:-64px'));
     }
-    const scene = h('section', { class: 'gscene', 'data-t': t, 'aria-label': 'Your garden' },
+    const season = opt.season || G.seasonOf(now);
+    const scene = h('section', { class: 'gscene', 'data-t': t, 'data-season': season, 'aria-label': 'Your garden' },
       svgEl(skySvg(t)),
-      h('div', { class: 'gground' }, tufts(),
+      h('div', { class: 'gground' }, tufts(season),
         // bunting over the path while a campaign is running; a fox at dusk after a week with the ring closed
         opt.campaign ? svgEl('<svg class="gbunt" aria-hidden="true" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="M0 4 Q100 22 200 4" class="bl"/>' +
           Array.from({ length: 11 }, (_, i) => { const x = 10 + i * 18, y = 4 + 18 * (1 - Math.pow((x - 100) / 100, 2)) * 0.5; return '<path d="M' + (x - 5) + ' ' + y.toFixed(1) + ' L' + (x + 5) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 10).toFixed(1) + ' Z" class="b' + (i % 3) + '"/>'; }).join('') + '</svg>') : null,
         vis.fox ? visEl('fox', 'right:12%;top:-50px') : null,
         vis.deer ? visEl('deer', 'left:10%;top:-58px') : null,
-        vis.owl ? visEl('owl', 'left:44%;top:-62px') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {})),
-      card,
+        vis.owl ? visEl('owl', 'left:44%;top:-62px') : null,
+        vis.geese ? visEl('geese', 'left:22%;top:-128px') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {}, opt.sets)),
+      card, seasonFall(season),
       // v2.25: a light rain over the beds when today's tending is all done (once a day)
       opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
     // v2.27: arrivals play when the visitor is on screen; the sighting is saved after the animation, so the redraw
@@ -308,9 +331,10 @@
       bed.appendChild(el);
     });
     const bub = (cls, text) => h('div', { class: 'gbub ' + cls }, text);
-    return h('section', { class: 'gscene gscene-empty', 'data-t': t, 'aria-label': 'Your garden, empty for now' },
-      svgEl(skySvg(t)),
-      h('div', { class: 'gground' }, tufts(),
+    const season = G.seasonOf(now);
+    return h('section', { class: 'gscene gscene-empty', 'data-t': t, 'data-season': season, 'aria-label': 'Your garden, empty for now' },
+      svgEl(skySvg(t)), seasonFall(season),
+      h('div', { class: 'gground' }, tufts(season),
         svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'),
         bub('b1', 'Everyone you add grows here as a plant.'),
         h('div', { class: 'gbeds' }, h('div', { class: 'gplot' }, bed)),
@@ -345,11 +369,27 @@
       tier >= 5 ? h('span', { class: 'gbloom', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('i'), h('i')) : null);
   }
   // the earned ones, standing together at the foot of the garden: one object per family at its highest tier
-  function exhibitSquare(earned) {
+  // v2.29: what a completed visitor set leaves in the garden
+  const SET_ART = {
+    times: '<svg viewBox="0 0 40 70" aria-hidden="true"><rect x="18" y="30" width="4" height="40" rx="1.5" class="o2"/><path d="M8 14 L20 4 L32 14 Z" class="oa"/><rect x="10" y="13" width="20" height="20" rx="2" class="o1"/><circle cx="20" cy="22" r="4.4" class="o2"/><rect x="18.6" y="28" width="2.8" height="4" class="o2"/></svg>',
+    birds: '<svg viewBox="0 0 50 70" aria-hidden="true"><rect x="8" y="10" width="4" height="60" rx="1.5" class="o2"/><rect x="8" y="10" width="28" height="3.4" rx="1.5" class="o2"/><path d="M33 13 v6" stroke-width="1.4" class="o2s"/><path d="M24 26 L33 19 L42 26 Z" class="oa"/><rect x="26" y="26" width="14" height="12" class="o1"/><rect x="23" y="38" width="20" height="3" rx="1.5" class="o2"/><circle cx="29" cy="37" r="1.2" class="ofr"/><circle cx="35" cy="37" r="1.2" class="ofr"/></svg>',
+    ground: '<svg viewBox="0 0 60 40" aria-hidden="true"><rect x="6" y="24" width="48" height="12" rx="6" class="o2"/><rect x="12" y="13" width="40" height="12" rx="6" class="o2"/><circle cx="9" cy="30" r="6" class="o1"/><circle cx="15" cy="19" r="6" class="o1"/><circle cx="9" cy="30" r="2.6" class="o2"/><circle cx="15" cy="19" r="2.6" class="o2"/><path d="M40 12 C42 6 48 6 50 9" stroke-width="2" fill="none" class="oas"/></svg>',
+    small: '<svg viewBox="0 0 70 30" aria-hidden="true"><ellipse cx="35" cy="17" rx="33" ry="12" class="o1"/><ellipse cx="35" cy="16" rx="27" ry="8.4" class="ow"/><path d="M48 16 a6 3.6 0 1 1 -0.1 0.4 L44 16 Z" class="oa"/><path d="M18 13 q4 -2 8 0" stroke-width="1.2" fill="none" class="o1s"/></svg>',
+    seasons: '<svg viewBox="0 0 44 50" aria-hidden="true"><rect x="4" y="44" width="36" height="5" rx="2" class="o2"/><path d="M8 44 C6 22 14 8 22 8 C30 8 38 22 36 44 Z" class="o1"/><path d="M9 36 H35 M8 28 H36 M11 20 H33 M15 13 H29" stroke-width="1.6" class="o2s"/><path d="M19 44 a3 3.4 0 0 1 6 0 Z" class="o2"/></svg>',
+    all: '<svg viewBox="0 0 64 50" aria-hidden="true"><rect x="29" y="22" width="5" height="28" rx="1.5" class="o2"/><rect x="3" y="5" width="58" height="20" rx="3" class="o1"/><text x="32" y="18.6" text-anchor="middle" class="osign">Wildlife garden</text></svg>',
+  };
+  function setObj(id, name, fresh) {
+    const d = h('div', { class: 'gobj o-set-' + id + (fresh ? ' arrive' : ''), role: 'img', 'aria-label': name });
+    d.innerHTML = SET_ART[id] || '';
+    return d;
+  }
+  function exhibitSquare(earned, sets) {
     const top = new Map();
     for (const [id, , name, fam, tier] of G.EXHIBITS) if (earned[id] && (!top.has(fam) || top.get(fam).tier < tier)) top.set(fam, { name, tier });
-    if (!top.size) return null;
-    return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)));
+    const done = sets ? G.SETS.filter(([id]) => sets.done[id]).map(([id, n, , what]) => setObj(id, what + ' (' + n + ' set)', sets.fresh.includes(id))) : [];
+    if (sets && sets.done.all) done.push(setObj('all', 'Wildlife garden sign', sets.fresh.includes('all')));
+    if (!top.size && !done.length) return null;
+    return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)), done);
   }
   // v2.25: Milestones (formerly Exhibits)
   function exhibitSheet(earned) {
@@ -376,13 +416,22 @@
         RV.critters.make(kind, { size: 72, sil: !got }), got ? h('b', null, name) : null, got ? h('span', null, seenLine(o)) : null);
     };
     const found = G.VISITORS.filter(([k]) => seen[k] && seen[k].first).length, coats = G.COATS.filter(([c]) => seen[c] && seen[c].first).length;
+    const name = Object.fromEntries(G.VISITORS.map(([k, n]) => [k, n]));
+    const comp = G.setsComplete(S.settings);
+    // v2.29: grouped by set, each with how many are found and what completing it leaves in the garden
     return {
       title: 'Visitors', back: '#/insights',
       el: h('div', { class: 'vpage' },
         h('p', { class: 'vsum' }, found + ' of ' + G.VISITORS.length + ' found · ' + coats + ' of ' + G.COATS.length + ' rare coats'),
-        h('div', { class: 'vgrid' }, G.VISITORS.map(([k, n]) => card(k, n))),
-        h('h2', { class: 'vhead' }, 'Rare coats'),
-        h('div', { class: 'vgrid' }, G.COATS.map(([c, n]) => card(c, n)))),
+        comp.all ? h('div', { class: 'vstamp' }, svgEl('<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="vs1"/><circle cx="20" cy="20" r="13" class="vs2"/><path d="M13 21 L18 26 L28 15" class="vs3"/></svg>'), h('div', null, h('b', null, 'Field guide complete'), h('span', null, 'Every visitor found'))) : null,
+        G.SETS.map(([id, title, ks, what]) => {
+          const n = ks.filter((k) => seen[k] && seen[k].first).length;
+          return h('section', { class: 'vset' + (comp[id] ? ' done' : '') },
+            h('div', { class: 'vsethead' }, h('h2', { class: 'vhead' }, title), h('span', { class: 'vsetn' }, comp[id] ? what + ' in your garden' : n + ' of ' + ks.length)),
+            h('div', { class: 'vgrid' }, ks.map((k) => card(k, name[k]))));
+        }),
+        h('section', { class: 'vset' }, h('div', { class: 'vsethead' }, h('h2', { class: 'vhead' }, 'Rare coats'), h('span', { class: 'vsetn' }, coats + ' of ' + G.COATS.length)),
+          h('div', { class: 'vgrid' }, G.COATS.map(([c, n]) => card(c, n))))),
     };
   }
   function visitorScreen(kind) {
@@ -503,16 +552,24 @@
     const old = classic();
     const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
     const tend = G.tending(items, S.settings, now);
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    // v2.29: completed visitor sets, dated once and kept
+    const setsDone = Object.assign({}, S.settings.setsDone || {}), comp = G.setsComplete(S.settings);
+    const freshSets = Object.keys(comp).filter((id) => comp[id] && !setsDone[id]);
+    if (freshSets.length) { const at = U.nowISO(); freshSets.forEach((id) => { setsDone[id] = at; }); setTimeout(() => ST.saveSettings((s) => { s.setsDone = Object.assign({}, s.setsDone || {}, setsDone); }), 0); }
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus, sets: { done: setsDone, fresh: freshSets } }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
     if (opt.rain && !(root.__RV_GARDEN_OPT && root.__RV_GARDEN_OPT.rain)) setTimeout(() => ST.saveSettings((s) => { s.tendDone = U.toDateStr(now); }), 3200);
     // v2.25: the game first (how it works, this week, today, next, collections); field stats folded at the foot
     const stats = h('details', { class: 'fstats' }, h('summary', null, icon('down', 18), 'Field stats'), goingCard(items, now), keep);
+    // v2.29: Getting started: seeing the garden is a step; its card replaces Today's tending until done
+    const starter = G.starterOn(S.settings);
+    if (starter && !(S.settings.starter || {}).garden) setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { garden: true }); }), 0);
+    const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap How your garden works any time to see how it grows.');
     // v2.27: nobody yet: an empty garden that explains itself
-    if (!plots.length) return { title: 'My garden', el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works')) };
+    if (!plots.length) return { title: 'My garden', el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip, starter ? SC.starterCard() : null) };
     return { title: 'My garden', el: h('div', null,
       gardenScene(plots, now, earned, opt),
-      h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'),
-      ringCard(sk), tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };
+      h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip,
+      starter ? SC.starterCard() : null, ringCard(sk), starter ? null : tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.
@@ -571,6 +628,8 @@
           h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
           h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', nobody past due'))),
         r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New milestone'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
+        (r.sets || []).length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.7s' } }, h('div', { class: 'acc small' }, 'Set complete'),
+          r.sets.map((id) => { const st = G.SETS.find(([x]) => x === id); return h('b', null, st ? st[1] + ': ' + st[3].toLowerCase() + ' in your garden' : 'Every visitor found'); })) : null,
         h('div', { class: 'grow1' }),
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Close'),
@@ -619,7 +678,7 @@
   // ---------- a visitor arrives (v2.27) ----------
   // The first time the app is opened or returned to after a visitor arrives: a short full-screen moment, the animal
   // coming in on its own scene, with its name and mood. Counts as seen. "See it in your garden" goes to it.
-  const ARRIVE_BIG = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop' };
+  const ARRIVE_BIG = { hum: 'fly', bluebird: 'fly', owl: 'fly', rabbit: 'hop', squirrel: 'hop', frog: 'hop', fox: 'trot', deer: 'trot', ladybug: 'crawl', snake: 'crawl', snail: 'crawl', robin: 'hop', geese: 'fly', bees: 'fly', quail: 'trot' };
   function maybeVisitor() {
     if (!SC.gardenOn() || document.querySelector('.overlay, .grow-ov, .recap, .vann')) return false;
     const now = new Date();
@@ -632,6 +691,14 @@
     });
     if (!k) return false;
     const e = st.here[k], v = G.VISITORS.find(([x]) => x === k), coat = G.COATS.find(([c]) => c === e.kind);
+    arrivalMoment(k, e.kind, coat ? 'A rare visitor' : 'A visitor', coat ? coat[1] : v[1], v[4]);
+    return true;
+  }
+  // The full-screen arrival: the animal comes in on its own scene, a kicker, a title and a quiet line.
+  function arrivalMoment(k, kind, kicker, title, line) {
+    const v = G.VISITORS.find(([x]) => x === k);
+    const e = { kind };
+    const coat = null;
     const sc = SCENES[v[5]] || SCENES.day;
     const stage = h('div', { class: 'vstage', style: { background: sc.sky } });
     stage.innerHTML = (sc.stars ? '<svg class="vstars" viewBox="0 0 390 430" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="#F2F0F5"><circle cx="48" cy="60" r="1.6"/><circle cx="120" cy="34" r="1.2"/><circle cx="300" cy="52" r="1.6"/><circle cx="350" cy="110" r="1.1"/><circle cx="210" cy="80" r="1.3"/><circle cx="80" cy="140" r="1"/></g></svg>' : '') +
@@ -639,21 +706,35 @@
     const big = h('div', { class: 'vbigw arrive ' + ARRIVE_BIG[k] }, RV.critters.make(e.kind, { size: 240 }));
     stage.appendChild(big);
     const close = () => ov.remove();
-    const ov = h('div', { class: 'vann', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'A visitor: ' + (coat ? coat[1] : v[1]) },
+    const ov = h('div', { class: 'vann', role: 'dialog', 'aria-modal': 'true', 'aria-label': kicker + ': ' + title },
       h('div', { class: 'vann-in' }, stage,
         h('div', { class: 'vinfo' },
-          h('div', { class: 'vk' }, coat ? 'A rare visitor' : 'A visitor'),
-          h('h1', null, coat ? coat[1] : v[1]),
-          h('div', { class: 'vmood' }, v[4])),
+          h('div', { class: 'vk' }, kicker),
+          h('h1', null, title),
+          h('div', { class: 'vmood' }, line)),
         h('div', { class: 'grow1' }),
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights/focus/' + k; } }, 'See it in your garden'))));
     document.body.appendChild(ov);
     try { if (navigator.vibrate) navigator.vibrate(20); } catch (err) { /* ignore */ }
+  }
+  // v2.29: all five Getting started steps done: "Your garden is ready", and a bluebird comes to see it
+  function maybeStarterDone() {
+    if (!SC.gardenOn() || !G.starterOn(S.settings) || document.querySelector('.overlay, .grow-ov, .recap, .vann')) return false;
+    const r = G.starterSteps(ST.items(), S.settings, !!(RV.drive && RV.drive.status().connected));
+    if (!r.all) return false;
+    const now = new Date(), day = U.toDateStr(now);
+    ST.saveSettings((s) => {
+      s.starter = Object.assign({}, s.starter, { state: 'done', at: now.toISOString() });
+      s.visitorsHere = Object.assign({}, s.visitorsHere || {});
+      s.visitorsHere.bluebird = { kind: 'bluebird', day, until: U.toDateStr(U.addDays(U.startOfDay(now), 1)), ref: null, seen: false, told: true, played: false };
+      G.markVisitorSeen(s, 'bluebird', now);
+    });
+    arrivalMoment('bluebird', 'bluebird', 'Getting started', 'Your garden is ready', 'A bluebird came to see it.');
     return true;
   }
-  RV.gardenRecap = { maybeShow: () => maybeRecap() || maybeRound() || maybeVisitor(), round: maybeRound, visitor: maybeVisitor };
+  RV.gardenRecap = { maybeShow: () => maybeStarterDone() || maybeRecap() || maybeRound() || maybeVisitor(), round: maybeRound, visitor: maybeVisitor, starterDone: maybeStarterDone };
 
   function insights(sub, key) {
     if (!SC.gardenOn()) return classic();

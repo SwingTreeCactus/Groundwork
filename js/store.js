@@ -47,6 +47,12 @@
     if (!S.settings.gardenSince) { S.settings.gardenSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
     // v2.23: shrub flowers count only conversations from the day they arrived (no retroactive flowers)
     if (!S.settings.flowersSince) { S.settings.flowersSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
+    // v2.29: Getting started is for new users only; anyone who already has records skips it
+    if (!S.settings.starter) {
+      const forced = typeof root !== 'undefined' && root.__RV_STARTER;
+      S.settings.starter = { state: forced || (S.rvs.some((r) => !r.deletedAt) ? 'off' : 'on') };
+      await DB.setMeta('settings', S.settings);
+    }
     S.ready = true;
     emit();
   }

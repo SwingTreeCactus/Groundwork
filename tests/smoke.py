@@ -63,7 +63,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles')
-    ctx.add_init_script('window.__RV_SURPRISE = 0') # no surprise visitors unless a test asks
+    ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"') # no surprise visitors unless a test asks
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -695,6 +695,31 @@ with sync_playwright() as p:
     page.click('button:text-is("Cancel") >> nth=-1'); time.sleep(0.2)
     check(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").deletedAt') is None, 'cancel keeps the record')
 
+    print('v2.29: Getting started')
+    sctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, service_workers='block')
+    sctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "on"')
+    sp = sctx.new_page(); sp.goto(URL + '#/home'); sp.wait_for_selector('.starter')
+    check(sp.locator('.starter .st').count() == 5 and sp.locator('.starter .st.cur:has-text("Add your first contact")').count() == 1, 'Getting started: five steps, the first one current')
+    check(sp.locator('.starter .imports .setrow').count() == 3, 'Getting started: the import choices sit under the first step')
+    sp.screenshot(path=SHOTS + '/36-starter.png')
+    sid = sp.evaluate("RV.store.addRv({ name: 'Nia Brooks', stage: 'yet' }).id"); time.sleep(0.3)
+    sp.click('.starter .st.cur button:has-text("Show me")'); sp.wait_for_selector('.coach')
+    check('Record a visit' in sp.locator('.coach').inner_text() or 'visit' in sp.locator('.coach').inner_text().lower(), 'Show me opens the contact with a tip about recording a visit')
+    sp.screenshot(path=SHOTS + '/37-starter-tip.png')
+    sp.click('.coach button:has-text("Got it")'); time.sleep(0.3)
+    check(sp.locator('.coach').count() == 0 and sp.evaluate("RV.store.S.settings.tips.visit") is True, 'a tip goes away for good with Got it')
+    sp.evaluate("(id) => { RV.store.logVisit(id, { text: 'hello', whatsNext: 'x' }); RV.store.logNH(id); }", sid)
+    sp.goto(URL + '#/insights'); sp.wait_for_selector('.gscene'); time.sleep(0.5)
+    check(sp.evaluate("RV.store.S.settings.starter.garden") is True, 'seeing the garden ticks its step')
+    sp.evaluate("RV.drive.status = () => ({ connected: true, configured: true, tokenOk: true })"); sp.evaluate("RV.store.saveSettings(s => { s.x = 1; })")
+    try:
+        sp.wait_for_selector('.vann', timeout=6000); ready = True
+    except Exception:
+        ready = False
+    check(ready and 'Your garden is ready' in sp.locator('.vann').inner_text() and sp.evaluate("RV.store.S.settings.starter.state") == 'done', 'finishing all five: Your garden is ready, and a bluebird')
+    sp.screenshot(path=SHOTS + '/38-starter-done.png')
+    check(sp.evaluate("!!(RV.store.S.settings.visitors.bluebird && RV.store.S.settings.visitors.bluebird.first)"), 'the bluebird is recorded as found')
+    sctx.close()
     print('v2.28: menu, Customize, address, Home import choices')
     page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab'); time.sleep(0.4)
     ev("document.querySelectorAll('.overlay, .recap, .vann').forEach(e => e.remove())"); time.sleep(0.2)

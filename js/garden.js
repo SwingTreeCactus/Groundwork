@@ -457,7 +457,8 @@
     const lush = items.filter((it) => forItem(it, settings, now).care === CARE.LUSH).length;
     const sk = streak(items, settings, now, since);
     const earned = Object.keys(settings.exhibits || {}).filter((id) => { const t = new Date(settings.exhibits[id]); return t >= ws && t < we; });
-    return { key, ws, we, ring, grew, revived, lush, streak: sk.streak, exhibits: earned };
+    const sets = Object.keys(settings.setsDone || {}).filter((id) => { const t = new Date(settings.setsDone[id]); return t >= ws && t < we; });
+    return { key, ws, we, ring, grew, revived, lush, streak: sk.streak, exhibits: earned, sets };
   }
   // A field-service round: the latest run of live logs (Not Homes, visits, new contacts) no more than
   // ROUND_GAP minutes apart. Shown once (seen = the round's key, its last log time) when it has at least
@@ -536,10 +537,48 @@
     ['snake', 'Garter snake', 'You found someone home after several Not Homes.', 'Have a conversation with someone after 3 or more Not Homes in a row.', 'Patient', 'dawn'],
     ['snail', 'Snail', 'You have kept visiting someone for six months.', 'Keep visiting someone on time for six months or more.', 'Unhurried', 'day'],
     ['robin', 'Robin', 'You added someone new today.', 'Add a new contact.', 'Cheerful', 'day'],
+    // v2.29 seasonal
+    ['geese', 'Geese', 'Your weekly streak reached 4 weeks this autumn.', 'Keep your weekly streak going for 4 weeks in autumn.', 'Grumpy', 'dusk'],
+    ['bees', 'Bees', 'You left plans on several visits in one area this week.', 'In spring or summer, leave a plan on 2 or more visits in one area in the same week.', 'Focused', 'day'],
+    ['quail', 'California quail', 'Last week you had conversations in 3 or more areas.', 'In spring or summer, have conversations in 3 or more areas in a week.', 'Sociable', 'day'],
   ];
+  // v2.29 Getting started: five first steps, each ticked from what has actually happened
+  function starterSteps(items, settings, driveOn) {
+    const live = items.filter((it) => !it.rv.deletedAt);
+    const any = (t) => live.some((it) => it.entries.some((e) => !e.deletedAt && e.type === t));
+    const st = settings.starter || {};
+    const steps = [
+      { key: 'contact', label: 'Add your first contact', done: live.length > 0 },
+      { key: 'visit', label: 'Record a visit', done: any('visit') },
+      { key: 'nh', label: 'Record a Not Home', done: any('nh') },
+      { key: 'garden', label: 'See your garden', done: !!st.garden },
+      { key: 'drive', label: 'Connect Drive backup', done: !!driveOn },
+    ];
+    const current = steps.find((x) => !x.done) || null;
+    return { steps, current, done: steps.filter((x) => x.done).length, all: !current };
+  }
+  const starterOn = (settings) => !!(settings.starter && settings.starter.state === 'on');
+
+  // v2.29 seasons, by date (northern hemisphere): spring Mar-May, summer Jun-Aug, autumn Sep-Nov, winter Dec-Feb
+  const seasonOf = (d) => { const m = (d || new Date()).getMonth(); return m >= 2 && m <= 4 ? 'spring' : m >= 5 && m <= 7 ? 'summer' : m >= 8 && m <= 10 ? 'autumn' : 'winter'; };
+  // v2.29 visitor sets: find every animal in a set and something quietly appears in the garden. Rare coats never count.
+  const SETS = [
+    ['times', 'Times of day', ['deer', 'fox', 'owl'], 'An owl box'],
+    ['birds', 'Garden birds', ['hum', 'bluebird', 'robin'], 'A bird feeder'],
+    ['ground', 'Ground dwellers', ['rabbit', 'squirrel', 'snake'], 'A log pile'],
+    ['small', 'Small things', ['ladybug', 'snail', 'frog'], 'A small pond'],
+    ['seasons', 'Seasonal', ['geese', 'bees', 'quail'], 'A beehive'],
+  ];
+  const setsComplete = (settings) => {
+    const seen = settings.visitors || {}, got = (k) => !!(seen[k] && seen[k].first);
+    const out = {};
+    for (const [id, , ks] of SETS) out[id] = ks.every(got);
+    out.all = VISITORS.every(([k]) => got(k));
+    return out;
+  };
   // Rare coats: about 1 sighting in 20 of the usual animal. [coat key, name, animal]
   const COATS = [['rabbit-white', 'White rabbit', 'rabbit'], ['hum-gold', 'Golden hummingbird', 'hum'], ['fox-silver', 'Silver fox', 'fox']];
-  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25, bluebird: 1, squirrel: 1, frog: 1, owl: 0.5, deer: 0.5, ladybug: 0.25, snake: 1, snail: 0.15, robin: 1 };
+  const VISIT_ODDS = { hum: 0.15, rabbit: 0.15, fox: 0.25, bluebird: 1, squirrel: 1, frog: 1, owl: 0.5, deer: 0.5, ladybug: 0.25, snake: 1, snail: 0.15, robin: 1, geese: 0.25, bees: 0.5, quail: 0.25 };
   const COAT_ODDS = 0.05;
   function dayRoll(day, key) {
     const f = root.__RV_SURPRISE;
@@ -556,7 +595,7 @@
     const liveLog = (e) => !e.deletedAt && !e.imported && (e.type === 'nh' || e.type === 'visit');
     const live = items.filter((it) => !L.isClosed(settings, it.rv)).map((it) => ({ it, st: forItem(it, settings, now) })).filter((x) => x.st.form);
     const byId = (a, b) => U.cmp(a.it.rv.id, b.it.rv.id);
-    const out = { hum: null, rabbit: null, fox: false, bluebird: false, squirrel: null, frog: false, owl: false, deer: false, ladybug: null, snake: null, snail: null, robin: false, coat: {} };
+    const out = { hum: null, rabbit: null, fox: false, bluebird: false, squirrel: null, frog: false, owl: false, deer: false, ladybug: null, snake: null, snail: null, robin: false, geese: false, bees: null, quail: false, coat: {} };
     // hummingbird: beside a plant from leafy up that is Healthy or Lush
     const good = live.filter((x) => x.st.form >= 3 && x.st.care >= CARE.HEALTHY).sort(byId);
     if (good.length && comes('hum')) out.hum = pickOne(good, 'hum').it.rv.id;
@@ -608,6 +647,28 @@
     if (longRun.length && comes('snail')) out.snail = pickOne(longRun, 'snail').it.rv.id;
     // robin: a contact added today (not imported)
     if (items.some((it) => !it.rv.deletedAt && !it.rv.imported && ms(it.rv.createdAt) >= t0 && ms(it.rv.createdAt) <= t1) && comes('robin')) out.robin = true;
+    // v2.29 seasonal visitors
+    const season = seasonOf(now);
+    if (season === 'autumn' && comes('geese') && streak(items, settings, now, settings.gardenSince).streak >= 4) out.geese = true;
+    if (season === 'spring' || season === 'summer') {
+      // bees: an area where 2+ visits this week (Sunday on) left a plan
+      const wk0 = weekStart(now).getTime(), perArea = new Map();
+      for (const x of live) {
+        const a = (x.it.rv.neighborhood || '').trim();
+        if (!a) continue;
+        const n = x.it.entries.filter((e) => !e.deletedAt && !e.imported && e.type === 'visit' && ms(e.at) >= wk0 && ms(e.at) <= t1 && (e.plan === true || (e.study && e.nextStart))).length;
+        perArea.set(a, (perArea.get(a) || 0) + n);
+      }
+      const busy = Array.from(perArea).filter(([, n]) => n >= 2).map(([a]) => a).sort();
+      if (busy.length && comes('bees')) out.bees = busy[Math.floor(dayRoll(day, 'bees-where') * busy.length) % busy.length];
+      // quail: conversations in 3+ areas last week
+      const areas = new Set();
+      for (const x of live) for (const e of x.it.entries) {
+        if (e.deletedAt || e.imported || e.type !== 'visit') continue;
+        const t = ms(e.at); if (t >= ws && t < we && (x.it.rv.neighborhood || '').trim()) areas.add(x.it.rv.neighborhood.trim());
+      }
+      if (areas.size >= 3 && comes('quail')) out.quail = true;
+    }
     // rare coats, once the usual animal has been found
     for (const [coat, , k] of COATS) if (out[k] && seen[k] && seen[k].first && (root.__RV_SURPRISE === 1 ? !!root.__RV_COATS : dayRoll(day, coat) < COAT_ODDS)) out.coat[k] = coat;
     return out;
@@ -676,7 +737,7 @@
   }
 
   const api = {
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, SETS, setsComplete, seasonOf, starterSteps, starterOn, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

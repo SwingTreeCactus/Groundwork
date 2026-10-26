@@ -295,7 +295,7 @@ test('visitors v2.26: bluebird, squirrel, frog, owl, deer, ladybug and rare coat
   assert.equal(r.coat.hum, 'hum-gold'); assert.equal(G.visitorKey(r, 'hum'), 'hum-gold');
   assert.equal(r.coat.rabbit, undefined);
   global.__RV_SURPRISE = undefined; global.__RV_COATS = undefined;
-  assert.equal(G.VISITORS.length, 12); assert.equal(G.COATS.length, 3);
+  assert.equal(G.VISITORS.length, 15); assert.equal(G.COATS.length, 3);
 });
 test("today's tending: water the thirsty, leave a plan, grow one that's close (v2.25)", () => {
   const at = (h) => new Date(2026, 9, 21, h, 0).toISOString();
@@ -372,6 +372,28 @@ test('visitors v2.28: snake after Not Homes, snail after months, robin for someo
   const ee = [v(e, 0, { at: at(0, 10) }), { id: 'g1', rvId: e.id, type: 'stage', grew: true, from: 'yet', to: 'initial', at: at(0, 10) }];
   const rr = G.visitors([it(e, ee)], s2, NOW);
   assert.equal(rr.squirrel, e.id); assert.equal(rr.robin, false);
+});
+test('v2.29: seasons by date; seasonal visitors; sets complete only with every animal found', () => {
+  assert.deepEqual([0, 3, 6, 9, 11].map((m) => G.seasonOf(new Date(2026, m, 10))), ['winter', 'spring', 'summer', 'autumn', 'winter']);
+  const s2 = Object.assign(D.defaultSettings(), { flowersSince: ago(200) });
+  // bees: May, two planned visits in Oak Park this week
+  const may = new Date(2026, 4, 13, 12); // a Wednesday
+  const at = (d, h) => new Date(2026, 4, 13 - d, h).toISOString();
+  const a = rv({ stage: 'return', neighborhood: 'Oak Park' }), b = rv({ stage: 'return', neighborhood: 'Oak Park' });
+  const items = [it(a, [{ id: 'b1', rvId: a.id, type: 'visit', at: at(1, 10), plan: true }]), it(b, [{ id: 'b2', rvId: b.id, type: 'visit', at: at(0, 10), plan: true }])];
+  assert.equal(G.visitors(items, s2, may).bees, 'Oak Park');
+  assert.equal(G.visitors(items, s2, NOW).bees, null); // October: no bees
+  // quail: conversations in 3 areas last week (May 3-9)
+  const q = ['A', 'B', 'C'].map((n) => rv({ stage: 'return', neighborhood: n }));
+  const qi = q.map((r) => it(r, [{ id: 'q' + r.id, rvId: r.id, type: 'visit', at: new Date(2026, 4, 6, 10).toISOString() }]));
+  assert.equal(G.visitors(qi, s2, may).quail, true);
+  // sets
+  const seen = (ks) => Object.fromEntries(ks.map((k) => [k, { first: ago(3) }]));
+  const c1 = G.setsComplete(Object.assign({}, s2, { visitors: seen(['deer', 'fox', 'owl', 'hum', 'bluebird']) }));
+  assert.equal(c1.times, true); assert.equal(c1.birds, false); assert.equal(c1.all, false);
+  const c2 = G.setsComplete(Object.assign({}, s2, { visitors: seen(G.VISITORS.map(([k]) => k)) }));
+  assert.ok(G.SETS.every(([id]) => c2[id]) && c2.all);
+  assert.equal(G.setsComplete(Object.assign({}, s2, { visitors: seen(['deer', 'fox', 'fox-silver']) })).times, false);
 });
 test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });

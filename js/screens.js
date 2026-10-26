@@ -201,16 +201,52 @@
     if (!next.length) return null;
     return h('section', { class: 'upnext' }, h('div', { class: 'upn' }, h('span', null, 'Up next'), h('span', { class: 'muted' }, 'longest since a visit')), listOf(next));
   }
+  // ---------- Getting started (v2.29) ----------
+  // A one-time tip, shown inline while Getting started is on, until "Got it".
+  function coach(id, text) {
+    if (!RV.garden || !RV.garden.starterOn(S.settings) || (S.settings.tips || {})[id]) return null;
+    const el = h('div', { class: 'coach', role: 'note' }, h('span', { class: 'coachdot', 'aria-hidden': 'true' }),
+      h('div', { class: 'coachtx' }, text),
+      h('button', { class: 'link', type: 'button', onclick: () => { el.remove(); ST.saveSettings((s) => { s.tips = Object.assign({}, s.tips || {}, { [id]: true }); }); } }, 'Got it'));
+    return el;
+  }
+  const importRows = () => h('div', { class: 'imports' },
+    [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
+      .map(([k, t, sub]) => h('button', { class: 'setrow', type: 'button', onclick: () => RV.importers && RV.importers[k]() }, icon('upload', 20),
+        h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18))));
+  function starterCard() {
+    const G = RV.garden;
+    const r = G.starterSteps(ST.items(), S.settings, !!(RV.drive && RV.drive.status().connected));
+    const firstId = () => { const it = ST.items().find((i) => i.att.state !== 'closed'); return it && it.rv.id; };
+    const go = {
+      contact: () => F.quickAdd(),
+      visit: () => { const id = firstId(); if (id) location.hash = '#/rv/' + id; },
+      nh: () => { const id = firstId(); if (id) location.hash = '#/rv/' + id; },
+      garden: () => { location.hash = '#/insights'; },
+      drive: () => { location.hash = '#/settings/data'; },
+    };
+    const hint = { contact: 'Someone you met at the door, or anyone you want to keep visiting.', visit: 'After a conversation, write a line about it.', nh: 'Knocking counts toward your week, even when nobody answers.', garden: 'Everyone you add grows there as a plant.', drive: 'Your records stay on this phone. A Drive backup keeps them safe.' };
+    return h('section', { class: 'card starter' },
+      h('div', { class: 'sthead' }, h('h2', null, 'Getting started'), h('span', { class: 'muted small' }, r.done + ' of ' + r.steps.length)),
+      h('ol', { class: 'stlist' }, r.steps.map((x) => {
+        const cur = r.current && r.current.key === x.key;
+        return h('li', { class: 'st' + (x.done ? ' done' : '') + (cur ? ' cur' : '') },
+          h('span', { class: 'stck', 'aria-hidden': 'true' }, x.done ? icon('check', 14) : null),
+          h('div', { class: 'stmain' }, h('div', { class: 'stl' }, x.label, x.done ? h('span', { class: 'sr-only' }, ', done') : null),
+            cur ? h('div', { class: 'muted small' }, hint[x.key]) : null,
+            cur ? h('button', { class: 'btn primary sm', type: 'button', onclick: go[x.key] }, x.key === 'contact' ? 'Add a contact' : 'Show me') : null,
+            cur && x.key === 'contact' ? h('div', { class: 'stimp' }, h('div', { class: 'muted small' }, 'Or bring in what you have'), importRows()) : null));
+      })),
+      h('button', { class: 'link stskip', type: 'button', onclick: () => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { state: 'off' }); }) }, 'Skip getting started'));
+  }
+
   function home() {
     const items = ST.items();
-    const welcome = !S.rvs.some((r) => !r.deletedAt)
+    const welcome = RV.garden && RV.garden.starterOn(S.settings) ? starterCard() : !S.rvs.some((r) => !r.deletedAt)
       ? card('Welcome', h('div', { class: 'stack' },
         h('button', { class: 'btn primary block', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add your first ' + lbl('rv')),
         h('div', { class: 'muted small', style: { marginTop: '6px' } }, 'Or bring in what you have'),
-        h('div', { class: 'imports' },
-          [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
-            .map(([k, t, sub]) => h('button', { class: 'setrow', type: 'button', onclick: () => RV.importers && RV.importers[k]() }, icon('upload', 20),
-              h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18))))))
+        importRows()))
       : null;
     const d = new Date();
     return {
@@ -690,7 +726,13 @@
           // any RV can log a study, even on the first visit (not Potential: no conversation yet)
           L.shownStage(S.settings, rv.stage).key === 'rv'
             ? h('button', { class: 'btn logstudy', type: 'button', onclick: () => F.visitDialog(rv.id, { study: true }) }, icon('note', 18), lbl('logStudy'))
-            : null)
+            : null,
+          // v2.29: Getting started tips
+          (() => { const G = RV.garden; if (!G || !G.starterOn(S.settings)) return null; const cur = G.starterSteps(ST.items(), S.settings, false).current;
+            const first = String(rv.name || '').split(' ')[0];
+            if (cur && cur.key === 'visit') return coach('visit', 'This is ' + first + '\u2019s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
+            if (cur && cur.key === 'nh') return coach('nh', 'Nobody home? Tap Record ' + lbl('notHomeShort') + '. Knocking counts toward your week.');
+            return null; })())
         : null);
     els.push(head);
 
@@ -762,5 +804,5 @@
     };
   }
 
-  RV.screens = { home, today, list, detail, libSheet, topicView, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

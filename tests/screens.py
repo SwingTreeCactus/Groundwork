@@ -38,7 +38,7 @@ def check(c, label):
     if c: ok+=1
     else: bad+=1
 with sync_playwright() as p:
-    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); c.add_init_script('window.__RV_SURPRISE = 0'); pg=c.new_page()
+    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); c.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"'); pg=c.new_page()
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
     base=f'http://127.0.0.1:{PORT}/'
     shot=lambda n: pg.screenshot(path=f'{OUT}/b-{n}.png')
@@ -205,7 +205,7 @@ with sync_playwright() as p:
     check(pg.locator('.gcard').is_hidden(), 'the close button closes the card')
     pg.evaluate("() => RV.store.saveSettings(s => { const t = new Date().toISOString(); s.visitors = { hum: { first: t, seen: '', days: 4 }, rabbit: { first: t, days: 2 }, fox: { first: t, days: 1 }, bluebird: { first: t, days: 3 }, owl: { first: t, days: 1 } }; })"); pg.wait_for_timeout(200)
     pg.click('.ctile.vs'); pg.wait_for_selector('.vgrid'); pg.wait_for_timeout(300)
-    check(pg.locator('.vcard').count() == 15, 'the Visitors page: twelve visitors and three rare coats')
+    check(pg.locator('.vcard').count() == 18 and pg.locator('.vset').count() == 6, 'the Visitors page: fifteen visitors in five sets, and three rare coats')
     shot('visitors-sheet')
     pg.locator('.vcard:not(.unfound)').first.click(); pg.wait_for_selector('.vstage'); pg.wait_for_timeout(400); shot('visitor-portrait')
     check(pg.locator('.vstage .cr').count() == 1 and pg.locator('.vinfo .vwhy').count() == 1, 'a found visitor opens its portrait')
