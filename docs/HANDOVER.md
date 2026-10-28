@@ -1,14 +1,18 @@
-# Groundwork handover (2026-10-22, after v2.20.0)
+# Groundwork handover (2026-10-28, after v2.30.0)
 
-Read this first in a new chat, then read claude/design-doc.md (the full design history, sections 1–32) for detail.
+Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–42) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.20.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v61` (sw.js). Last commit a2fdd3f.
+- Current release: v2.30.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v75` (sw.js).
+- Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
 - Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.30.1 / rvapp-v76), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
+- Planning or diagnosis requests: no code until Mark says to build.
+- Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
 - Accent colour: purple is the default, blue is an option. Never red. He dislikes transparency in the plant art.
@@ -56,27 +60,28 @@ Read this first in a new chat, then read claude/design-doc.md (the full design h
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
 ## Tests (all passing at v2.30.0)
-- `node tests/ai-proxy.test.mjs` (8, the note cleanup helper); `python3 -I tests/ai_cleanup.py` (32, own key and shared helper)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (253)
-- `python3 -I tests/screens.py . /tmp/out/scr` (42)
-- `python3 -I tests/drive_folder.py` (36, fake Drive, silent reconnect, helper flow)
-- `python3 -I tests/ai_cleanup.py` (22)
-- `node tests/garden.test.js` (33), `node tests/logic.test.js` (48), `node tests/worker.test.mjs` (6)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (285; needs /tmp/out to exist)
+- `python3 -I tests/screens.py . /tmp/out/scr` (50)
+- `python3 -I tests/drive_folder.py` (36), `python3 -I tests/ai_cleanup.py` (32)
+- `node tests/garden.test.js` (45), `node tests/logic.test.js` (48), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8)
 - Gotchas:
   - `replaceChildren(null)` renders "null", so filter out nulls first.
   - A shell pipe can hide a failing `&&` chain, so check every suite's output.
   - The map test hook is `document.querySelector('.gmap').gmapMap()`.
   - `RV.gmap._view()` and `RV.gmap._forget()` are there for tests.
 
-## Recent history (from Mark's feedback)
-- v2.19.3: map area overlay removed, three visible stages, the RVs tab renamed Contacts.
-- v2.19.4: map moved to Contacts, Today merged into Home, Insights is the garden only.
-- v2.19.5: map toggle is All / Today.
-- v2.19.6: Log study on every RV.
-- v2.19.7: edit a past visit into a study.
-- v2.20.0: Drive fix, and the map opens on you and keeps its view.
+## Recent history
+- v2.21–v2.29: garden game (flowers, rounds, tending, milestones, 15 visitors with rare coats, visitor sets, seasons, Getting started quests), visitor announcements, empty-garden tutorial, menu regrouped with a Customize page, "conversations" wording, address tap edits the address. Details in design-doc sections 33–41.
+- v2.28.1: Drive stays signed in (groundwork-auth live).
+- v2.30.0: Note cleanup for everyone through groundwork-ai ($5 prepaid credit, no auto reload).
+
+## Pending
+- Notes import from a note-taking app into contacts (uses groundwork-ai): needs which app the notes are in and 2–3 sample notes with names changed.
+- Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
-- claude/design-doc.md: full design log.
+- claude/design-doc.md: full design log (every release).
+- claude/gamification-review.md: the game review and the comparison with model games.
 - claude/garden-plan.md: garden spec.
 - claude/brand-guide.md: brand.
+- Design canvas "Garden visitors": https://claude.ai/artifact/EX832JVcy4GSFeaRhha6yC
