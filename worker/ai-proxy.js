@@ -15,7 +15,7 @@
 const API = 'https://api.anthropic.com/v1/messages';
 const MODELS = { 'claude-haiku-5-5': 1, 'claude-sonnet-5-5': 4 };
 const MAX_TOKENS = 4000;
-const MAX_BODY = 60000; // characters of request body
+const MAX_BODY = 3000000; // characters of request body (up to 4 shrunk screenshots)
 const ID_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
 function cors(env, origin) {

@@ -1,15 +1,15 @@
-# Groundwork handover (2026-10-28, after v2.31.0)
+# Groundwork handover (2026-10-28, after v2.32.0)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–44) for detail. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–45) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.31.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v77` (sw.js).
+- Current release: v2.32.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v78` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.31.1 / rvapp-v78), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.32.1 / rvapp-v79), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
@@ -63,7 +63,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (285; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (50)
 - `python3 -I tests/drive_folder.py` (36), `python3 -I tests/ai_cleanup.py` (35)
-- `node tests/garden.test.js` (45), `node tests/logic.test.js` (48), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `python3 -I tests/notes_import.py` (22)
+- `node tests/garden.test.js` (45), `node tests/logic.test.js` (48), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - `replaceChildren(null)` renders "null", so filter out nulls first.
   - A shell pipe can hide a failing `&&` chain, so check every suite's output.
@@ -76,9 +76,10 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.30.0: Note cleanup for everyone through groundwork-ai ($5 prepaid credit, no auto reload).
 - v2.30.1: cleanup is a light proofread; next-time items copied, not moved; app keeps the note if too much was cut.
 - v2.31.0: import from a notes app (files, zips, paste, Android share), read by Claude, review before import.
+- v2.32.0: paste first, screenshots, Edit details and neighborhoods before import, Just imported view, Fill from a note in quick add.
 
 ## Pending
-- Notes import: built in v2.31.0 without real samples (design-doc section 44). Next: Mark gets real sample notes (likely his wife's Samsung Notes) to tune the mapping rules in `RV.ai.IMPORT_SYSTEM`; confirm Samsung Notes' multi-select "save as text" menu wording and the Android share flow on a real phone; Apple Notes bulk Shortcut only once tested.
+- Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs

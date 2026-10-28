@@ -39,7 +39,7 @@ await test('no install ID, unknown model or other path: refused', async () => {
   assert.equal((await req(msg(), { id: '' })).status, 400);
   assert.equal((await req(msg({ model: 'claude-opus-5-5' }))).status, 400);
   assert.equal((await req(msg(), { path: '/v1/complete' })).status, 404);
-  assert.equal((await req('x'.repeat(70000))).status, 413);
+  assert.equal((await req('x'.repeat(3000001))).status, 413);
   assert.equal(sent.length, 0);
 });
 await test('per-install daily limit (Careful counts 4)', async () => {

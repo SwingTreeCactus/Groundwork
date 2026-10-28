@@ -108,8 +108,10 @@
   }
   function rvForm(existing, opts) {
     opts = opts || {};
-    const rv = existing || {};
-    const isNew = !existing;
+    // v2.32: draft = a person found in imported notes, edited before import (nothing is saved here; onDone gets the fields)
+    const draft = opts.draft || null;
+    const rv = existing || draft || {};
+    const isNew = !existing && !draft;
     const isClosed = !isNew && L.isClosed(S.settings, rv);
     const howMetDefault = isNew ? (S.settings.lists.howMet.includes(HOUSE) ? HOUSE : '') : (rv.howMet || '');
     const f = {
@@ -182,22 +184,31 @@
     };
     f.stage.addEventListener('change', syncStudy);
     syncStudy();
-    const bestDays = daysPicker(isNew ? [new Date().getDay()] : L.bestDaysOf(rv));
+    const bestDays = daysPicker(isNew ? [new Date().getDay()] : draft ? (draft.bestDays || []) : L.bestDaysOf(rv));
+    const visitsBox = (visits, nextVisit, title) => (visits && visits.length) || nextVisit ? h('div', { class: 'fillvisits' },
+      h('div', { class: 'fillvh' }, title),
+      (visits || []).map((v) => h('div', null, h('b', null, U.fmtDate(v.date) + ' '), v.type === 'nh' ? lbl('notHome') : v.text)),
+      nextVisit ? h('div', { class: 'muted' }, 'Next visit: ' + U.fmtDate(nextVisit)) : null) : null;
+    // v2.32: Fill from a note (new contacts): paste or screenshots, read by Claude, fills the form to check
+    let filled = null;
+    const fillBox = isNew && !opts.noFill && RV.ai && RV.ai.available() && RV.notesImport ? h('div', { class: 'fillbox' }) : null;
+    const fillVisits = h('div');
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
-    return sheet(isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
+    return sheet(draft ? 'Edit details' : isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
       const more = h('div', { class: 'more-fields' },
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         studyBox,
         field('Household notes', f.notes),
+        draft ? visitsBox(draft.visits, draft.nextVisit, 'From the note, added on import') : null,
         h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
         nextField,
         field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this ' + lbl('rv')),
-        isNew ? null : h('button', {
+        !existing ? null : h('button', {
           class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
           onclick: async () => {
             const ok = await UI.confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
@@ -226,6 +237,7 @@
             custom: Object.assign({}, rv.custom || {}),
           };
           customInputs.forEach((ci) => { data.custom[ci.c.id] = ci.input.value.trim(); });
+          if (draft) { data.stage = f.stage.value; close(); if (opts.onDone) opts.onDone(data); return; }
           const changedKey = isNew || data.address !== (rv.address || '') || data.phone !== (rv.phone || '');
           if (changedKey && (data.address || data.phone)) {
             const dups = L.duplicateMatches(data, S.rvs, rv.id);
@@ -241,7 +253,15 @@
             }
           }
           let saved;
-          if (isNew) {
+          const fromNote = filled ? filled.visits.map((v) => ({ type: v.type, at: new Date(v.date + 'T12:00:00').toISOString(), text: v.text })) : [];
+          if (filled && filled.nextVisit) data.nextVisit = filled.nextVisit;
+          if (isNew && fromNote.length && !f.visit.value.trim()) {
+            // filled from an older note and nothing about today: the note's visits are the timeline
+            data.stage = f.stage.value;
+            saved = ST.addRv(data);
+            fromNote.forEach((v) => ST.addEntry(saved.id, v.type, { text: v.text, imported: true }, v.at));
+            toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
+          } else if (isNew) {
             const tagged = camp && campOn.checked ? camp : null;
             let text = f.visit.value.trim();
             if (!text) text = L.quickAddFallback(tagged, ST.featuredTopics());
@@ -260,6 +280,7 @@
               const initialId = (S.settings.stages.filter((x) => !x.closed)[1] || {}).id;
               if (data.stage !== initialId) ST.updateRv(saved.id, { garden: { since: first.at } });
             }
+            fromNote.forEach((v) => ST.addEntry(saved.id, v.type, { text: v.text, imported: true }, v.at));
             toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
           } else {
             saved = ST.updateRv(rv.id, data);
@@ -270,17 +291,77 @@
         },
       },
         tagList, pubList,
+        fillBox,
         field('Name', f.name),
         field('Address', f.address),
         geoRow,
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
+        fillVisits,
         isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
         moreBtn,
         more,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, isNew ? 'Add' : 'Save')));
+          h('button', { class: 'btn primary', type: 'submit' }, draft ? 'Done' : isNew ? 'Add' : 'Save')));
+      if (fillBox) paintFill();
+      function apply(c) {
+        filled = c;
+        f.name.value = c.name; f.address.value = c.address || f.address.value; f.phone.value = c.phone || '';
+        f.notes.value = c.notes || ''; f.whatsNext.value = c.discussNext || '';
+        if (c.study) { const st = [...f.stage.options].find((o) => L.isStudyStage(S.settings, o.value)); if (st) { f.stage.value = st.value; syncStudy(); } }
+        more.hidden = false; if (moreBtn) moreBtn.hidden = true;
+        fillBox.replaceChildren(h('div', { class: 'fillnote' }, 'Filled from your note. Check it, then Add.'));
+        fillBox.className = 'fillbox done';
+        fillVisits.replaceChildren(...[visitsBox(c.visits, c.nextVisit, 'From the note, added when you add')].filter(Boolean));
+      }
+      async function run(btn, getInput) {
+        const N = RV.notesImport;
+        const btns = fillBox.querySelectorAll('button');
+        let input;
+        try { input = await getInput(); } catch (e) { input = null; }
+        if (!input) return;
+        btns.forEach((b) => { b.disabled = true; });
+        const label = btn.lastChild.textContent;
+        btn.lastChild.textContent = 'Finding details…';
+        try {
+          const raw = input.shots ? await RV.ai.readNotes(null, null, input.shots) : await RV.ai.readNotes([{ id: 'n1', title: '', date: new Date().toISOString().slice(0, 10), text: input.text }]);
+          const list = N.cleanContacts(raw);
+          if (!form.isConnected) return;
+          if (!list.length) { toast('No contact found in that note.'); return; }
+          if (list.length === 1) { apply(list[0]); return; }
+          const ok = await confirmDialog({ title: 'This note has ' + list.length + ' people', message: 'Check them all on one list and choose who to add.', confirmText: 'See all ' + list.length });
+          if (ok && RV.notesReview) { close(); RV.notesReview.show(list); }
+        } catch (e) {
+          toast(RV.ai.AiError && e instanceof RV.ai.AiError ? e.message : 'Could not read that note.', { seconds: 5 });
+        } finally {
+          if (form.isConnected && !filled) { btns.forEach((b) => { b.disabled = false; }); btn.lastChild.textContent = label; }
+        }
+      }
+      function paintFill(showPaste) {
+        const N = RV.notesImport;
+        const pasteBtn = h('button', { class: 'fillchip', type: 'button' }, icon('clipboard', 16), h('span', null, 'Paste'));
+        const shotBtn = h('button', { class: 'fillchip', type: 'button' }, icon('image', 16), h('span', null, 'Screenshots'));
+        const box = h('textarea', { placeholder: 'Paste the note here', style: { minHeight: '88px' } });
+        pasteBtn.addEventListener('click', () => run(pasteBtn, async () => {
+          if (showPaste) { const t = box.value.trim(); if (!t) { box.focus(); return null; } return { text: t }; }
+          const t = await N.readClipboard();
+          if (t && t.trim()) return { text: t.trim() };
+          paintFill(true);
+          return null;
+        }));
+        shotBtn.addEventListener('click', () => run(shotBtn, async () => {
+          const files = await N.pickImages();
+          const shots = await N.prepShots(files.slice(0, 4));
+          if (files.length > 4) toast('The first 4 screenshots are used here. For more, use Import from a notes app.', { seconds: 5 });
+          return shots.length ? { shots } : null;
+        }));
+        fillBox.replaceChildren(...[
+          h('div', { class: 'fillhd' }, icon('sparkle', 18), 'Fill from a note'),
+          showPaste ? box : null,
+          h('div', { class: 'fillrow' }, pasteBtn, shotBtn)].filter(Boolean));
+        if (showPaste) { pasteBtn.lastChild.textContent = 'Fill'; box.focus(); }
+      }
       return form;
     });
   }

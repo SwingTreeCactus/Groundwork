@@ -1549,3 +1549,31 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .nihow .stack { margin-top: 10px; }
 .nisticky { position: sticky; bottom: calc(57px + env(safe-area-inset-bottom)); padding: 10px 0; background: var(--bg); z-index: 5; }
 .nitog { background: none; border: 0; padding: 6px 0; color: var(--accent); font: inherit; font-size: .9rem; font-weight: 500; cursor: pointer; }
+
+/* v2.32 notes import: paste first, screenshots, review with edit */
+.nihero { gap: 10px; }
+.nibig { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 16px; border-radius: 16px; border: 0; font: inherit; cursor: pointer; }
+.nibig.pri { background: var(--fg); color: var(--bg); }
+.nibig.sec { background: var(--surface2); color: var(--fg); }
+.nibig .t { font-weight: 600; }
+.nibig .s { font-size: .82rem; opacity: .75; }
+.nibig .icon { flex: none; }
+.nilink { display: block; margin: 0 auto 12px; background: none; border: 0; font: inherit; font-size: .85rem; color: var(--muted); text-decoration: underline; padding: 10px; cursor: pointer; }
+.nithumb { width: 34px; height: 46px; object-fit: cover; object-position: top; border-radius: 6px; border: 1px solid var(--line); flex: none; }
+.nicard .niname { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.niedited { font-size: .72rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--surface2); color: var(--muted); }
+.nimeta { margin-top: 2px; }
+.niacts { display: flex; align-items: center; gap: 10px; }
+.niacts .niarea { flex: 1; min-width: 0; }
+select.niarea { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-size: .92rem; }
+.niselect { display: flex; gap: 16px; }
+.nihead input[type=checkbox] { margin-top: 2px; }
+.fillbox { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface2); margin-bottom: 14px; }
+.fillbox.done { background: none; padding: 0; margin: -4px 0 10px; }
+.fillhd { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .95rem; }
+.fillrow { display: flex; gap: 8px; }
+.fillchip { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 999px; padding: 9px 12px; background: var(--surface); color: var(--fg); font: inherit; font-size: .88rem; font-weight: 500; cursor: pointer; }
+.fillchip:disabled { opacity: .6; }
+.fillnote { font-size: .85rem; color: var(--muted); }
+.fillvisits { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 4px 0 12px; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
+.fillvh { font-weight: 600; }

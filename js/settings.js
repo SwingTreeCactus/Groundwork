@@ -718,16 +718,17 @@
     ], { noRerender: true });
   }
 
-  // ---------- v2.31: import from a notes app (Samsung Notes, Google Keep, Apple Notes), read by Claude ----------
+  // ---------- v2.31/v2.32: import from a notes app (paste, screenshots, text files), Claude finds the contacts ----------
   // Kept for the session, so leaving the page mid-review doesn't lose the work.
-  const NI = { phase: 'pick', notes: [], skipped: [], contacts: [], unread: [], progress: '', stop: false, stage: null, pasted: '' };
+  const NI = { phase: 'pick', notes: [], shots: [], skipped: [], contacts: [], unread: [], unreadShots: [], progress: '', stop: false, stage: null, pasting: false, pasted: '', error: '' };
   const SHARE_CACHE = 'rvapp-share';
-  function niReset() { Object.assign(NI, { phase: 'pick', notes: [], skipped: [], contacts: [], unread: [], progress: '', stop: false, pasted: '' }); }
+  function niReset() { Object.assign(NI, { phase: 'pick', notes: [], shots: [], skipped: [], contacts: [], unread: [], unreadShots: [], progress: '', stop: false, pasting: false, pasted: '', error: '' }); }
   function niAdd(res) {
     const have = new Set(NI.notes.map((n) => n.title + '\n' + n.text));
     res.notes.forEach((n) => { if (!have.has(n.title + '\n' + n.text)) { NI.notes.push(n); have.add(n.title + '\n' + n.text); } });
     NI.skipped = NI.skipped.concat(res.skipped);
   }
+  const niPasteNote = (t) => niAdd({ notes: [{ title: 'Pasted note ' + (NI.notes.filter((n) => n.from === 'Pasted').length + 1), text: t, date: new Date().toISOString(), from: 'Pasted' }], skipped: [] });
   // Notes shared to Groundwork from another app (Android): the service worker leaves them in a cache.
   async function niTakeShared() {
     if (!root.caches) return 0;
@@ -766,35 +767,54 @@
     const n = c.name.toLowerCase().trim();
     return n.split(/\s+/).length > 1 ? S.rvs.find((r) => !r.deletedAt && String(r.name || '').toLowerCase().trim() === n) : null;
   };
+  const niPrep = (c) => { c.dup = niDup(c); c.on = !c.dup; c.neighborhood = c.neighborhood || ''; return c; };
+  const shotLabel = (g) => {
+    const t0 = new Date(g[0].taken), t1 = new Date(g[g.length - 1].taken);
+    const tm = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return U.fmtDate(U.toDateStr(t0)) + ', ' + tm(t0) + (g.length > 1 && tm(t1) !== tm(t0) ? ' – ' + tm(t1) : '');
+  };
+  // Opened from quick add's Fill from a note when one note holds several people.
+  RV.notesReview = {
+    show(list) {
+      niReset();
+      NI.contacts = list.map((c) => Object.assign(niPrep(c), { from: c.from || 'Your note' }));
+      NI.phase = 'review';
+      location.hash = '#/settings/notes';
+    },
+  };
 
   async function niRead(paint) {
     const N = RV.notesImport;
-    const queue = N.batches(NI.notes);
+    const queue = N.batches(NI.notes).map((b) => ({ notes: b }))
+      .concat(N.shotBatches(NI.shots).map((b) => ({ shots: b })));
     const total = queue.length;
     let done = 0;
-    NI.phase = 'reading'; NI.stop = false; NI.contacts = []; NI.unread = [];
+    NI.phase = 'reading'; NI.stop = false; NI.contacts = []; NI.unread = []; NI.unreadShots = []; NI.error = '';
     const titleOf = new Map();
-    queue.forEach((b) => b.forEach((p) => titleOf.set(p.id, p.title)));
+    queue.forEach((q) => (q.notes || []).forEach((p) => titleOf.set(p.id, p.title)));
+    const groups = N.groupShots(NI.shots);
+    groups.forEach((g) => g.forEach((sh) => titleOf.set(sh.id, g.length > 1 ? 'Screenshots ' + shotLabel(g) : 'Screenshot ' + shotLabel(g))));
+    const leave = (q) => { if (q.notes) NI.unread.push(...q.notes); else NI.unreadShots.push(...q.shots); };
     paint();
     while (queue.length) {
-      if (NI.stop) { NI.unread = NI.unread.concat(...queue); break; }
-      NI.progress = 'Reading your notes… ' + Math.min(done + 1, total) + ' of ' + total;
+      if (NI.stop) { queue.forEach(leave); break; }
+      NI.progress = 'Finding people in your notes… ' + Math.min(done + 1, total) + ' of ' + total;
       paint();
-      const batch = queue.shift();
+      const q = queue.shift();
       try {
-        const got = N.cleanContacts(await RV.ai.readNotes(batch));
-        got.forEach((c) => {
-          c.from = titleOf.get(c.source) || (batch.length === 1 ? batch[0].title : '');
-          c.dup = niDup(c);
-          c.on = !c.dup;
-          NI.contacts.push(c);
+        const raw = q.shots ? await RV.ai.readNotes(null, null, q.shots) : await RV.ai.readNotes(q.notes);
+        N.cleanContacts(raw).forEach((c) => {
+          const items = q.notes || q.shots;
+          c.from = titleOf.get(c.source) || (items.length === 1 ? titleOf.get(items[0].id) : '') || '';
+          NI.contacts.push(niPrep(c));
         });
         done++;
       } catch (e) {
         const msg = (e && e.message) || '';
-        if (/tomorrow|not available|not set up|No connection|API key/.test(msg)) { NI.unread = NI.unread.concat(batch, ...queue); NI.error = msg; break; }
-        if (batch.length > 1) { const half = Math.ceil(batch.length / 2); queue.unshift(batch.slice(0, half), batch.slice(half)); }
-        else { NI.unread.push(batch[0]); done++; }
+        if (/tomorrow|not available|not set up|No connection|API key|too long/.test(msg)) { leave(q); queue.forEach(leave); NI.error = msg; break; }
+        const items = q.notes || q.shots;
+        if (items.length > 1) { const half = Math.ceil(items.length / 2); const k = q.notes ? 'notes' : 'shots'; queue.unshift({ [k]: items.slice(0, half) }, { [k]: items.slice(half) }); }
+        else { leave(q); done++; }
       }
     }
     NI.phase = 'review';
@@ -806,18 +826,19 @@
     const box = h('div');
     if (!NI.stage) NI.stage = (S.settings.stages.find((x) => x.id === 'initial') || S.settings.stages[0]).id;
     const paint = () => { if (box.isConnected || !box.parentNode) render(); };
+    const privacy = () => h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' }, 'Your notes are sent to Anthropic so Claude can find the contacts in them. Nothing is added until you choose.'));
     function render() {
       box.replaceChildren();
       if (!RV.ai.available()) {
-        box.append(h('div', { class: 'card' }, h('div', { style: { fontWeight: 600 } }, 'Note reading is not set up'),
-          h('div', { class: 'muted small' }, 'Turn on Note cleanup to import notes.'),
+        box.append(h('div', { class: 'card' }, h('div', { style: { fontWeight: 600 } }, 'This needs Note cleanup'),
+          h('div', { class: 'muted small' }, 'Turn on Note cleanup to make contacts from notes.'),
           h('a', { class: 'btn', href: '#/settings/ai', style: { marginTop: '10px' } }, 'Note cleanup')));
         return;
       }
       if (NI.phase === 'reading') {
         box.append(h('div', { class: 'card stack niread' },
-          h('div', { style: { fontWeight: 600 } }, NI.progress || 'Reading your notes…'),
-          h('div', { class: 'muted small' }, 'Claude is sorting your notes into people. Keep this screen open.'),
+          h('div', { style: { fontWeight: 600 } }, NI.progress || 'Finding people in your notes…'),
+          h('div', { class: 'muted small' }, 'Keep this screen open.'),
           h('div', { class: 'nibar', 'aria-hidden': 'true' }, h('span')),
           h('button', { class: 'btn', type: 'button', onclick: () => { NI.stop = true; NI.progress = 'Stopping after this part…'; render(); } }, 'Stop')));
         return;
@@ -827,77 +848,117 @@
     }
 
     function renderPick() {
-      const paste = h('textarea', { placeholder: 'Or paste a note here', value: NI.pasted, style: { minHeight: '96px' } });
-      paste.addEventListener('input', () => { NI.pasted = paste.value; });
-      const addPaste = () => {
-        const t = paste.value.trim();
-        if (!t) { paste.focus(); return; }
-        niAdd({ notes: [{ title: 'Pasted note ' + (NI.notes.filter((n) => n.from === 'Pasted').length + 1), text: t, date: new Date().toISOString(), from: 'Pasted' }], skipped: [] });
-        NI.pasted = ''; render();
+      const pasteBox = h('textarea', { placeholder: 'Paste the note here', value: NI.pasted, style: { minHeight: '110px' } });
+      pasteBox.addEventListener('input', () => { NI.pasted = pasteBox.value; });
+      const paste = async () => {
+        if (NI.pasting) {
+          const t = pasteBox.value.trim();
+          if (!t) { pasteBox.focus(); return; }
+          niPasteNote(t); NI.pasted = ''; render(); toast('Note added');
+          return;
+        }
+        const t = await N.readClipboard();
+        if (t && t.trim()) { niPasteNote(t.trim()); render(); toast('Note added'); return; }
+        NI.pasting = true; render();
+        const ta = box.querySelector('.nipaste textarea'); if (ta) ta.focus();
       };
-      const choose = async () => {
-        const files = await pickFiles('.txt,.md,.json,.html,.htm,.zip,text/plain,text/html,application/json,application/zip');
+      const shots = async () => {
+        const files = await N.pickImages();
         if (!files.length) return;
-        niAdd(await N.readFiles(files));
+        const got = await N.prepShots(files, NI.shots.length ? Math.max(...NI.shots.map((x) => +x.id.slice(1))) : 0);
+        if (!got.length) { toast('Those weren’t images Groundwork can open.'); return; }
+        NI.shots = NI.shots.concat(got); render();
+      };
+      const files = async () => {
+        const fl = await pickFiles('.txt,.md,.json,.html,.htm,.zip,text/plain,text/html,application/json,application/zip');
+        if (!fl.length) return;
+        niAdd(await N.readFiles(fl));
         render();
       };
-      const chars = NI.notes.reduce((a, n) => a + n.text.length, 0);
+      const groups = N.groupShots(NI.shots);
+      const count = NI.notes.length + NI.shots.length;
       const stageSel = F.select(F.stageOptions().filter((o) => !(S.settings.stages.find((x) => x.id === o.value) || {}).closed), NI.stage);
       stageSel.addEventListener('change', () => { NI.stage = stageSel.value; });
-      box.append(
-        h('div', { class: 'card stack' },
+      const big = (cls, ic, t, sub, fn) => h('button', { class: 'nibig ' + cls, type: 'button', onclick: fn }, icon(ic, 22), h('div', null, h('div', { class: 't' }, t), h('div', { class: 's' }, sub)));
+      box.append(...[
+        h('div', { class: 'card stack nihero' },
           h('div', null, h('div', { style: { fontWeight: 600 } }, 'Bring in your notes'),
-            h('div', { class: 'muted small' }, 'Choose notes saved as text, a Google Keep export, or a zip. Claude finds the people, addresses and visits, and you check them before anything is added.')),
-          h('button', { class: 'btn primary', type: 'button', onclick: choose }, icon('upload', 18), ' Choose files'),
-          paste,
-          h('button', { class: 'btn', type: 'button', onclick: addPaste }, 'Add pasted note')),
-        NI.notes.length ? h('div', { class: 'card stack' },
-          h('div', { style: { fontWeight: 600 } }, NI.notes.length + (NI.notes.length === 1 ? ' note' : ' notes') + ' ready'),
-          h('div', { class: 'nilist' }, NI.notes.map((n, i) => h('div', { class: 'nirow' },
-            h('div', { class: 'main' }, h('div', { class: 'nititle' }, n.title), h('div', { class: 'muted small nisnip' }, n.text.slice(0, 90))),
-            h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove ' + n.title, onclick: () => { NI.notes.splice(i, 1); render(); } }, icon('x', 18))))),
-          NI.skipped.length ? h('div', { class: 'muted small' }, 'Not notes, left out: ' + NI.skipped.slice(0, 5).join(', ') + (NI.skipped.length > 5 ? ' and ' + (NI.skipped.length - 5) + ' more' : '')) : null,
-          field('Stage for people found', stageSel),
-          h('div', { class: 'muted small' }, 'Anyone with a Bible study in the notes goes to Bible Study.'),
-          h('button', { class: 'btn primary', type: 'button', onclick: () => niRead(paint) }, 'Read ' + (NI.notes.length === 1 ? 'note' : NI.notes.length + ' notes') + ' with Claude'),
-          chars > 60000 ? h('div', { class: 'muted small' }, 'That’s a lot of notes. If the daily allowance runs out, the rest can be read tomorrow.') : null)
-          : (NI.skipped.length ? h('div', { class: 'banner info' }, icon('note'), h('div', { class: 'body' }, 'No notes found in ' + NI.skipped.join(', ') + '. Save notes as text (.txt) and try again.')) : null),
-        h('details', { class: 'card nihow' }, h('summary', null, 'How to get notes out of your notes app'),
-          h('div', { class: 'stack small' },
-            h('div', null, h('b', null, 'Samsung Notes: '), 'select the notes, tap Share (or Save as file) and choose Text file. Save them, then Choose files here. Or share them straight to Groundwork.'),
-            h('div', null, h('b', null, 'Google Keep: '), 'share a note to Groundwork, or get all notes from takeout.google.com (choose Keep) and choose the zip here.'),
-            h('div', null, h('b', null, 'Apple Notes: '), 'open a note, select all, copy, and paste it above. Add as many as you like.'))),
-        h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' }, 'The notes you read are sent to Anthropic so Claude can sort them. Nothing is added until you choose.')));
+            h('div', { class: 'muted small' }, 'Add as many notes as you like, then turn them all into contacts at once.')),
+          NI.pasting ? h('div', { class: 'nipaste stack' }, pasteBox,
+            h('div', { class: 'btn-row' }, h('button', { class: 'btn', type: 'button', onclick: () => { NI.pasting = false; NI.pasted = ''; render(); } }, 'Done pasting'),
+              h('button', { class: 'btn primary', type: 'button', onclick: paste }, 'Add note')))
+            : big('pri', 'clipboard', 'Paste a note', 'Copy a note, then tap here', paste),
+          big('sec', 'image', 'Upload screenshots', 'Pick as many as you like', shots)),
+        count ? h('div', { class: 'card stack' },
+          h('div', { style: { fontWeight: 600 } }, count + (count === 1 ? ' note ready' : ' notes ready')),
+          h('div', { class: 'nilist' },
+            NI.notes.map((n, i) => h('div', { class: 'nirow' },
+              h('div', { class: 'main' }, h('div', { class: 'nititle' }, n.title), h('div', { class: 'muted small nisnip' }, n.text.slice(0, 90))),
+              h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove ' + n.title, onclick: () => { NI.notes.splice(i, 1); render(); } }, icon('x', 18)))),
+            groups.map((g) => h('div', { class: 'nirow' },
+              h('img', { class: 'nithumb', src: g[0].url, alt: '' }),
+              h('div', { class: 'main' }, h('div', { class: 'nititle' }, g.length === 1 ? '1 screenshot' : g.length + ' screenshots'), h('div', { class: 'muted small nisnip' }, shotLabel(g))),
+              h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove these screenshots', onclick: () => { const ids = new Set(g.map((x) => x.id)); NI.shots = NI.shots.filter((x) => !ids.has(x.id)); render(); } }, icon('x', 18))))),
+          NI.skipped.length ? h('div', { class: 'muted small' }, 'Left out (not notes): ' + NI.skipped.slice(0, 5).join(', ') + (NI.skipped.length > 5 ? ' and ' + (NI.skipped.length - 5) + ' more' : '')) : null,
+          field('Stage for new contacts', stageSel),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => niRead(paint) }, 'Make contacts from ' + (count === 1 ? 'this note' : count + ' notes')))
+          : (NI.skipped.length ? h('div', { class: 'banner info' }, icon('note'), h('div', { class: 'body' }, 'No notes found in ' + NI.skipped.join(', ') + '.')) : null),
+        h('button', { class: 'nilink', type: 'button', onclick: files }, 'Text files or a Google Keep export'),
+        privacy()].filter(Boolean));
     }
 
     function renderReview() {
       const on = NI.contacts.filter((c) => c.on);
+      const areas = () => ST.neighborhoods();
+      const areaSel = (value, onPick, first) => {
+        const sel = h('select', { class: 'niarea', 'aria-label': lbl('neighborhood') },
+          h('option', { value: '' }, first), ...areas().map((n) => h('option', { value: n, selected: n === value }, n)));
+        sel.value = value || '';
+        sel.addEventListener('change', () => onPick(sel.value, sel));
+        return sel;
+      };
+      const summary = (c) => [c.visits.length ? c.visits.length + (c.visits.length === 1 ? ' visit' : ' visits') : '', c.study || L.isStudyStage(S.settings, c.stage) ? 'Bible study' : '', c.phone || '', c.from ? 'From ' + c.from : ''].filter(Boolean).join(' · ');
+      const edit = (c) => F.rvForm(null, {
+        draft: Object.assign({ stage: c.stage || (c.study ? (S.settings.stages.find((x) => x.study && !x.closed) || {}).id : NI.stage) }, c.extra || {},
+          { name: c.name, address: c.address, phone: c.phone, notes: c.notes, whatsNext: c.discussNext, neighborhood: c.neighborhood, visits: c.visits, nextVisit: c.nextVisit }),
+        onDone: (d) => {
+          Object.assign(c, { name: d.name, address: d.address, phone: d.phone, notes: d.notes, discussNext: d.whatsNext, neighborhood: d.neighborhood, stage: d.stage, edited: true });
+          c.extra = { howMet: d.howMet, bestDays: d.bestDays, tags: d.tags, publication: d.publication, progress: d.progress, nextStart: d.nextStart, nhBannerOff: d.nhBannerOff, geo: d.geo, custom: d.custom };
+          c.dup = niDup(c);
+          render();
+        },
+      });
       const card = (c) => {
         const cb = h('input', { type: 'checkbox', checked: c.on, 'aria-label': 'Import ' + c.name });
         cb.addEventListener('change', () => { c.on = cb.checked; render(); });
-        const nm = h('input', { type: 'text', value: c.name, class: 'niname', 'aria-label': 'Name' });
-        nm.addEventListener('change', () => { c.name = nm.value.trim() || c.name; });
-        const ad = h('input', { type: 'text', value: c.address, placeholder: 'No address', class: 'niaddr', 'aria-label': 'Address' });
-        ad.addEventListener('change', () => { c.address = ad.value.trim(); c.dup = niDup(c); });
-        const meta = [c.visits.length ? c.visits.length + (c.visits.length === 1 ? ' visit' : ' visits') : '', c.study ? 'Bible study' : '', c.phone || '', c.from ? 'From ' + c.from : ''].filter(Boolean).join(' · ');
-        const more = h('div', { class: 'nimore', hidden: true },
-          c.notes ? h('div', { class: 'nitext' }, c.notes) : null,
-          c.discussNext ? h('div', null, h('div', { class: 'lbl' }, 'Discuss next time'), h('div', { class: 'nitext' }, c.discussNext)) : null,
-          c.visits.length ? h('div', null, h('div', { class: 'lbl' }, 'Visits'), c.visits.map((v) => h('div', { class: 'nivisit' }, h('b', null, U.fmtDate(v.date) + ' '), v.type === 'nh' ? 'Not home' : v.text))) : null);
-        const tog = h('button', { class: 'nitog', type: 'button' }, 'Show all');
-        const snip = h('div', { class: 'nisnip2 small' }, (c.notes || (c.visits[c.visits.length - 1] || {}).text || c.discussNext || '').slice(0, 160));
-        tog.addEventListener('click', () => { more.hidden = !more.hidden; snip.hidden = !more.hidden; tog.textContent = more.hidden ? 'Show all' : 'Show less'; });
+        const meta = summary(c);
         return h('div', { class: 'card nicard' + (c.on ? '' : ' off') },
-          h('div', { class: 'nihead' }, cb, h('div', { class: 'main' }, nm, ad)),
+          h('div', { class: 'nihead' }, cb,
+            h('div', { class: 'main' },
+              h('div', { class: 'niname' }, c.name, c.edited ? h('span', { class: 'niedited' }, 'Edited') : null),
+              h('div', { class: 'muted small' }, c.address || 'No address'),
+              meta ? h('div', { class: 'muted small nimeta' }, meta) : null)),
           c.dup ? h('div', { class: 'nidup small' }, 'Looks like ' + (c.dup.name || 'someone') + ', already in Groundwork') : null,
-          meta ? h('div', { class: 'muted small' }, meta) : null,
-          c.notes || c.visits.length || c.discussNext ? h('div', null, snip, more, tog) : null);
+          h('div', { class: 'niacts' },
+            areaSel(c.neighborhood, (v) => { c.neighborhood = v; }, 'No ' + lbl('neighborhood').toLowerCase()),
+            h('button', { class: 'nitog', type: 'button', onclick: () => edit(c) }, 'Edit details')));
       };
-      box.append(
+      const bulk = areaSel('', (v, sel) => {
+        if (!v) return;
+        const n = NI.contacts.filter((c) => c.on).length;
+        NI.contacts.forEach((c) => { if (c.on) c.neighborhood = v; });
+        render(); toast(lbl('neighborhood') + ' set for ' + n);
+      }, 'Set ' + lbl('neighborhood').toLowerCase() + ' for ticked…');
+      const unreadN = NI.unread.length + NI.unreadShots.length;
+      box.append(...[
         h('div', { class: 'card stack' },
           h('div', { style: { fontWeight: 600 } }, NI.contacts.length ? NI.contacts.length + (NI.contacts.length === 1 ? ' person found' : ' people found') : 'No people found'),
-          h('div', { class: 'muted small' }, NI.contacts.length ? 'Check names and addresses. Untick anyone you don’t want.' : 'Claude didn’t find anyone to follow up in these notes.'),
-          NI.unread.length ? h('div', { class: 'small' }, (NI.error ? NI.error + ' ' : '') + NI.unread.length + (NI.unread.length === 1 ? ' part wasn’t read.' : ' parts weren’t read.') + ' Import these now and read the rest later.') : null),
+          h('div', { class: 'muted small' }, NI.contacts.length ? 'Untick anyone you don’t want. Edit details to add more before importing.' : 'Claude didn’t find anyone to follow up in these notes.'),
+          unreadN ? h('div', { class: 'small' }, (NI.error ? NI.error + ' ' : '') + unreadN + (unreadN === 1 ? ' note is' : ' notes are') + ' left for later. Import these now, then make contacts from the rest.') : null,
+          NI.contacts.length > 1 ? h('div', { class: 'niselect' },
+            h('button', { class: 'nitog', type: 'button', onclick: () => { NI.contacts.forEach((c) => { c.on = true; }); render(); } }, 'Select all'),
+            h('button', { class: 'nitog', type: 'button', onclick: () => { NI.contacts.forEach((c) => { c.on = false; }); render(); } }, 'Select none')) : null,
+          NI.contacts.length > 1 && on.length ? bulk : null),
         ...NI.contacts.map(card),
         h('div', { class: 'btn-row nisticky' },
           h('button', { class: 'btn', type: 'button', onclick: async () => { if (await confirmDialog({ title: 'Start over?', message: 'The people found here will be cleared.', confirmText: 'Start over' })) { niReset(); render(); } } }, 'Start over'),
@@ -909,12 +970,14 @@
               rvs.push(ST.blankRv(r.rv)); entries.push(...r.entries);
             });
             ST.importRvs(rvs, entries);
-            const left = NI.unread;
+            try { sessionStorage.setItem('rvapp.lastImport', JSON.stringify(rvs.map((r) => r.id))); } catch (e) { /* ignore */ }
+            const leftNotes = NI.unread, leftShots = NI.unreadShots;
             niReset();
-            if (left.length) { NI.notes = left.map((p) => ({ title: p.title, text: p.text, date: p.date ? p.date + 'T12:00:00.000Z' : null, from: 'Not read yet' })); }
+            NI.notes = leftNotes.map((p) => ({ title: p.title, text: p.text, date: p.date ? p.date + 'T12:00:00.000Z' : null, from: 'Left for later' }));
+            NI.shots = leftShots;
             toast('Imported ' + rvs.length + ' ' + lbl(rvs.length === 1 ? 'rv' : 'rvs'));
-            location.hash = '#/rvs';
-          } }, on.length ? 'Import ' + on.length : 'Import')));
+            location.hash = '#/rvs/imported';
+          } }, on.length ? 'Import ' + on.length : 'Import'))].filter(Boolean));
     }
 
     render();

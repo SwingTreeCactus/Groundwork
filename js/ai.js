@@ -102,7 +102,7 @@
       if (viaProxy) {
         if (code === 'daily_limit') throw new AiError('That’s all the cleanups for today. More tomorrow.');
         if (code === 'daily_total') throw new AiError('Note cleanup is resting for today. Try again tomorrow.');
-        if (code === 'too_long') throw new AiError('This note is too long to clean up in one go.');
+        if (code === 'too_long') throw new AiError('This is too long to send in one go.');
         if (res.status === 503 || res.status === 502) throw new AiError('Claude is busy. Try again in a moment.');
         throw new AiError('Note cleanup is not available right now. The note is kept as is.');
       }
@@ -159,7 +159,11 @@
     '- discussNext: short lines for what to bring, show, ask or talk about next time. Copy them; they also stay in notes or the visit text.',
     '- nextVisit: "YYYY-MM-DD" only when a specific next date is stated, else "".',
     '- study: true only if the note says a Bible study is being held with them.',
-    '- source: the id of the note it came from.',
+    '- source: the id of the note or screenshot it came from.',
+    '',
+    'Screenshots: some notes come as screenshots of a notes app. Read the note text in them; ignore the phone\'s status bar,',
+    'app buttons and keyboard. Screenshots in one request were taken close together, in order, and may continue the same note.',
+    'A screenshot\'s date is when it was taken.',
     '',
     'Wording: keep the writer\'s own words. Fix only spelling, capitalization and punctuation, and write scripture references in standard form',
     '(John 3:16). Never summarize, shorten, reword or drop details. Every word about a person ends up in that contact\'s notes, visits or discussNext.',
@@ -168,12 +172,16 @@
     '"study": false, "visits": [], "source": ""}]}. If nothing is about a person, {"contacts": []}. No other text.',
   ].join('\n');
 
-  // notes: [{id, title, date, text}] (one batch). Returns the raw contact list from Claude.
-  async function readNotes(notes, today) {
-    const out = await call({
-      system: IMPORT_SYSTEM,
-      messages: [{ role: 'user', content: JSON.stringify({ today: today || new Date().toISOString().slice(0, 10), notes }) }],
-    }, 120000);
+  // notes: [{id, title, date, text}] (one batch), or shots: [{id, taken (ms), data (JPEG base64)}].
+  // Returns the raw contact list from Claude.
+  async function readNotes(notes, today, shots) {
+    const day = today || new Date().toISOString().slice(0, 10);
+    let content;
+    if (shots && shots.length) {
+      content = [{ type: 'text', text: JSON.stringify({ today: day, screenshots: shots.map((s) => ({ id: s.id, taken: new Date(s.taken).toISOString().slice(0, 16) })) }) }];
+      shots.forEach((s) => content.push({ type: 'text', text: 'Screenshot ' + s.id }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: s.data } }));
+    } else content = JSON.stringify({ today: day, notes });
+    const out = await call({ system: IMPORT_SYSTEM, messages: [{ role: 'user', content }] }, 120000);
     const j = parseJson(out);
     if (!j || !Array.isArray(j.contacts)) throw new AiError('Claude sent back something unexpected.');
     return j.contacts;

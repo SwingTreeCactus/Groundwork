@@ -155,17 +155,82 @@
     const now = new Date().toISOString();
     const noon = (d) => new Date(d + 'T12:00:00').toISOString();
     const first = c.visits.length ? noon(c.visits[0].date) : now;
-    const rv = {
+    const rv = Object.assign({
       id: opts.uuid(), name: c.name, address: c.address, phone: c.phone, notes: c.notes, whatsNext: c.discussNext,
-      nextVisit: c.nextVisit || null, stage: c.study && opts.studyStage ? opts.studyStage : opts.stage, imported: true,
+      neighborhood: c.neighborhood || '',
+      nextVisit: c.nextVisit || null, stage: c.stage || (c.study && opts.studyStage ? opts.studyStage : opts.stage), imported: true,
       createdAt: first < now ? first : now, stageChangedAt: now, updatedAt: now,
-    };
+    }, c.extra || {}); // fields set in Edit details (best days, tags, how met…)
     const entries = c.visits.map((v) => ({
       id: opts.uuid(), rvId: rv.id, type: v.type, at: noon(v.date), text: v.text, scriptures: [], imported: true, updatedAt: now, deletedAt: null,
     }));
     return { rv, entries };
   }
 
-  RV.notesImport = { BATCH_CHARS, htmlToText, fromKeepJson, unzip, readFiles, batches, cleanContacts, toRecord };
+  // ---------- screenshots ----------
+  // Screenshots taken within 10 minutes of each other are one group (often one long note, scrolled).
+  const SHOT_GAP = 10 * 60 * 1000, SHOTS_PER_BATCH = 4;
+  function groupShots(shots) {
+    const sorted = shots.slice().sort((a, b) => a.taken - b.taken || (a.name < b.name ? -1 : 1));
+    const groups = [];
+    sorted.forEach((s) => {
+      const g = groups[groups.length - 1];
+      if (g && s.taken - g[g.length - 1].taken <= SHOT_GAP) g.push(s); else groups.push([s]);
+    });
+    return groups;
+  }
+  // Each group is read in order, up to 4 screenshots per request (so a group of 6 is 4 then 2).
+  function shotBatches(shots) {
+    const out = [];
+    groupShots(shots).forEach((g) => { for (let i = 0; i < g.length; i += SHOTS_PER_BATCH) out.push(g.slice(i, i + SHOTS_PER_BATCH)); });
+    return out;
+  }
+  // Browser only: a screenshot shrunk to 1500 px on its long side, as JPEG base64 (smaller upload, same reading).
+  async function shrinkImage(file, max) {
+    const m = max || 1500;
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, m / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * k)), hgt = Math.max(1, Math.round(bmp.height * k));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = hgt;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hgt);
+    cx.drawImage(bmp, 0, 0, w, hgt);
+    if (bmp.close) bmp.close();
+    const url = cv.toDataURL('image/jpeg', 0.85);
+    return { data: url.slice(url.indexOf(',') + 1), url, width: w, height: hgt };
+  }
+  // Browser only: picked image files -> screenshots ready to send [{id, name, taken, data, url}]
+  async function prepShots(files, startAt) {
+    const out = [];
+    let n = startAt || 0;
+    for (const f of files) {
+      if (!/^image\//.test(f.type || '') && !/\.(png|jpe?g|webp|heic|gif)$/i.test(f.name || '')) continue;
+      try { const im = await shrinkImage(f); out.push({ id: 's' + (++n), name: f.name, taken: f.lastModified || Date.now(), data: im.data, url: im.url }); }
+      catch (e) { /* not an image the browser can open */ }
+    }
+    return out;
+  }
+  // Browser only: a file picker for images, many at once
+  function pickImages() {
+    return new Promise((resolve) => {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.style.display = 'none';
+      inp.addEventListener('change', () => { const l = Array.from(inp.files || []); inp.remove(); resolve(l); });
+      inp.addEventListener('cancel', () => { inp.remove(); resolve([]); });
+      document.body.appendChild(inp);
+      inp.click();
+    });
+  }
+  // Browser only: the text on the clipboard, or null when the browser won't give it (then show a paste box).
+  async function readClipboard() {
+    try {
+      if (!root.navigator || !navigator.clipboard || !navigator.clipboard.readText) return null;
+      const t = await navigator.clipboard.readText();
+      return typeof t === 'string' ? t : null;
+    } catch (e) { return null; }
+  }
+
+  RV.notesImport = { BATCH_CHARS, htmlToText, fromKeepJson, unzip, readFiles, batches, cleanContacts, toRecord, groupShots, shotBatches, shrinkImage, readClipboard, prepShots, pickImages };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.notesImport;
 })(typeof window !== 'undefined' ? window : globalThis);

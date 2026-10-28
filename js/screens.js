@@ -398,8 +398,23 @@
     return { title: name, back: '#/rvs', fab: true, el: box, update: paint };
   }
 
+  // v2.32: the people just imported from notes (kept for this session)
+  function importedScreen() {
+    const box = h('div');
+    function paint() {
+      let ids = [];
+      try { ids = JSON.parse(sessionStorage.getItem('rvapp.lastImport') || '[]'); } catch (e) { ids = []; }
+      const set = new Set(ids);
+      const items = ST.items().filter((i) => set.has(i.rv.id)).sort((a, b) => U.cmp(a.rv.name, b.rv.name));
+      box.replaceChildren(...(items.length ? [h('div', { class: 'ghead' }, h('span', null, 'Just imported'), h('span', null, String(items.length))), listOf(items, {})] : [UI.emptyState('users', 'Nobody imported just now.')]));
+    }
+    paint();
+    return { title: 'Just imported', back: '#/rvs', fab: true, el: box, update: paint };
+  }
+
   function list(sub, key) {
     if (sub === 'area' && key) return areaScreen(key);
+    if (sub === 'imported') return importedScreen();
     const st = loadListState();
     let shown = 100;
     const search = h('input', { type: 'search', placeholder: 'Search name, address, notes…', value: '', autocomplete: 'off', 'aria-label': 'Search' });
