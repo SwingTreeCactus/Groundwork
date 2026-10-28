@@ -77,7 +77,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.30.1: cleanup is a light proofread; next-time items copied, not moved; app keeps the note if too much was cut.
 
 ## Pending
-- Notes import from a note-taking app into contacts (uses groundwork-ai): needs which app the notes are in and 2–3 sample notes with names changed.
+- Notes import (uses groundwork-ai), agreed plan, waiting on Mark's sample notes (2–3, names changed; likely his wife's Samsung Notes):
+  - Targets the default apps: Samsung Notes, Google Keep, Apple Notes (dedicated ministry apps are covered by the Ministry Assistant import).
+  - One import screen: pick many files at once (plain text, plus zips such as Google Takeout), a paste box, and on Android a share target so notes can be shared straight to Groundwork (not possible on iPhone).
+  - Plain text only; Mark confirmed Word and PDF will never be needed.
+  - Claude splits each note into one or many contacts (name, address, notes in original wording, Discuss next time), then a review list (untick or fix, duplicates flagged) before anything is saved.
+  - Apple Notes: paste one at a time first; a bulk Shortcut later, only once tested. Confirm Samsung Notes' multi-select "save as text" menu on a real phone before writing help text.
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
