@@ -55,9 +55,9 @@ await test('everyone-together daily limit', async () => {
   assert.equal(r.status, 429); assert.equal((await r.json()).error, 'daily_total');
 });
 await test('Claude errors are not passed through, and do not count', async () => {
-  store.clear(); reply = { status: 401, body: { error: { message: 'invalid x-api-key (org abc)' } } };
+  store.clear(); reply = { status: 401, body: { error: { type: 'authentication_error', message: 'invalid x-api-key (org abc)' } } };
   const r = await req(msg());
-  assert.equal(r.status, 502); assert.deepEqual(await r.json(), { error: 'upstream_busy' });
+  assert.equal(r.status, 502); assert.deepEqual(await r.json(), { error: 'upstream_busy', upstream: 401, type: 'authentication_error' });
   assert.equal(store.size, 0);
   reply = { status: 529, body: {} };
   assert.equal((await req(msg())).status, 503);

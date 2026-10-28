@@ -78,9 +78,11 @@ export default {
     let j = {};
     try { j = await res.json(); } catch (e) { /* ignore */ }
     if (!res.ok) {
-      // never pass Anthropic's account details back; just the kind of failure
+      // never pass Anthropic's message (it can name the account) back; just the kind of failure
       const status = res.status === 429 || res.status === 529 ? 503 : res.status === 400 ? 400 : 502;
-      return json({ error: res.status === 400 ? 'bad_request' : 'upstream_busy' }, status, c.headers);
+      const type = j && j.error && typeof j.error.type === 'string' ? j.error.type : '';
+      console.log('anthropic', res.status, type);
+      return json({ error: res.status === 400 ? 'bad_request' : 'upstream_busy', upstream: res.status, type }, status, c.headers);
     }
     const ttl = { expirationTtl: 60 * 60 * 48 };
     await Promise.all([env.LIMITS.put(kMine, String(usedMine + cost), ttl), env.LIMITS.put(kAll, String(usedAll + cost), ttl)]);
