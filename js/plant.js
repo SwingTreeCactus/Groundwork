@@ -65,7 +65,7 @@
   const bendOf = (ctx) => BEND[ctx.care] + (ctx.care >= 4 ? ctx.v.curve : ctx.v.curve * 0.4);
   function seed(ctx) {
     const c = ctx.care, lift = { 5: 0, 4: 0, 2: 1, 1: 2 }[c], tilt = { 5: 0, 4: 0, 2: 14, 1: 34 }[c];
-    let out = '<g transform="rotate(' + tilt + ' 30 69)"><ellipse cx="30" cy="' + (63 + lift) + '" rx="' + (c > 1 ? 5.5 : 5) + '" ry="' + (c > 1 ? 6.5 : 5.6) + '" fill="currentColor"/>';
+    let out = '<g transform="rotate(' + tilt + ' 30 69)"><ellipse cx="30" cy="' + (63 + lift) + '" rx="' + (c > 1 ? 5.5 : 5) + '" ry="' + (c > 1 ? 6.5 : 5.6) + '" class="seedc"/>';
     const sp = spine(9 * LEN[c], BEND[c] * 1.6 + 6, 6, 30, 57 + lift);
     out += stemP(sp, 2.2);
     const [x, y, a] = [sp.pts[6][0], sp.pts[6][1], sp.angs[6]];
@@ -144,17 +144,21 @@
   const STAR = (x, y, s) => '<path d="M0 -3.4 L.9 -.9 3.4 0 .9 .9 0 3.4 -.9 .9 -3.4 0 -.9 -.9Z" class="star" transform="translate(' + x + ' ' + y + ') scale(' + s + ')"/>';
   // care 3 (the old "steady") draws as healthy; seeds and sprouts top out at healthy
   const careOf = (form, care) => { let c = care === 3 ? 4 : care || 4; if (c === 5 && form <= 2) c = 4; return c; };
-  function plantSvg(form, care, v, buds, flowers) {
+  // kind (v2.34): a revealed plant from leafy up draws as its kind (js/kinds.js); sil paints a kind in one colour
+  function plantSvg(form, care, v, buds, flowers, kind, sil) {
     const ctx = { care: careOf(form, care), v, buds, flowers };
-    const stars = ctx.care === 5 ? '<g class="stars">' + STAR(8, 30, 1) + STAR(52, 22, 1.2) + STAR(14, 8, .8) + STAR(49, 52, .8) + '</g>' : '';
-    return '<svg class="plant-svg" aria-hidden="true" viewBox="0 0 60 92"><g class="lean"><g class="body"><g class="sway">' + DRAW[form](ctx) + '</g></g></g>' + stars + '</svg>';
+    const K = RV.kinds;
+    const art = kind && form >= 3 && K && K.has(kind)
+      ? K.svg(kind, form, ctx.care, { dark: isDark(), flowers, buds, sil })
+      : DRAW[form](ctx);
+    const stars = ctx.care === 5 && !sil ? '<g class="stars">' + STAR(8, 30, 1) + STAR(52, 22, 1.2) + STAR(14, 8, .8) + STAR(49, 52, .8) + '</g>' : '';
+    return '<svg class="plant-svg" aria-hidden="true" viewBox="0 0 60 92"><g class="lean"><g class="body"><g class="sway">' + art + '</g></g></g>' + stars + '</svg>';
   }
-  // Colours: four care shades per accent and theme, and two neighbouring hues for variety.
+  // Colours (v2.34: natural, no longer the accent): four care shades per theme for the shared seed and sprout and
+  // for plants not yet revealed, and two neighbouring hues for variety. Revealed kinds draw their own colours (js/kinds.js).
   const PAL = {
-    'purple-light': { c: { 5: '#43297E', 4: '#5B3E96', 2: '#7E6BAE', 1: '#8C84A0' }, t: { 5: '#9E87D6', 4: '#B3A2DE', 2: '#C9C0DE', 1: '#CFCBD8' } },
-    'purple-dark': { c: { 5: '#D4C4FF', 4: '#B49BF5', 2: '#8F82B6', 1: '#77718A' }, t: { 5: '#8C73D1', 4: '#7A68B2', 2: '#5E5578', 1: '#4C4858' } },
-    'blue-light': { c: { 5: '#12407A', 4: '#1F5FAF', 2: '#5D7FB0', 1: '#8590A2' }, t: { 5: '#7FA6DB', 4: '#9CB8E2', 2: '#BCCBE0', 1: '#CCD1DA' } },
-    'blue-dark': { c: { 5: '#C4D8FF', 4: '#8DB2EE', 2: '#7189B3', 1: '#6C7384' }, t: { 5: '#5E86C8', 4: '#4E6E9E', 2: '#465772', 1: '#424853' } },
+    light: { c: { 5: '#4E7F4A', 4: '#5C8C55', 2: '#94A470', 1: '#8A8D6E' }, t: { 5: '#7FA04A', 4: '#86A64C', 2: '#B5B57E', 1: '#A3A285' } },
+    dark: { c: { 5: '#8DBE82', 4: '#7FAE74', 2: '#A3AC80', 1: '#8E8F78' }, t: { 5: '#A9C470', 4: '#9AB766', 2: '#AEB28A', 1: '#96957F' } },
   };
   function hueShift(hex, deg) {
     const n = parseInt(hex.slice(1), 16); let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
@@ -166,12 +170,13 @@
     const to = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
     return '#' + to(s2 ? tc(h + 1 / 3) : l) + to(s2 ? tc(h) : l) + to(s2 ? tc(h - 1 / 3) : l);
   }
-  function colours(care, shade) {
+  function isDark() {
     const de = typeof document !== 'undefined' ? document.documentElement : null;
-    const accent = de && de.getAttribute('data-accent') === 'blue' ? 'blue' : 'purple';
     const t = de && de.getAttribute('data-theme');
-    const dark = t === 'dark' || (t !== 'light' && !!(root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches));
-    const P = PAL[accent + '-' + (dark ? 'dark' : 'light')];
+    return t === 'dark' || (t !== 'light' && !!(root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches));
+  }
+  function colours(care, shade) {
+    const P = PAL[isDark() ? 'dark' : 'light'];
     const deg = [0, -14, 14][shade || 0];
     return { c: deg ? hueShift(P.c[care], deg) : P.c[care], t: deg ? hueShift(P.t[care], deg) : P.t[care] };
   }
@@ -201,12 +206,12 @@
 
   // ---------- CSS (ported from the boards; colours as tokens per accent and theme) ----------
   const CSS = `
-:root{--pl-soil:#8C7A70;--pl-dry:#E2D3BC;--pl-crack:#A8937A;--pl-5:#43297E;--pl-4:#5B3E96;--pl-3:#8471B4;--pl-2:#A69AC0;--pl-1:#AEAAB4;--pl-pot:#DED8EA;--pl-rim:#CDC4DE;--pl-eye:#0E0E10;--pl-acc:#5B3E96;--pl-acc-ic:#FFFFFF;--pl-off:#E1DDE8}
-:root[data-accent="blue"]{--pl-5:#12407A;--pl-4:#1F5FAF;--pl-3:#5D86C4;--pl-2:#93ABCF;--pl-1:#AEAAB4;--pl-pot:#D6E0EE;--pl-rim:#C3D0E3;--pl-acc:#1F5FAF;--pl-off:#DDE3EC}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
-:root:not([data-theme="light"])[data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-1:#64616B;--pl-pot:#2E3A4E;--pl-rim:#3E4C63;--pl-acc:#8DB2EE;--pl-off:#33404F}}
-:root[data-theme="dark"]{--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#38334A;--pl-rim:#4A4458;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3842}
-:root[data-theme="dark"][data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-pot:#2E3A4E;--pl-rim:#3E4C63;--pl-acc:#8DB2EE;--pl-off:#33404F}
+:root{--pl-seed:#9A7454;--pl-soil:#7A6656;--pl-dry:#E2D3BC;--pl-crack:#A8937A;--pl-5:#43297E;--pl-4:#5B3E96;--pl-3:#8471B4;--pl-2:#A69AC0;--pl-1:#AEAAB4;--pl-pot:#E6DFD2;--pl-rim:#8C78BE;--pl-eye:#0E0E10;--pl-acc:#5B3E96;--pl-acc-ic:#FFFFFF;--pl-off:#E7E4DC}
+:root[data-accent="blue"]{--pl-5:#12407A;--pl-4:#1F5FAF;--pl-3:#5D86C4;--pl-2:#93ABCF;--pl-1:#AEAAB4;--pl-rim:#6E8FC4;--pl-acc:#1F5FAF;--pl-off:#E7E4DC}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#4A4540;--pl-rim:#9081C4;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3833}
+:root:not([data-theme="light"])[data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-1:#64616B;--pl-rim:#6E8FC4;--pl-acc:#8DB2EE;--pl-off:#3A3833}}
+:root[data-theme="dark"]{--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#4A4540;--pl-rim:#9081C4;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3833}
+:root[data-theme="dark"][data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-rim:#6E8FC4;--pl-acc:#8DB2EE;--pl-off:#3A3833}
 .pl{position:relative;flex:none;color:var(--pl-4);transform-origin:50% 100%;display:inline-block}
 .pl svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
 .pl.xl{width:104px;height:159px}.pl.lg{width:80px;height:123px}.pl.md{width:56px;height:86px}.pl.rw{width:48px;height:74px}.pl.tl{width:44px;height:67px}.pl.sm{width:32px;height:49px}
@@ -218,7 +223,7 @@
 .pl .body,.pl .sway,.pl .lean{transform-box:view-box;transform-origin:30px 70px;transition:transform .35s}
 .pl .cracks,.pl .ck2,.pl .spark,.pl .e-happy,.pl .e-drowsy,.pl .e-sleep,.pl .e-shine{display:none}
 .pl.h1 .cracks,.pl.h2 .cracks,.pl.h1 .ck2,.pl.h4 .e-shine{display:inline}
-.pl .tint,.pl .star{fill:var(--pl-tint,#B3A2DE)}.pl .tip{fill:#8C7A62}.pl .fold{stroke:var(--pl-pot);fill:none}
+.pl .tint{fill:var(--pl-tint,#86A64C)}.pl .star{fill:#E8C35A}.pl .seedc{fill:var(--pl-seed)}.pl .tip{fill:#8C7A62}.pl .fold{stroke:var(--pl-pot);fill:none}
 .pl.h5 .e-open,.pl.h2 .e-open,.pl.h1 .e-open{display:none}
 .pl.h5 .e-happy,.pl.h2 .e-drowsy,.pl.h1 .e-sleep{display:inline}
 .pl.joy .e-open,.pl.joy .e-drowsy,.pl.joy .e-sleep{display:none}.pl.joy .e-happy{display:inline}
@@ -262,7 +267,8 @@
 @keyframes pl-ring{0%,24%{transform:scale(.2);opacity:0}34%{opacity:.8}72%{transform:scale(2.8);opacity:0}100%{transform:scale(2.8);opacity:0}}
 .grow-ov .ring{fill:none;stroke:var(--pl-acc);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pl-ring 1.6s ease-out forwards}
 @keyframes pl-chip{0%{transform:translateY(10px) scale(.9);opacity:0}60%{transform:translateY(-2px) scale(1.04);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
-.grow-ov .gchip{height:36px;display:flex;align-items:center}
+.grow-ov .gchip{min-height:36px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.grow-ov .gchip .gsub{font-size:15px;font-weight:500;color:var(--muted);animation:pl-chip .5s .15s cubic-bezier(.3,1.4,.5,1) both}
 .grow-ov .gchip span{background:var(--fg);color:var(--bg);border-radius:18px;padding:7px 16px;font-size:15px;font-weight:600;animation:pl-chip .5s cubic-bezier(.3,1.4,.5,1) forwards}
 @media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .spark circle,.pl .stars path,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
 `;
@@ -295,10 +301,11 @@
     const buds = form === 4 ? Math.max(0, Math.min(3, o.buds || 0)) : 0;
     const c = careOf(form, care);
     const v = variant(o.vid != null ? o.vid : 'base');
-    el.className = 'pl ' + size + ' s' + form + ' h' + c + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '');
+    const kind = form >= 3 && o.kind && RV.kinds && RV.kinds.has(o.kind) ? o.kind : null;
+    el.className = 'pl ' + size + ' s' + form + ' h' + c + ' d' + ((o.seed != null ? o.seed : seq++) % 5 + 1) + (o.ghost ? ' ghost' : '') + (o.bare ? ' bare' : '') + (kind ? ' k-' + kind : '');
     el.setAttribute('aria-hidden', 'true');
-    if (!o.ghost) { const col = colours(c, v.shade); el.style.color = col.c; el.style.setProperty('--pl-tint', col.t); }
-    el.innerHTML = plantSvg(form, c, o.ghost ? variant('base') : v, buds, form === 4 && !o.ghost ? o.flowers || 0 : 0) + (o.potless ? '' : potSvg(small));
+    if (!o.ghost) { const col = colours(c, kind ? 0 : v.shade); el.style.color = col.c; el.style.setProperty('--pl-tint', col.t); }
+    el.innerHTML = plantSvg(form, c, o.ghost || kind ? variant('base') : v, buds, form === 4 && !o.ghost ? o.flowers || 0 : 0, kind, o.ghost && kind ? 'currentColor' : null) + (o.potless ? '' : potSvg(small));
     if (!o.still) watch(el);
     return el;
   }
@@ -329,8 +336,8 @@
       ov.setAttribute('aria-label', o.label || 'Grew into ' + stageName);
       const chip = document.createElement('div'); chip.className = 'gchip';
       const wrap = document.createElement('div'); wrap.className = 'stagewrap';
-      const out = make(fromForm, o.fromCare || care, { size: 'xl', potless: true, still: true, seed: 0, vid }); if (!o.fromCare) out.classList.add('joy');
-      const inn = make(toForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid }); inn.classList.add('joy');
+      const out = make(fromForm, o.fromCare || care, { size: 'xl', potless: true, still: true, seed: 0, vid, kind: o.fromKind }); if (!o.fromCare) out.classList.add('joy');
+      const inn = make(toForm, care, { size: 'xl', potless: true, still: true, seed: 0, vid, kind: o.kind }); inn.classList.add('joy');
       const lo = document.createElement('div'); lo.className = 'lay out'; lo.appendChild(out);
       const li = document.createElement('div'); li.className = 'lay in'; li.appendChild(inn);
       const pot = make(toForm, care, { size: 'xl', still: true, seed: 0, vid }); pot.classList.add('joy');
@@ -349,17 +356,26 @@
       let done = false;
       const t1 = setTimeout(name, reduced() ? 0 : 1600);
       const t2 = setTimeout(finish, reduced() ? 1200 : 2700);
-      function name() { chip.innerHTML = ''; const s = document.createElement('span'); s.textContent = stageName; chip.appendChild(s); }
+      function name() {
+        chip.innerHTML = ''; const s = document.createElement('span'); s.textContent = stageName; chip.appendChild(s);
+        if (o.sub) { const b = document.createElement('b'); b.className = 'gsub'; b.textContent = o.sub; chip.appendChild(b); }
+      }
       function finish() { if (done) return; done = true; clearTimeout(t1); clearTimeout(t2); ov.remove(); resolve(); }
       ov.addEventListener('click', finish);
     });
   }
 
   // The revive moment: the same plant, drooping, perks back up to health (a visit after Thirsty or Wilting).
-  function revive(form, fromCare, toCare, vid) {
-    return grow(form, form, toCare, 'Revived', vid, { fromCare, label: 'Revived' });
+  function revive(form, fromCare, toCare, vid, kind) {
+    return grow(form, form, toCare, 'Revived', vid, { fromCare, label: 'Revived', fromKind: kind, kind });
+  }
+  // The reveal (v2.34): the growth moment from the unrevealed plant (or the sprout) to its kind, then
+  // "It's an olive tree!" with the person's name under it.
+  function reveal(fromForm, toForm, care, kind, vid, who, fromCare) {
+    const lineText = RV.kinds ? RV.kinds.line(kind) : '';
+    return grow(fromForm, toForm, care, lineText, vid, { kind, sub: who || '', fromCare, label: lineText });
   }
 
   ensureStyle(); // tokens (--pl-*) are also used by bars and dots in app.css
-  RV.plant = { make, water, leanOnTouch, grow, revive, css: CSS, variant, plantSvg, careOf };
+  RV.plant = { make, water, leanOnTouch, grow, revive, reveal, css: CSS, variant, plantSvg, careOf, isDark };
 })(window);

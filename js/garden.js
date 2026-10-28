@@ -222,7 +222,7 @@
     const c = care(rv, entries, settings, now);
     const p = progress(rv, entries, settings, now);
     const word = c === CARE.WILTED ? CARE_NAMES[1] : c === CARE.DRY ? CARE_NAMES[2] : '';
-    return Object.assign({ vid: rv.id, care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, flowers: form === 4 ? flowers(rv, entries, settings) : 0, studied: studyCount(entries) > 0 }, p);
+    return Object.assign({ vid: rv.id, pkind: form >= 3 && rv.kind ? rv.kind : null, care: c, word, buds: form === 4 ? Math.min(p.need || 3, studyCount(entries)) : 0, flowers: form === 4 ? flowers(rv, entries, settings) : 0, studied: studyCount(entries) > 0 }, p);
   }
 
   // State for a list item ({rv, entries}), memoised on the item (store items are rebuilt each minute or edit).
@@ -736,7 +736,30 @@
     return n.charAt(0).toUpperCase() + n.slice(1);
   }
 
+  // ---------- plant kinds (v2.34) ----------
+  // Every plant looks alike as a seed and a sprout; its kind is revealed at the leafy stage, at the first live
+  // conversation or study session that finds it at leafy or above with no kind yet. Eight common kinds are dealt from a
+  // shuffle bag (each once before any repeats, settings.kindBag, synced with backups); two rare kinds come up 4% each.
+  const PLANT_KINDS = ['apple', 'lemon', 'olive', 'fig', 'pomegranate', 'date', 'grape', 'sunflower'];
+  const RARE_KINDS = ['pricklypear', 'cherry'];
+  const RARE_ODDS = 0.04;
+  const ALL_KINDS = PLANT_KINDS.concat(RARE_KINDS);
+  // -> { kind, bag } (the bag left after the draw); rnd() returns [0, 1)
+  function drawPlantKind(bag, rnd) {
+    rnd = rnd || Math.random;
+    const r = rnd();
+    if (r < RARE_ODDS * RARE_KINDS.length) return { kind: RARE_KINDS[Math.floor(r / RARE_ODDS)], bag: (bag || []).slice() };
+    let left = (bag || []).filter((k) => PLANT_KINDS.includes(k));
+    if (!left.length) left = PLANT_KINDS.slice();
+    const i = Math.floor(rnd() * left.length) % left.length;
+    const kind = left[i];
+    return { kind, bag: left.filter((_, j) => j !== i) };
+  }
+  // a plant at leafy or above, still open, with no kind yet
+  const needsReveal = (rv, settings) => !rv.kind && formOf(settings, rv.stage) >= 3 && !L.stageOf(settings, rv.stage).closed;
+
   const api = {
+    PLANT_KINDS, RARE_KINDS, RARE_ODDS, ALL_KINDS, drawPlantKind, needsReveal,
     CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, SETS, setsComplete, seasonOf, starterSteps, starterOn, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,

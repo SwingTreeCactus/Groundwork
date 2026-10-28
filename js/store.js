@@ -244,7 +244,8 @@
     if (o.tags && o.tags.length) rv.tags = U.uniq(rv.tags.concat(o.tags));
     touch(rv);
     persist('rvs', rv);
-    let stageRes = null, grew = null;
+    let stageRes = null, grew = null, revealed = null;
+    const formBefore = G ? G.formOf(S.settings, rv.stage) : 0;
     if (o.stage && o.stage !== rv.stage) stageRes = setStage(rvId, o.stage); // a manual move earns no growth
     else if (G && !o.imported) {
       // grows one stage at a time when this live visit completes the step
@@ -252,11 +253,28 @@
       const to = G.growth(rv, S.entries.filter((e) => e.rvId === rvId), S.settings, new Date(entry.at) > new Date() ? new Date(entry.at) : new Date());
       if (to) { stageRes = setStage(rvId, to, { grew: true, at: entry.at }); grew = { from, to }; }
     }
+    // v2.34: a live conversation that finds the plant at leafy or above with no kind reveals its kind
+    const bagBefore = (S.settings.kindBag || []).slice();
+    if (G && !o.imported && G.needsReveal(rv, S.settings)) {
+      const forced = typeof window !== 'undefined' && window.__RV_KIND;
+      const d = forced ? { kind: forced, bag: bagBefore } : G.drawPlantKind(bagBefore);
+      rv.kind = d.kind;
+      touch(rv);
+      persist('rvs', rv);
+      S.settings.kindBag = d.bag;
+      persist('meta', S.settings);
+      revealed = { kind: d.kind, fromForm: formBefore, toForm: G.formOf(S.settings, rv.stage) };
+    }
     emit();
     return {
       entry, stageEntry: stageRes && stageRes.entry, grew,
       revived: entry.revived ? { form: G.formOf(S.settings, rv.stage), from: careBefore } : null,
-      undo: () => { if (stageRes) purgeEntry(stageRes.entry.id); purgeEntry(entry.id); restoreRvSnapshot(snap); emit(); },
+      revealed, careBefore,
+      undo: () => {
+        if (stageRes) purgeEntry(stageRes.entry.id); purgeEntry(entry.id); restoreRvSnapshot(snap);
+        if (revealed) { S.settings.kindBag = bagBefore; persist('meta', S.settings); }
+        emit();
+      },
     };
   }
 
@@ -340,6 +358,9 @@
     emit();
   }
   function importRvs(rvs, entries) {
+    // v2.34: imports stop short of the leafy stage (where a plant's kind is revealed), unless a study
+    const rvBand = L.shownStages(S.settings).find((x) => x.key === 'rv');
+    for (const r of rvs) { if (rvBand && rvBand.ids.indexOf(r.stage) > 0) r.stage = rvBand.ids[0]; delete r.kind; }
     for (const r of rvs) { S.rvs.push(r); persist('rvs', r); }
     for (const e of entries) { S.entries.push(e); persist('entries', e); }
     emit();

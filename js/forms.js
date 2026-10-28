@@ -14,6 +14,8 @@
   }
   const activeStages = () => S.settings.stages.filter((s) => !s.closed);
   const stageOptions = () => activeStages().map((s) => ({ value: s.id, label: s.name }));
+  // imports offer the three stages people see: Potential, RV (Initial Call) and the study stage
+  const importStageOptions = () => L.shownStages(S.settings).map((x) => ({ value: x.ids[0], label: x.name }));
 
   // ---------- area pick list: choose a saved area, or add one (matched to an existing name ignoring case) ----------
   const areaKey = (x) => String(x || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -403,7 +405,14 @@
   async function afterVisit(rvId, res, msg) {
     const G = RV.garden, P = RV.plant;
     const on = S.settings.garden !== false && G && P;
-    if (on && res.grew) {
+    if (on && res.revealed) {
+      // the reveal: from the sprout (or the plant as it looked before) to its kind, named once
+      const it = ST.itemFor(rvId);
+      const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
+      const rv = ST.rvById(rvId);
+      await P.reveal(res.revealed.fromForm || res.revealed.toForm, res.revealed.toForm, care || 4, res.revealed.kind, rvId, rv ? rv.name : '',
+        res.revived ? res.revived.from : 0);
+    } else if (on && res.grew) {
       const name = G.growthName(S.settings, res.grew.from, res.grew.to);
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
@@ -656,5 +665,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { addressSheet, afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { importStageOptions, addressSheet, afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

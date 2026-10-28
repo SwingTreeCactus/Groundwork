@@ -475,4 +475,43 @@ test('map placement: geotag first, else the looked-up address, looked up again w
   assert.equal(GEO.needsLookup({ address: '' }), false);
 });
 
+test('plant kinds: a shuffle bag of eight, each once before repeats; two rares at 4% each', () => {
+  let bag = [], seen = [];
+  let x = 0.5; const rnd = () => { x = (x * 9301 + 49297) % 233280 / 233280; return 0.08 + x * 0.92; }; // never rare
+  for (let i = 0; i < 8; i++) { const d = G.drawPlantKind(bag, rnd); seen.push(d.kind); bag = d.bag; }
+  assert.deepEqual(seen.slice().sort(), G.PLANT_KINDS.slice().sort());
+  assert.equal(bag.length, 0);
+  const next = G.drawPlantKind(bag, rnd); assert.ok(G.PLANT_KINDS.includes(next.kind)); assert.equal(next.bag.length, 7);
+  assert.equal(G.drawPlantKind(['fig'], () => 0.01).kind, 'pricklypear');
+  assert.equal(G.drawPlantKind(['fig'], () => 0.05).kind, 'cherry');
+  assert.deepEqual(G.drawPlantKind(['fig'], () => 0.05).bag, ['fig']); // a rare leaves the bag as it was
+  const odd = G.drawPlantKind(['nope'], () => 0.9); assert.ok(G.PLANT_KINDS.includes(odd.kind)); // unknown names refill the bag
+});
+test('plant kinds: reveal at leafy and up, open stages only, once', () => {
+  const rv = (stage, kind) => ({ id: 'x', stage, kind });
+  assert.equal(G.needsReveal(rv('yet'), S), false);
+  assert.equal(G.needsReveal(rv('initial'), S), false);
+  assert.equal(G.needsReveal(rv('cultivating'), S), true);
+  assert.equal(G.needsReveal(rv('return'), S), true);
+  assert.equal(G.needsReveal(rv('study'), S), true);
+  assert.equal(G.needsReveal(rv('cultivating', 'olive'), S), false);
+  assert.equal(G.needsReveal(rv('archived'), S), false);
+  assert.equal(G.stateOf(rv('cultivating', 'olive'), [], S, new Date()).pkind, 'olive');
+  assert.equal(G.stateOf(rv('initial', 'olive'), [], S, new Date()).pkind, null);
+});
+test('plant kinds: every kind draws every form and care, and names itself', () => {
+  global.window = global.window || {};
+  require('../js/kinds.js');
+  const K = global.window.RV.kinds;
+  assert.deepEqual(K.ORDER.slice().sort(), G.ALL_KINDS.slice().sort());
+  for (const k of K.ORDER) for (const f of [3, 4, 5]) for (const c of [5, 4, 2, 1]) {
+    const s = K.svg(k, f, c, { flowers: 2, buds: 1 });
+    assert.ok(s.length > 100 && !/NaN|undefined/.test(s), k + f + c);
+    assert.ok(!/opacity/.test(s), 'no transparency');
+  }
+  assert.equal(K.line('olive'), 'It\u2019s an olive tree!');
+  assert.equal(K.line('grape'), 'It\u2019s a grapevine!');
+  assert.ok(/fill="currentColor"/.test(K.svg('fig', 5, 4, { sil: 'currentColor' })));
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

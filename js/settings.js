@@ -513,7 +513,7 @@
       toast('Could not read that file as a Ministry Assistant backup.');
       return;
     }
-    const defStage = F.select(F.stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
+    const defStage = F.select(F.importStageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
     const skipDup = h('input', { type: 'checkbox', checked: true });
     const bestDay = h('input', { type: 'checkbox', checked: true });
     const summary = h('div', { class: 'banner info' });
@@ -561,7 +561,7 @@
     const headers = rows[0], body = rows.slice(1);
     const mapping = L.guessMapping(headers);
     const selects = {};
-    const defStage = F.select(F.stageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
+    const defStage = F.select(F.importStageOptions(), (S.settings.stages.find((s) => s.id === 'initial') || S.settings.stages[0]).id);
     const skipDup = h('input', { type: 'checkbox', checked: true });
     const summary = h('div', { class: 'banner info' });
     const calc = () => {
@@ -901,7 +901,7 @@
       };
       const groups = N.groupShots(NI.shots);
       const count = NI.notes.length + NI.shots.length;
-      const stageSel = F.select(F.stageOptions().filter((o) => !(S.settings.stages.find((x) => x.id === o.value) || {}).closed), NI.stage);
+      const stageSel = F.select(F.importStageOptions(), NI.stage);
       stageSel.addEventListener('change', () => { NI.stage = stageSel.value; });
       const big = (cls, ic, t, sub, fn) => h('button', { class: 'nibig ' + cls, type: 'button', onclick: fn }, icon(ic, 22), h('div', null, h('div', { class: 't' }, t), h('div', { class: 's' }, sub)));
       box.append(...[

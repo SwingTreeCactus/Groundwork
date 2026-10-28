@@ -138,7 +138,7 @@
     }
     function markerEl(x, pt) {
       const b = h('button', { class: 'gpin' + (pt.approx ? ' approx' : ''), type: 'button', 'aria-label': x.it.rv.name + ', ' + (x.st.word || L.shownName(S.settings, x.it.rv.stage)) + (pt.approx ? ', placed from the address' : '') });
-      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, flowers: x.st.flowers, still: false, vid: x.it.rv.id }));
+      b.appendChild(P.make(x.st.form, x.st.care, { size: 'rw', buds: x.st.buds, flowers: x.st.flowers, still: false, vid: x.it.rv.id, kind: x.st.pkind }));
       b.addEventListener('click', (e) => { e.stopPropagation(); pick(x); });
       return b;
     }

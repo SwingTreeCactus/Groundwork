@@ -530,7 +530,7 @@ with sync_playwright() as p:
     page.click('.sheet button:has-text("Import")')
     time.sleep(0.4)
     g = ev('RV.store.S.rvs.find(r=>r.name=="Gina Park")')
-    check(g and g['stage'] == 'return' and g['neighborhood'] == 'Lakeview', 'imported with mapped stage and area')
+    check(g and g['stage'] == 'initial' and g['neighborhood'] == 'Lakeview', 'imported with area; a Return Visit status lands on RV before the reveal (v2.34)')
     check('asked about "life"' in g['notes'], 'quoted CSV text kept')
     check(ev('RV.store.S.rvs.filter(r=>r.name=="Hal Young").length') == 0, 'duplicate of Maria Lopez address skipped')
 

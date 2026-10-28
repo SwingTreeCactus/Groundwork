@@ -1591,3 +1591,18 @@ select.niarea { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-si
 .isrc { padding-top: 14px; padding-bottom: 14px; }
 .isrcic { width: 42px; height: 42px; border-radius: 12px; background: var(--surface2); display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .isrc .main > div:first-child { font-weight: 600; }
+
+/* v2.34: three colour layers. A warm neutral interface, a natural palette for the garden (js/kinds.js, js/plant.js),
+   and the accent (--red) kept to about a tenth: active tab, due marks, growth bars, selections, links.
+   Area tiles and folder headings go back to neutral. */
+:root { --bg: #f2f0ea; --surface: #ffffff; --surface2: #f5f3ee; --line: #e7e4dc; --line-strong: #d3cfc5; --muted: #6b6862; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #12110f; --surface: #1c1b19; --surface2: #262522; --fg: #f2f0ea; --muted: #a19e97; --line: #2b2a27; --line-strong: #3d3b37; }
+}
+:root[data-theme="dark"] { --bg: #12110f; --surface: #1c1b19; --surface2: #262522; --fg: #f2f0ea; --muted: #a19e97; --line: #2b2a27; --line-strong: #3d3b37; }
+.atile { background: var(--surface); color: var(--fg); }
+.atile .sub { color: var(--red); font-weight: 600; }
+.atile .sub.calm { color: var(--muted); opacity: 1; font-weight: 400; }
+.ahead .nm { color: var(--fg); }
+.ahead .n { color: var(--fg); }
+.acard.open .ahead { background: var(--surface2); }

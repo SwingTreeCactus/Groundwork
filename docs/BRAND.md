@@ -73,6 +73,13 @@ SVG and re-render the PNGs.
 - The installed icon stays purple when the app's accent is set to Blue (an installed icon
   cannot change with a setting).
 
+- v2.34 (2026-10-28): colour in three layers. A warm neutral interface (paper #F2F0EA, card #FFFFFF, fill
+  #F5F3EE, line #E7E4DC, muted #6B6862, ink #161616; dark #12110F, #1C1B19, #262522), a natural palette for the
+  garden world (plants, scene, visitors: greens #3E6B4B #5C8C55 #86A64C #93A88C #3D6B63, bronze #8E6A45, bark
+  #6E5242, fruit and flowers #C8473A #D8892E #E5BF45 #EEB4C3 #C23A6E #7B4767 #5D4A8C #4E3B5A; care yellows, then
+  browns), and the accent at about a tenth (active tab, due marks, growth bars, selections, links). Plants no
+  longer take the accent; pots are warm neutral with an accent rim.
+
 ## 5. Type
 
 - Space Grotesk for everything in the UI.

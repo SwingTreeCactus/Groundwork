@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.33.0';
+  RV.VERSION = '2.34.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -27,7 +27,7 @@
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       const dark = S.settings.theme === 'dark' || (S.settings.theme === 'system' && root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches);
-      meta.setAttribute('content', dark ? '#000000' : '#f2f2ef');
+      meta.setAttribute('content', dark ? '#12110f' : '#f2f0ea');
     }
   }
 
