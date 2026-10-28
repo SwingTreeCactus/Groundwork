@@ -32,24 +32,37 @@
   const model = () => { const m = get(MODEL); return MODELS.some((x) => x.value === m) ? m : MODELS[0].value; };
 
   const SYSTEM = [
-    'You tidy notes for a private follow-up app used in door-to-door Bible-based ministry.',
-    'The note was usually dictated with a phone keyboard microphone, so it may lack punctuation, run sentences together,',
-    'include filler words (um, uh, like, you know, so yeah), false starts, repeated words, or misheard words.',
+    'You proofread notes for a private follow-up app used in door-to-door Bible-based ministry.',
+    'The note was usually dictated with a phone keyboard microphone, so it may lack punctuation or have misheard words.',
+    'This is a light proofread, not an edit. The person wants their own words back, corrected.',
     '',
     'Rules for "note":',
-    '- Fix punctuation, capitalization, spelling and clearly misheard words. Write scripture references in standard form',
-    '  (e.g. "john three sixteen" -> "John 3:16", "psalm eighty three eighteen" -> "Psalm 83:18").',
-    '- Remove filler and false starts. Keep every fact, name, number, date, address detail and opinion. Do not summarize away details.',
-    '- Do not add anything that was not said, no advice, no headings, no bullet points unless the speaker listed items.',
-    '- Keep the speaker\'s plain note style (short sentences, first person is fine). Use line breaks between distinct topics.',
+    '- Fix spelling, punctuation, capitalization and clearly misheard words. Add sentence breaks and line breaks where they help.',
+    '- Write scripture references in standard form (e.g. "john three sixteen" -> "John 3:16", "psalm eighty three eighteen" -> "Psalm 83:18").',
+    '- Remove only filler sounds (um, uh, er, hmm) and a word repeated by accident ("the the").',
+    '- Never delete, shorten, merge, summarize, reorder or reword anything else. Every detail, name, number, date, aside and opinion stays,',
+    '  in the same order, in the person\'s own words, even if it seems minor or repetitive.',
+    '- Do not add anything that was not said. No headings, no bullet points unless the speaker listed items.',
     '',
     'Rules for "discussNext":',
     '- Start with the existing "discussNext" text exactly as given (it may be empty).',
-    '- If the note says what to bring, show, ask or talk about next time, move that item out of the note and add it here as a short line.',
+    '- If the note says what to bring, show, ask or talk about next time, add that item here as a short line.',
+    '  It is a copy: the same words also stay in the note.',
     '- If there is nothing new, return the existing text unchanged.',
     '',
     'Reply with only a JSON object: {"note": "...", "discussNext": "..."}. No other text.',
   ].join('\n');
+
+  // Safety net: a proofread barely changes the word count. Filler and accidental repeats may go, and spoken numbers
+  // shrink ("john three sixteen" -> "John 3:16"), so allow a little; more than that means Claude cut content.
+  const FILLER = new Set(['um', 'umm', 'uh', 'uhh', 'er', 'erm', 'hmm', 'mm']);
+  const words = (t) => String(t || '').toLowerCase().split(/[^a-z0-9':]+/).filter(Boolean);
+  function cutTooMuch(before, after) {
+    const w = words(before);
+    const kept = w.filter((x, i) => !FILLER.has(x) && x !== w[i - 1]).length;
+    const lost = kept - words(after).length;
+    return lost > Math.max(3, Math.round(kept * 0.15));
+  }
 
   class AiError extends Error {}
 
@@ -114,6 +127,7 @@
     if (!j || typeof j.note !== 'string') throw new AiError('Claude sent back something unexpected. The note is kept as is.');
     const nn = j.note.trim();
     if (!nn) throw new AiError('Claude returned an empty note. The note is kept as is.');
+    if (cutTooMuch(note, nn)) throw new AiError('Cleanup changed too much, so your note was kept as is.');
     let dn = typeof j.discussNext === 'string' ? j.discussNext.trim() : discussNext;
     // never lose what was already in Discuss next time
     if (discussNext && !dn.includes(discussNext)) dn = discussNext + (dn ? '\n' + dn : '');
@@ -127,7 +141,7 @@
   }
 
   RV.ai = {
-    MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson,
+    MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson, cutTooMuch,
     setKey: (k) => set(KEY, String(k || '').trim()),
     setModel: (m) => set(MODEL, m),
   };

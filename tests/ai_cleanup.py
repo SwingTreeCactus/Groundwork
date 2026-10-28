@@ -86,13 +86,15 @@ with sync_playwright() as p:
     raw = 'um so she said uh her husband is back from fresno we read john three sixteen next time bring the brochure about family'
     page.locator('.sheet textarea').first.fill(raw)
     shot('03-writing-view')
-    mode['reply'] = json.dumps({'note': 'Her husband is back from Fresno. We read John 3:16.', 'discussNext': 'Bring the brochure about family.'})
+    clean = 'So she said her husband is back from Fresno. We read John 3:16. Next time, bring the brochure about family.'
+    mode['reply'] = json.dumps({'note': clean, 'discussNext': 'Bring the brochure about family.'})
     page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("Added to Discuss next time")')
     sent = json.loads(seen[-1]['body']['messages'][0]['content'])
     check(sent['note'] == raw and sent['discussNext'] == '', 'only the note and Discuss next time are sent')
     tas = page.locator('.sheet textarea')
-    check(tas.nth(0).input_value() == 'Her husband is back from Fresno. We read John 3:16.', 'note replaced with cleaned text')
-    check(tas.nth(1).input_value() == 'Bring the brochure about family.', 'next-time item moved to Discuss next time')
+    check(tas.nth(0).input_value() == clean, 'note replaced with cleaned text, next-time item still in it')
+    check(tas.nth(1).input_value() == 'Bring the brochure about family.', 'next-time item copied to Discuss next time')
+    check('Never delete' in seen[-1]['body']['system'] and 'It is a copy' in seen[-1]['body']['system'], 'light-touch, copy-not-move instructions sent')
     shot('04-cleaned')
     page.click('.toast button:has-text("Undo")')
     check(tas.nth(0).input_value() == raw and tas.nth(1).input_value() == '', 'Undo restores both fields')
@@ -100,10 +102,19 @@ with sync_playwright() as p:
     print('keeps existing Discuss next time')
     page.click('.sheet .show-fields')
     tas.nth(1).fill('Ask about the convention')
+    tas.nth(0).fill('tidy note')
     mode['reply'] = 'Sure! ' + json.dumps({'note': 'Tidy note.', 'discussNext': 'Bring the brochure.'})
     page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("Cleaned up")')
     check(tas.nth(1).input_value().startswith('Ask about the convention'), 'existing next-time text is never dropped')
     check(tas.nth(0).input_value() == 'Tidy note.', 'JSON found even with extra words around it')
+
+    print('too much cut keeps the note')
+    long = 'she has three kids and works nights at the hospital her mother lives with them and she likes gardening on weekends'
+    tas.nth(0).fill(long)
+    mode['reply'] = json.dumps({'note': 'She has three kids and likes gardening.', 'discussNext': ''})
+    page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("changed too much")')
+    check(tas.nth(0).input_value() == long, 'note kept when Claude cut details')
+    check(ev("RV.ai.cutTooMuch('um uh john three sixteen we read it', 'John 3:16 we read it.')") is False, 'filler and scripture numbers are not counted as cuts')
 
     print('errors keep the note')
     tas.nth(0).fill('keep me')

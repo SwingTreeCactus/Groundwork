@@ -504,3 +504,11 @@ Mark bought API credit and wants everyone using Groundwork to share it, so no on
 - Fair use: an anonymous random install ID (localStorage, not in backups) and daily counts in Cloudflare KV, 60 units per install and 600 for everyone a day by default (Fast = 1, Careful = 4). Failed calls don't count. A Console spend limit is the hard stop, since the origin check stops other websites, not scripts.
 - App: `RV.config.aiProxy`; Note cleanup is on for everyone. Your own key still works and wins when set, tucked under "Use your own API key". Calm messages at the limit ("That's all the cleanups for today. More tomorrow."). The privacy page explains the helper and the anonymous count.
 - Tests: ai-proxy 8, ai_cleanup 32, smoke 285, screens 50, garden 45, logic 48, drive_folder 36, worker 6. VERSION 2.30.0, cache rvapp-v75.
+
+## 43. v2.30.1 note cleanup proofreads instead of editing (built 2026-10-28)
+
+Mark found cleanup removed details he had added. Cause: the instructions asked Claude to remove filler and false starts (read loosely, especially by Haiku) and to move next-time items out of the note.
+- New instructions: a light proofread. Fix spelling, punctuation, capitalization, misheard words and scripture format; remove only filler sounds and accidental repeated words; never delete, shorten, merge, summarize, reorder or reword anything else.
+- Next-time items are copied to Discuss next time and stay in the note (Mark likes the copy).
+- Safety net in the app (`RV.ai.cutTooMuch`): if the cleaned note has more than max(3, 15%) fewer words than the original minus filler and repeats, the original is kept and the toast says "Cleanup changed too much, so your note was kept as is."
+- Tests: ai_cleanup 35. VERSION 2.30.1, cache rvapp-v76.
