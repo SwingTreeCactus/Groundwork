@@ -496,3 +496,11 @@ Guiding rule (Mark): calm, never casino-like. No confetti, sounds, countdowns, r
 - Seasons (`G.seasonOf`, northern hemisphere by date): spring Mar–May (fresher ground, blossoms in the grass), summer Jun–Aug, autumn Sep–Nov (warm ground, fallen leaves, 7 leaves drifting down slowly), winter Dec–Feb (frosted ground and soil, pale grass, 16 slow snowflakes). Falling layer off with reduced motion. Nature only: no holiday decorations.
 - Seasonal visitors now live: geese, Grumpy (autumn, weekly streak 4+, 25%, over the hill), bees, Focused (spring/summer, 2+ planned visits in one area this week, 50%, above that area's bed), California quail, Sociable (spring/summer, conversations in 3+ areas last week, 25%, crossing the path). 15 visitors.
 - Tests: garden 45, smoke 285, screens 50, logic 48, drive_folder 36, ai_cleanup 22, worker 6. VERSION 2.29.0, cache rvapp-v74.
+
+## 42. v2.30.0 note cleanup for everyone (built 2026-10-28)
+
+Mark bought API credit and wants everyone using Groundwork to share it, so no one needs their own key.
+- New Worker `worker/ai-proxy.js` (`groundwork-ai`): holds `ANTHROPIC_API_KEY` as a secret and forwards only Messages requests from the app's origin. Only the Fast (Haiku) and Careful (Sonnet) models, output capped at 4000 tokens, request size capped, extra fields dropped, only text returned, Anthropic error details hidden. No note text stored or logged.
+- Fair use: an anonymous random install ID (localStorage, not in backups) and daily counts in Cloudflare KV, 60 units per install and 600 for everyone a day by default (Fast = 1, Careful = 4). Failed calls don't count. A Console spend limit is the hard stop, since the origin check stops other websites, not scripts.
+- App: `RV.config.aiProxy`; Note cleanup is on for everyone. Your own key still works and wins when set, tucked under "Use your own API key". Calm messages at the limit ("That's all the cleanups for today. More tomorrow."). The privacy page explains the helper and the anonymous count.
+- Tests: ai-proxy 8, ai_cleanup 32, smoke 285, screens 50, garden 45, logic 48, drive_folder 36, worker 6. VERSION 2.30.0, cache rvapp-v75.

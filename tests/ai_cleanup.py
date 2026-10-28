@@ -43,7 +43,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles', service_workers='block')
     ctx.route('https://api.anthropic.com/**', api)
-    ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"') # no surprise visitors unless a test asks
+    ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = ""') # own-key mode first; no surprise visitors unless a test asks
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and 'api.anthropic.com' not in m.text and 'status of' not in m.text else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -140,6 +140,56 @@ with sync_playwright() as p:
     page.goto(URL + '#/settings/ai'); page.wait_for_selector('button:has-text("Remove key")')
     page.click('button:has-text("Remove key")'); page.wait_for_selector('text=Note cleanup is off')
     check(ev('RV.ai.hasKey()') is False, 'key removed')
+
+    print('shared helper (everyone, no key)')
+    pseen = []
+    pmode = {'status': 200, 'body': None}
+    def helper(route):
+        req = route.request
+        cors = {'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST', 'content-type': 'application/json'}
+        if req.method == 'OPTIONS': return route.fulfill(status=204, headers=cors)
+        pseen.append({'url': req.url, 'headers': req.headers, 'body': json.loads(req.post_data or '{}')})
+        body = pmode['body'] or {'content': [{'type': 'text', 'text': json.dumps({'note': 'Shared tidy.', 'discussNext': ''})}]}
+        return route.fulfill(status=pmode['status'], headers=cors, body=json.dumps(body))
+    ctx2 = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True, service_workers='block')
+    ctx2.route('https://ai.test/**', helper)
+    ctx2.route('https://api.anthropic.com/**', api)
+    ctx2.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    p2 = ctx2.new_page()
+    p2.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
+    p2.goto(URL); p2.wait_for_selector('.tabbar .tab')
+    r2 = p2.evaluate('''() => RV.store.addRv({name:'Cara Lee', stage:'return'}).id''')
+    p2.goto(URL + '#/settings/ai'); p2.wait_for_selector('text=Note cleanup is on')
+    check(p2.locator('text=Included with Groundwork').count() == 1, 'settings: on for everyone without a key')
+    check(p2.locator('details summary', has_text='Use your own API key').count() == 1, 'own key tucked under a details row')
+    p2.screenshot(path=f'{SHOTS}/06-shared-settings.png')
+    p2.evaluate(f'RV.forms.visitDialog("{r2}")'); p2.wait_for_selector('.sheet .btn.cleanup')
+    p2.locator('.sheet textarea').first.fill('uh shared note')
+    n_direct = len(seen)
+    p2.click('.sheet .btn.cleanup'); p2.wait_for_selector('.toast:has-text("Cleaned up")')
+    check(p2.locator('.sheet textarea').first.input_value() == 'Shared tidy.', 'cleaned through the helper')
+    hq = pseen[-1]
+    check(hq['url'] == 'https://ai.test/v1/messages' and 'x-api-key' not in hq['headers'], 'helper called, no key sent from the browser')
+    iid = hq['headers'].get('x-groundwork-install', '')
+    check(len(iid) == 32 and iid == p2.evaluate('RV.ai.installId()'), 'anonymous install ID sent and kept')
+    check(len(seen) == n_direct, 'Anthropic not called directly')
+    check(iid not in json.dumps(p2.evaluate('RV.store.exportAll()')), 'install ID not in the backup')
+    pmode.update(status=429, body={'error': 'daily_limit'})
+    p2.locator('.sheet textarea').first.fill('another')
+    p2.click('.sheet .btn.cleanup'); p2.wait_for_selector('.toast:has-text("More tomorrow")')
+    check(p2.locator('.sheet textarea').first.input_value() == 'another', 'daily limit: note kept, calm message')
+    pmode.update(status=200, body=None)
+    p2.keyboard.press('Escape'); time.sleep(0.3)
+    print('own key wins over the helper')
+    p2.evaluate(f'RV.ai.setKey("{KEY}")')
+    check(p2.evaluate('RV.ai.shared()') is False, 'own key used when set')
+    p2.evaluate(f'RV.forms.visitDialog("{r2}")'); p2.wait_for_selector('.sheet .btn.cleanup')
+    mode.update(status=200, reply=json.dumps({'note': 'Own.', 'discussNext': ''}))
+    p2.locator('.sheet textarea').first.fill('own')
+    n_helper = len(pseen)
+    p2.click('.sheet .btn.cleanup'); p2.wait_for_selector('.toast:has-text("Cleaned up")')
+    check(len(pseen) == n_helper and seen[-1]['headers'].get('x-api-key') == KEY, 'went direct with own key')
+    ctx2.close()
 
     check(not errors, 'no console errors' + ('' if not errors else ': ' + '; '.join(errors[:3])))
     b.close()

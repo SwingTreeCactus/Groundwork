@@ -56,10 +56,10 @@
     return { el: box, get: () => days.slice().sort((a, b) => a - b) };
   }
 
-  // ---------- note cleanup with Claude (only when a key is set in Settings > Note cleanup) ----------
+  // ---------- note cleanup with Claude (shared helper, or the person's own key in Settings > Note cleanup) ----------
   // Tidies a dictated note; things to bring up next time move into Discuss next time (when that field is given).
   function cleanupButton(text, next) {
-    if (!RV.ai || !RV.ai.hasKey()) return null;
+    if (!RV.ai || !RV.ai.available()) return null;
     const label = h('span', null, 'Clean up');
     const btn = h('button', { class: 'btn sm cleanup', type: 'button' }, icon('sparkle', 16), label);
     btn.addEventListener('click', async () => {

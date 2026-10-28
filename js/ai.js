@@ -1,10 +1,12 @@
-/* Groundwork: note cleanup with Claude (the user's own Anthropic API key).
-   The key and model choice live in this browser's localStorage only, so they are never in a backup,
-   Drive copy or export. Only the note text being cleaned (and Discuss next time) is sent. */
+/* Groundwork: note cleanup with Claude.
+   Two ways in: the shared helper (worker/ai-proxy.js, set in RV.config.aiProxy) that holds Groundwork's key,
+   or the person's own Anthropic API key, which wins when set. The own key, model choice and the anonymous
+   install ID live in this browser's localStorage only, never in a backup, Drive copy or export.
+   Only the note text being cleaned (and Discuss next time) is sent. */
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  const KEY = 'rvapp.aiKey', MODEL = 'rvapp.aiModel';
+  const KEY = 'rvapp.aiKey', MODEL = 'rvapp.aiModel', INSTALL = 'rvapp.installId';
   const MODELS = [
     { value: 'claude-haiku-5-5', label: 'Fast' },
     { value: 'claude-sonnet-5-5', label: 'Careful' },
@@ -14,6 +16,19 @@
 
   const key = () => get(KEY).trim();
   const hasKey = () => !!key();
+  const proxy = () => String((RV.config && RV.config.aiProxy) || '').replace(/\/+$/, '');
+  const shared = () => !hasKey() && !!proxy();
+  const available = () => hasKey() || !!proxy();
+  // an anonymous random ID for this install, only used to count today's cleanups on the helper
+  function installId() {
+    let id = get(INSTALL);
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+      const a = new Uint8Array(16); (root.crypto || {}).getRandomValues ? root.crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.random() * 256; });
+      id = Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+      set(INSTALL, id);
+    }
+    return id;
+  }
   const model = () => { const m = get(MODEL); return MODELS.some((x) => x.value === m) ? m : MODELS[0].value; };
 
   const SYSTEM = [
@@ -46,16 +61,17 @@
   }
 
   async function call(body, timeoutMs) {
-    if (!hasKey()) throw new AiError('Add your API key in Settings > Note cleanup.');
+    if (!available()) throw new AiError('Note cleanup is not set up.');
     if (root.navigator && root.navigator.onLine === false) throw new AiError('No connection. The note is kept as is.');
+    const viaProxy = shared();
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs || 45000);
     let res;
     try {
-      res = await fetch('https://api.anthropic.com/v1/messages', {
+      res = await fetch(viaProxy ? proxy() + '/v1/messages' : 'https://api.anthropic.com/v1/messages', {
         method: 'POST',
         signal: ctl.signal,
-        headers: {
+        headers: viaProxy ? { 'content-type': 'application/json', 'x-groundwork-install': installId() } : {
           'content-type': 'application/json',
           'x-api-key': key(),
           'anthropic-version': '2023-06-01',
@@ -69,6 +85,14 @@
     let data = null;
     try { data = await res.json(); } catch (e) { /* ignore */ }
     if (!res.ok) {
+      const code = data && typeof data.error === 'string' ? data.error : '';
+      if (viaProxy) {
+        if (code === 'daily_limit') throw new AiError('That’s all the cleanups for today. More tomorrow.');
+        if (code === 'daily_total') throw new AiError('Note cleanup is resting for today. Try again tomorrow.');
+        if (code === 'too_long') throw new AiError('This note is too long to clean up in one go.');
+        if (res.status === 503 || res.status === 502) throw new AiError('Claude is busy. Try again in a moment.');
+        throw new AiError('Note cleanup is not available right now. The note is kept as is.');
+      }
       const msg = data && data.error && data.error.message ? data.error.message : 'HTTP ' + res.status;
       if (res.status === 401 || res.status === 403) throw new AiError('The API key was not accepted.');
       if (res.status === 429 || res.status === 529 || res.status >= 500) throw new AiError('Claude is busy. Try again in a moment.');
@@ -103,7 +127,7 @@
   }
 
   RV.ai = {
-    MODELS, key, hasKey, model, cleanUp, test, AiError, parseJson,
+    MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson,
     setKey: (k) => set(KEY, String(k || '').trim()),
     setModel: (m) => set(MODEL, m),
   };

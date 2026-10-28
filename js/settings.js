@@ -25,7 +25,7 @@
     return [
       ['Ministry', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
       ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
-        ['ai', 'Note cleanup', RV.ai && RV.ai.hasKey() ? 'Claude is on' : 'Off', 'sparkle'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
+        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
       [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],
     ];
   };
@@ -359,12 +359,13 @@
     ], { noRerender: true });
   }
 
-  // ---------- note cleanup (Claude, user's own key) ----------
+  // ---------- note cleanup (Claude: Groundwork's shared helper, or the person's own key) ----------
   function ai() {
     const box = h('div');
     function render() {
       box.replaceChildren();
-      const has = RV.ai.hasKey();
+      const has = RV.ai.hasKey(), shared = RV.ai.shared(), on = RV.ai.available();
+      const proxied = !!(RV.config && RV.config.aiProxy);
       const keyIn = h('input', { type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: has ? 'Key saved on this phone' : 'sk-ant-…' });
       const status = h('div', { class: 'muted small', style: { minHeight: '1.2em' } });
       const saveKey = async () => {
@@ -373,7 +374,7 @@
         const prev = RV.ai.key();
         RV.ai.setKey(k);
         status.textContent = 'Checking the key…';
-        try { await RV.ai.test(); toast('Note cleanup is on'); render(); }
+        try { await RV.ai.test(); toast('Your key is on'); render(); }
         catch (e) { RV.ai.setKey(prev); status.textContent = e.message || 'The key could not be checked.'; }
       };
       const seg = h('div', { class: 'seg', role: 'group' });
@@ -381,18 +382,28 @@
         type: 'button', 'aria-pressed': String(m.value === RV.ai.model()),
         onclick: () => { RV.ai.setModel(m.value); seg.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', String(RV.ai.MODELS[i].value === m.value))); },
       }, m.label)));
-      box.append(h('div', { class: 'card stack' },
-        h('div', null, h('div', { style: { fontWeight: 600 } }, has ? 'Note cleanup is on' : 'Note cleanup is off'),
-          h('div', { class: 'muted small' }, 'A Clean up button under the visit note tidies dictated text with Claude.')),
+      const keyBox = h('div', { class: 'stack' },
         field('Anthropic API key', keyIn),
         status,
         h('div', { class: 'btn-row' },
-          h('button', { class: 'btn primary', type: 'button', onclick: saveKey }, has ? 'Replace key' : 'Save key'),
+          h('button', { class: 'btn' + (proxied ? '' : ' primary'), type: 'button', onclick: saveKey }, has ? 'Replace key' : 'Save key'),
           has ? h('button', { class: 'btn danger', type: 'button', onclick: () => { RV.ai.setKey(''); toast('Key removed'); render(); } }, 'Remove key') : null),
-        has ? h('div', { class: 'field', style: { marginBottom: 0 } }, h('div', { class: 'lbl' }, 'Model'), seg) : null,
-        h('a', { class: 'muted small', href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'Get a key at platform.claude.com')),
+        h('a', { class: 'muted small', href: 'https://platform.claude.com/', target: '_blank', rel: 'noopener' }, 'Get a key at platform.claude.com'));
+      box.append(h('div', { class: 'card stack' },
+        h('div', null, h('div', { style: { fontWeight: 600 } }, on ? 'Note cleanup is on' : 'Note cleanup is off'),
+          h('div', { class: 'muted small' }, shared ? 'Included with Groundwork. A Clean up button under the visit note tidies dictated text.'
+            : has ? 'Using your own API key. A Clean up button under the visit note tidies dictated text.'
+              : 'A Clean up button under the visit note tidies dictated text with Claude.')),
+        on ? h('div', { class: 'field', style: { marginBottom: 0 } }, h('div', { class: 'lbl' }, 'Model'), seg,
+          shared ? h('div', { class: 'muted small', style: { marginTop: '6px' } }, 'Fast is plenty for most notes. Careful uses more of the daily allowance.') : null) : null,
+        proxied ? null : keyBox),
+        proxied ? h('details', { class: 'card', open: has || null },
+          h('summary', { style: { fontWeight: 600, cursor: 'pointer' } }, 'Use your own API key'),
+          h('div', { class: 'muted small', style: { margin: '8px 0 12px' } }, 'Optional. Your key is used instead, with no daily allowance.'),
+          keyBox) : null,
         h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' },
-          'Notes you clean up are sent to Anthropic. The key stays on this phone and is not in backups.')));
+          shared ? 'Notes you clean up are sent to Anthropic through Groundwork’s helper, which keeps no note text.'
+            : 'Notes you clean up are sent to Anthropic. The key stays on this phone and is not in backups.')));
     }
     render();
     return page('Note cleanup', [box], { noRerender: true });
