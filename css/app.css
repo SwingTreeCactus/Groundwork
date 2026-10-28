@@ -1577,3 +1577,17 @@ select.niarea { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-si
 .fillnote { font-size: .85rem; color: var(--muted); }
 .fillvisits { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 4px 0 12px; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
 .fillvh { font-weight: 600; }
+
+/* v2.33 Backup and import */
+.bkcard { display: flex; flex-direction: column; gap: 12px; }
+.bkrow { display: flex; align-items: flex-start; gap: 10px; }
+.bkdot { width: 10px; height: 10px; border-radius: 5px; flex: none; margin-top: 7px; }
+.bkdot.ok { background: #3c8a5a; }
+.bkdot.warn { background: #c28a1c; }
+.bktitle { font-weight: 600; }
+.bkoff { align-self: flex-start; padding: 0; }
+.bkcount { font-size: .85rem; color: var(--muted); margin: -2px 4px 14px; }
+.bkerase { margin-top: 26px !important; }
+.isrc { padding-top: 14px; padding-bottom: 14px; }
+.isrcic { width: 42px; height: 42px; border-radius: 12px; background: var(--surface2); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.isrc .main > div:first-child { font-weight: 600; }

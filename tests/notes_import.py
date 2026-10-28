@@ -77,9 +77,9 @@ with sync_playwright() as p:
     ev('RV.store.flush()')
 
     print('entry points')
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('text=Import from a notes app')
-    page.click('text=Import from a notes app'); page.wait_for_selector('text=Bring in your notes')
-    check('#/settings/notes' in page.url, 'Backup and import opens the notes import')
+    page.goto(URL + '#/settings/data'); page.click('.setrow:has-text("Import contacts")')
+    page.click('.setrow:has-text("A notes app")'); page.wait_for_selector('text=Bring in your notes')
+    check('#/settings/notes' in page.url, 'Import contacts › A notes app opens the notes import')
     check(page.locator('text=How to get notes out').count() == 0, 'no how-to section')
     order = ev("[...document.querySelectorAll('.nihero .nibig .t, .nilink')].map(e => e.textContent)")
     check(order[:2] == ['Paste a note', 'Upload screenshots'] and page.locator('.nilink', has_text='Text files or a Google Keep export').count() == 1, 'paste first, screenshots second, text files as a small link')

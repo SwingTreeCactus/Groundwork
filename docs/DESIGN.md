@@ -532,3 +532,12 @@ Mark's phone test: Groundwork didn't show in Keep's share menu (Android only lis
 - Quick add: **Fill from a note** box (Paste / Screenshots, first 4). One person fills the form (more fields opened, a "From the note, added when you add" box); on Add the note's dated visits and NHs go on the timeline, and with nothing typed for today no made-up visit is added. Several people: "This note has N people" › See all opens the import review with them (`RV.notesReview.show`), no second request.
 - Icons: clipboard, image. Gotcha again: `append(null)` prints "null"; children are filtered.
 - Tests: notes_import 39 (paste and blocked clipboard, screenshots, edit details, neighborhoods, select all/none, quick-add fill, several people from a screenshot, share target), ai-proxy 8, smoke 285. VERSION 2.32.0, cache rvapp-v78.
+
+## 46. v2.33.0 Backup and import, reorganized (built 2026-10-28)
+
+Nine flat rows became a status card and three rows, following Todoist (Backups: status and one action), Day One (one Import/Export door) and 1Password (one Import, then pick the source).
+- Backup card first: a green or amber dot, what's backed up and when ("Backed up to Google Drive · <time> · daily copies kept for a week"; "Changes waiting", "Backup paused · Reconnect", "Not backed up yet · Everything lives only on this phone"), then Back up now / Reconnect or Back up to Google Drive, and Restore…. Disconnect is a quiet link. Without Drive: Download backup and Restore….
+- Restore… (`restoreMenu`): Latest Google Drive backup, An earlier daily copy (then the 7 days), or A backup file; each then asks Merge or Replace. Without Drive it goes straight to the file.
+- Under the card: "N RVs and N visits on this phone." Then Import contacts (`#/settings/import`: "Where are your contacts now?" Ministry Assistant, A notes app, A spreadsheet; "Moving to a new phone? Use Restore instead."), Export (sheet: Contacts CSV, Visit log CSV, Backup file), and Erase all data set apart at the bottom (not red; still confirms). No group labels (Mark).
+- Notes import's back arrow goes to Import contacts. Home's import choices unchanged.
+- Tests: smoke 287, drive_folder 37, notes_import 39. VERSION 2.33.0, cache rvapp-v79.

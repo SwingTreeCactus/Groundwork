@@ -640,48 +640,70 @@
     try { await ST.restore(data, choice); toast('Backup restored'); RV.app.applyDisplay(); } catch (e) { toast(e.message || 'Restore failed.'); }
   }
 
-  // Google Drive panel: refreshes itself while it is on screen
-  function drivePanel() {
+  // v2.33: Backup and import. Status first (Todoist's Backups), one door each for importing and exporting with the
+  // source or format chosen next (1Password's Import, Day One's Import/Export), and Erase set apart at the bottom.
+  const lastFile = () => { try { return localStorage.getItem('rvapp.lastBackup'); } catch (e) { return null; } };
+  function downloadBackup() {
+    UI.download('rv-backup-' + stamp() + '.json', JSON.stringify(ST.exportAll(), null, 1), 'application/json');
+    try { localStorage.setItem('rvapp.lastBackup', U.toDateStr(new Date())); } catch (e) { /* ignore */ }
+    toast('Backup downloaded');
+  }
+  async function restoreMenu() {
+    const D = RV.drive, st = D && D.status();
+    if (!(st && st.connected && st.tokenOk)) return restoreFlow();
+    let list;
+    try { list = await D.listBackups(); } catch (e) { toast(e.message || 'Could not read Drive.'); return; }
+    const latest = list[0] && !list[0].day ? list[0] : null, daily = list.filter((x) => x.day);
+    const how = await UI.pick('Restore', [
+      latest ? { value: 'latest', label: 'Latest Google Drive backup', sub: latest.modifiedTime ? U.fmtDateTime(latest.modifiedTime) : '' } : null,
+      daily.length ? { value: 'daily', label: 'An earlier daily copy', sub: 'From the last ' + daily.length + (daily.length === 1 ? ' day' : ' days') } : null,
+      { value: 'file', label: 'A backup file', sub: 'From this phone' },
+    ].filter(Boolean));
+    if (!how) return;
+    if (how === 'file') return restoreFlow();
+    let id = latest && latest.id;
+    if (how === 'daily') {
+      id = await UI.pick('Earlier daily copy', daily.map((b) => ({ value: b.id, label: U.fmtDate(b.day), sub: 'Daily copy' })));
+      if (!id) return;
+    }
+    try { await restoreData(await D.fetchBackup(id)); } catch (e) { toast(e.message || 'Could not read Drive.'); }
+  }
+  function exportSheet() {
+    const row = (ic, label, sub, fn) => h('button', { class: 'setrow', type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), h('div', { class: 'sub' }, sub)), icon('right', 18));
+    sheet('Export', (close) => h('div', null,
+      row('users', lbl('rvs') === 'RVs' ? 'Contacts' : lbl('rvs'), 'A spreadsheet (CSV) for Excel or Google Sheets', () => { close(); UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv'); }),
+      row('calendar', 'Visit log', 'Every visit and ' + lbl('notHome').toLowerCase() + ', as a spreadsheet (CSV)', () => { close(); UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv'); }),
+      row('lock', 'Backup file', 'Everything, to restore on another phone', () => { close(); downloadBackup(); })));
+  }
+
+  // The backup card: what's backed up and when, then the one or two things to do about it. Refreshes itself.
+  function backupCard() {
     const D = RV.drive;
-    const box = h('div', { style: { marginBottom: '12px' } });
-    const row = (ic, label, sub, fn, cls) => h('button', { class: 'setrow' + (cls ? ' ' + cls : ''), type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
+    const box = h('div');
     function paint() {
       const s = D.status();
-      const kids = [];
-      if (!s.configured) {
-        kids.push(h('div', { class: 'card muted small' }, 'Google Drive backup is not set up in this copy of the app.'));
-      } else if (!s.connected) {
-        kids.push(row('upload', 'Connect Google Drive', 'Backs up to your own Drive', () => D.connect()));
-      } else {
-        const when = s.lastSaved ? 'Saved ' + U.fmtDateTime(s.lastSaved) : 'Not saved yet';
-        const state = s.busy ? 'Saving…' : s.error ? s.error : !s.tokenOk && s.dirty ? 'Paused. Reconnect to save.' : s.dirty ? 'Changes waiting' : when;
-        kids.push(h('div', { class: 'card stack' },
-          h('div', null, h('div', { style: { fontWeight: 500 } }, 'Google Drive'), h('div', { class: 'muted small' }, state)),
+      const dot = (ok) => h('span', { class: 'bkdot ' + (ok ? 'ok' : 'warn'), 'aria-hidden': 'true' });
+      const head = (ok, title, sub) => h('div', { class: 'bkrow' }, dot(ok), h('div', null, h('div', { class: 'bktitle' }, title), sub ? h('div', { class: 'muted small' }, sub) : null));
+      const btn = (label, fn, cls, dis) => h('button', { class: 'btn ' + (cls || ''), type: 'button', onclick: fn, disabled: !!dis }, label);
+      let kids;
+      if (s.configured && s.connected) {
+        const paused = !s.tokenOk && s.dirty;
+        const title = s.busy ? 'Saving to Google Drive…' : s.error ? 'Google Drive: ' + s.error : paused ? 'Backup paused' : s.dirty ? 'Changes waiting to save' : s.lastSaved ? 'Backed up to Google Drive' : 'Google Drive connected';
+        const sub = paused ? 'Reconnect to keep saving.' : s.lastSaved ? U.fmtDateTime(s.lastSaved) + ' · daily copies kept for a week' : 'Not saved yet';
+        kids = [head(!s.error && !paused && !!s.lastSaved, title, sub),
           h('div', { class: 'btn-row' },
-            s.tokenOk ? h('button', { class: 'btn primary', type: 'button', disabled: s.busy, onclick: async () => { if (await D.backupNow()) toast('Saved to Google Drive'); } }, 'Back up now')
-              : h('button', { class: 'btn primary', type: 'button', onclick: () => D.connect() }, 'Reconnect'),
-            h('button', { class: 'btn', type: 'button', disabled: s.busy || !s.tokenOk, onclick: async () => {
-              try {
-                const list = await D.listBackups();
-                if (!list.length) { toast('No backup found in Drive.'); return; }
-                let id = list[0].id;
-                if (list.length > 1) {
-                  id = await UI.pick('Restore from Google Drive', list.map((b, i) => ({
-                    value: b.id,
-                    label: i === 0 && !b.day ? 'Latest backup' : U.fmtDate(b.day),
-                    sub: i === 0 && !b.day ? (b.modifiedTime ? 'Saved ' + U.fmtDateTime(b.modifiedTime) : '') : 'Daily copy',
-                  })));
-                  if (!id) return;
-                }
-                const data = await D.fetchBackup(id);
-                await restoreData(data);
-              } catch (e) { toast(e.message || 'Could not read Drive.'); }
-            } }, 'Restore')),
-          h('button', { class: 'link-quiet', type: 'button', style: { alignSelf: 'flex-start', background: 'none', border: 0, cursor: 'pointer' }, onclick: async () => {
+            s.tokenOk ? btn('Back up now', async () => { if (await D.backupNow()) toast('Saved to Google Drive'); }, 'primary', s.busy) : btn('Reconnect', () => D.connect(), 'primary'),
+            btn('Restore…', restoreMenu, '', s.busy)),
+          h('button', { class: 'link-quiet bkoff', type: 'button', onclick: async () => {
             if (await confirmDialog({ title: 'Disconnect Google Drive?', message: 'The Groundwork folder and its backups stay in your Drive.', confirmText: 'Disconnect' })) D.disconnect();
-          } }, 'Disconnect')));
+          } }, 'Disconnect Google Drive')];
+      } else {
+        const last = lastFile();
+        kids = [head(false, last ? 'Last backup file: ' + U.fmtDate(last) : 'Not backed up yet', last ? 'Backing up to Google Drive keeps it current by itself.' : 'Everything lives only on this phone.'),
+          s.configured ? btn('Back up to Google Drive', () => D.connect(), 'primary block') : null,
+          h('div', { class: 'btn-row' }, btn('Download backup', downloadBackup, s.configured ? '' : 'primary'), btn('Restore…', restoreMenu))];
       }
-      box.replaceChildren(...kids);
+      box.replaceChildren(h('div', { class: 'card bkcard' }, ...kids.filter(Boolean)));
     }
     paint();
     const off = D.onChange(() => { if (!box.isConnected) { off(); return; } paint(); });
@@ -689,33 +711,35 @@
   }
 
   function data() {
-    const last = (() => { try { return localStorage.getItem('rvapp.lastBackup'); } catch (e) { return null; } })();
     const live = S.rvs.filter((r) => !r.deletedAt).length;
-    const btn = (ic, label, sub, fn) => h('button', { class: 'setrow', type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
+    const visits = S.entries.filter((e) => !e.deletedAt && e.type === 'visit').length;
+    const row = (ic, label, sub, fn, cls) => h('button', { class: 'setrow' + (cls ? ' ' + cls : ''), type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null), icon('right', 18));
     return page('Backup and import', [
-      drivePanel(),
-      h('div', { class: 'banner ' + (S.persistent ? 'info' : 'danger') }, icon(S.persistent ? 'lock' : 'alert'), h('div', { class: 'body' },
-        S.persistent ? live + ' ' + lbl('rvs') + ' on this device. ' + (last ? 'Last backup: ' + U.fmtDate(last) + '.' : 'No backup yet.') : 'This browser is blocking storage. Nothing will be kept.')),
-      btn('download', 'Download backup', null, () => {
-        UI.download('rv-backup-' + stamp() + '.json', JSON.stringify(ST.exportAll(), null, 1), 'application/json');
-        try { localStorage.setItem('rvapp.lastBackup', U.toDateStr(new Date())); } catch (e) { /* ignore */ }
-        toast('Backup downloaded');
-      }),
-      btn('upload', 'Restore from backup', null, restoreFlow),
-      btn('download', 'Export ' + lbl('rvs') + ' as CSV', null, () => UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv')),
-      btn('download', 'Export visit log as CSV', null, () => UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv')),
-      btn('upload', 'Import from CSV', null, importWizard),
-      btn('upload', 'Import from Ministry Assistant', null, maImport),
-      btn('upload', 'Import from a notes app', 'Samsung Notes, Google Keep, Apple Notes', () => { location.hash = '#/settings/notes'; }),
-      h('div', { style: { height: '12px' } }),
-      btn('trash', 'Erase all data', null, async () => {
+      S.persistent ? null : h('div', { class: 'banner danger' }, icon('alert'), h('div', { class: 'body' }, 'This browser is blocking storage. Nothing will be kept.')),
+      backupCard(),
+      h('div', { class: 'bkcount' }, live + ' ' + lbl(live === 1 ? 'rv' : 'rvs') + ' and ' + visits + (visits === 1 ? ' visit' : ' visits') + ' on this phone.'),
+      h('section', { class: 'setgroup' }, row('upload', 'Import contacts', 'Ministry Assistant, a notes app, or a spreadsheet', () => { location.hash = '#/settings/import'; })),
+      h('section', { class: 'setgroup' }, row('download', 'Export', 'Contacts, visit log, or a backup file', exportSheet)),
+      h('section', { class: 'setgroup bkerase' }, row('trash', 'Erase all data', null, async () => {
         if (!(await confirmDialog({ title: 'Erase everything?', message: 'All ' + lbl('rvs') + ', visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
         await ST.eraseAll();
         RV.app.applyDisplay();
         toast('All data erased');
         location.hash = '#/home';
-      }),
-    ], { noRerender: true });
+      })),
+    ].filter(Boolean), { noRerender: true });
+  }
+
+  // Import contacts: one door, then where the contacts are now
+  function importPage() {
+    const src = (ic, t, sub, fn) => h('button', { class: 'setrow isrc', type: 'button', onclick: fn }, h('span', { class: 'isrcic' }, icon(ic, 22)), h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18));
+    return page('Import contacts', [
+      h('div', { class: 'muted', style: { margin: '2px 4px 14px' } }, 'Where are your contacts now?'),
+      src('download', 'Ministry Assistant', 'Its backup file, with visits', maImport),
+      src('note', 'A notes app', 'Paste notes or upload screenshots', () => { location.hash = '#/settings/notes'; }),
+      src('chart', 'A spreadsheet', 'A CSV from Excel or Google Sheets', importWizard),
+      h('div', { class: 'muted small', style: { textAlign: 'center', marginTop: '8px' } }, 'Moving to a new phone? Use Restore instead.'),
+    ], { back: '#/settings/data' });
   }
 
   // ---------- v2.31/v2.32: import from a notes app (paste, screenshots, text files), Claude finds the contacts ----------
@@ -982,7 +1006,7 @@
 
     render();
     niTakeShared().then((n) => { if (n && NI.phase === 'pick') render(); });
-    return page('Import from notes', [box], { noRerender: true, back: '#/settings/data' });
+    return page('Import from notes', [box], { noRerender: true, back: '#/settings/import' });
   }
 
   // v2.28: the import choices on Home's welcome card (Ministry Assistant, a spreadsheet, a Groundwork backup)
@@ -1009,5 +1033,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, customize, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport };
+  RV.settingsScreens = { index, customize, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport, import: importPage };
 })(window);

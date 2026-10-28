@@ -517,8 +517,11 @@ with sync_playwright() as p:
                               ',missing name,,,,,\n'
                               'Hal Young,123 Oak Street,,,,,\n')
     page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
+    check(page.locator('.setrow').count() == 3 and page.locator('.bkcard').count() == 1, 'Backup and import: a backup card and three rows')
+    page.click('.setrow:has-text("Import contacts")'); page.wait_for_selector('text=Where are your contacts now?')
+    check(page.locator('.isrc').count() == 3, 'Import contacts offers three sources')
     with page.expect_file_chooser() as fc:
-        page.click('.setrow:has-text("Import from CSV")')
+        page.click('.setrow:has-text("A spreadsheet")')
     fc.value.set_files(csv_path)
     page.wait_for_selector('.sheet:has-text("rows")')
     shot('12-import')
@@ -543,7 +546,7 @@ with sync_playwright() as p:
           ('Cities', ['Stockton'])]
     ma_path = '/tmp/out/test.mabackup'
     open(ma_path, 'wb').write(gzip.compress(smile_bytes(ma)))
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
+    page.goto(URL + '#/settings/import'); page.wait_for_selector('.setrow')
     with page.expect_file_chooser() as fc:
         page.click('.setrow:has-text("Ministry Assistant")')
     fc.value.set_files(ma_path)
@@ -562,7 +565,7 @@ with sync_playwright() as p:
     check(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").stage') == 'initial', 'MA default stage is Initial Call')
     check(len(ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays')) == 1, 'MA best day set from last visit')
     with page.expect_file_chooser() as fc:
-        page.click('.setrow:has-text("Ministry Assistant")') if page.query_selector('.setrow:has-text("Ministry Assistant")') else (page.goto(URL + '#/settings/data'), page.click('.setrow:has-text("Ministry Assistant")'))
+        page.click('.setrow:has-text("Ministry Assistant")') if page.query_selector('.setrow:has-text("Ministry Assistant")') else (page.goto(URL + '#/settings/import'), page.click('.setrow:has-text("Ministry Assistant")'))
     open('/tmp/out/bad.mabackup', 'wb').write(b'not a backup at all')
     fc.value.set_files('/tmp/out/bad.mabackup')
     page.wait_for_selector('text=Could not read that file')
@@ -573,7 +576,7 @@ with sync_playwright() as p:
     ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays = []')
     ev('RV.store.updateRv(RV.store.S.rvs.find(x=>x.name=="Test Omar").id, {bestDays: [2, 5], stage: "initial", archiveReason: null})')
     before = ev('RV.store.S.rvs.length')
-    page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
+    page.goto(URL + '#/settings/import'); page.wait_for_selector('.setrow')
     with page.expect_file_chooser() as fc:
         page.click('.setrow:has-text("Ministry Assistant")')
     fc.value.set_files(ma_path)
