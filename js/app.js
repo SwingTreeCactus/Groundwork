@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.30.1';
+  RV.VERSION = '2.31.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -225,6 +225,8 @@
     if (!location.hash) history.replaceState(null, '', '#/home');
     render();
     showLock();
+    // v2.31: notes shared from another app wait in a cache; open the notes import to take them
+    if (root.caches && !/^#\/settings\/notes/.test(location.hash)) caches.has('rvapp-share').then((has) => has && caches.open('rvapp-share')).then((c) => c && c.keys()).then((k) => { if (k && k.length) location.hash = '#/settings/notes'; }).catch(() => {});
     // the week's-end recap, once, after the Sunday-to-Saturday week ends (also when the app comes back on Sunday)
     setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });

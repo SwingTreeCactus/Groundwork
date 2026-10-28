@@ -1521,3 +1521,31 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .stskip { background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .gfall .fs { box-shadow: 0 0 0 1px rgba(110, 122, 140, .28); }
+
+/* v2.31 notes import */
+.nilist { display: flex; flex-direction: column; }
+.nirow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.nirow:first-child { border-top: 0; }
+.nirow .main { flex: 1; min-width: 0; }
+.nititle { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nisnip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nibar { height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+.nibar span { display: block; height: 100%; width: 30%; border-radius: 2px; background: var(--accent); animation: nislide 2.4s ease-in-out infinite; }
+@keyframes nislide { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .nibar span { animation: none; width: 100%; opacity: .5; } }
+.nicard { display: flex; flex-direction: column; gap: 6px; }
+.nicard.off { opacity: .55; }
+.nihead { display: flex; gap: 12px; align-items: flex-start; }
+.nihead input[type=checkbox] { width: 22px; height: 22px; margin-top: 10px; flex: none; accent-color: var(--accent); }
+.nihead .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.nicard .niname { font-weight: 600; }
+.nicard .niaddr { font-size: .9rem; }
+.nidup { color: var(--accent); font-weight: 500; }
+.nisnip2 { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.nimore { display: flex; flex-direction: column; gap: 10px; margin: 6px 0; }
+.nitext { white-space: pre-wrap; font-size: .92rem; }
+.nivisit { font-size: .92rem; margin-top: 4px; white-space: pre-wrap; }
+.nihow summary { font-weight: 600; cursor: pointer; }
+.nihow .stack { margin-top: 10px; }
+.nisticky { position: sticky; bottom: calc(57px + env(safe-area-inset-bottom)); padding: 10px 0; background: var(--bg); z-index: 5; }
+.nitog { background: none; border: 0; padding: 6px 0; color: var(--accent); font: inherit; font-size: .9rem; font-weight: 500; cursor: pointer; }

@@ -211,7 +211,7 @@
     return el;
   }
   const importRows = () => h('div', { class: 'imports' },
-    [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
+    [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['notes', 'From a notes app', 'Samsung Notes, Google Keep, Apple Notes'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
       .map(([k, t, sub]) => h('button', { class: 'setrow', type: 'button', onclick: () => RV.importers && RV.importers[k]() }, icon('upload', 20),
         h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18))));
   function starterCard() {

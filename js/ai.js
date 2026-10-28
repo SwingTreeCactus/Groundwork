@@ -134,6 +134,51 @@
     return { note: nn, discussNext: dn };
   }
 
+  // ---------- notes import: turn free-form notes into contacts ----------
+  const IMPORT_SYSTEM = [
+    'You turn someone\'s personal notes into contact records for a private follow-up app used in door-to-door Bible-based ministry.',
+    'The notes come from a phone notes app (Samsung Notes, Google Keep, Apple Notes). They were written by the person who made the visits.',
+    'People write them many ways: one note per person, or one long note covering a street or a whole territory; dated logs; lists; shorthand.',
+    '',
+    'Make one contact per person or household being followed up.',
+    '- A note may describe one person or many; split many into separate contacts. The same person in several notes in this batch is one contact.',
+    '- A note title is often the person\'s name or the street. Use it when it helps.',
+    '- Skip notes or lines that are not about someone to follow up (shopping lists, meeting parts, personal reminders). Leave out nothing about a person.',
+    '',
+    'Fields:',
+    '- name: as written (a first name is fine). A couple or household: "Maria and José". No name given: a short description from the note,',
+    '  like "Older man, blue house" or "Woman at 412 Oak". Never empty.',
+    '- address: street address with apartment or unit, and city or zip if given. Only a vague place (corner store, the park): leave address empty',
+    '  and keep the place in notes.',
+    '- phone: as written.',
+    '- visits: for each dated entry about this person (a date followed by what happened), {"date": "YYYY-MM-DD", "type": "visit", "text": ...}.',
+    '  A dated not-at-home ("NH", "not home", "no answer") is {"date": ..., "type": "nh", "text": ""}.',
+    '  A date without a year: the most recent such date on or before the note\'s date (or today if the note has no date). Never invent a date.',
+    '- notes: everything else about the person: family, work, interests, beliefs, best time to call, what was placed or read, background,',
+    '  undated conversations.',
+    '- discussNext: short lines for what to bring, show, ask or talk about next time. Copy them; they also stay in notes or the visit text.',
+    '- nextVisit: "YYYY-MM-DD" only when a specific next date is stated, else "".',
+    '- study: true only if the note says a Bible study is being held with them.',
+    '- source: the id of the note it came from.',
+    '',
+    'Wording: keep the writer\'s own words. Fix only spelling, capitalization and punctuation, and write scripture references in standard form',
+    '(John 3:16). Never summarize, shorten, reword or drop details. Every word about a person ends up in that contact\'s notes, visits or discussNext.',
+    '',
+    'Reply with only a JSON object: {"contacts": [{"name": "", "address": "", "phone": "", "notes": "", "discussNext": "", "nextVisit": "",',
+    '"study": false, "visits": [], "source": ""}]}. If nothing is about a person, {"contacts": []}. No other text.',
+  ].join('\n');
+
+  // notes: [{id, title, date, text}] (one batch). Returns the raw contact list from Claude.
+  async function readNotes(notes, today) {
+    const out = await call({
+      system: IMPORT_SYSTEM,
+      messages: [{ role: 'user', content: JSON.stringify({ today: today || new Date().toISOString().slice(0, 10), notes }) }],
+    }, 120000);
+    const j = parseJson(out);
+    if (!j || !Array.isArray(j.contacts)) throw new AiError('Claude sent back something unexpected.');
+    return j.contacts;
+  }
+
   // A tiny request to check the key works.
   async function test() {
     await call({ max_tokens: 20, messages: [{ role: 'user', content: 'Reply with OK.' }] }, 20000);
@@ -141,7 +186,7 @@
   }
 
   RV.ai = {
-    MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson, cutTooMuch,
+    MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson, cutTooMuch, readNotes, IMPORT_SYSTEM,
     setKey: (k) => set(KEY, String(k || '').trim()),
     setModel: (m) => set(MODEL, m),
   };

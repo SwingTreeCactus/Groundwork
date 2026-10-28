@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v76';
+const CACHE = 'rvapp-v77';
 const ASSETS = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const ASSETS = [
   './js/store.js',
   './js/drive.js',
   './js/ai.js',
+  './js/notes.js',
   './js/smile.js',
   './js/ma.js',
   './js/dom.js',
@@ -54,13 +55,30 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
+// v2.31: notes shared to Groundwork from another app (Android share sheet). They wait in a cache until the
+// notes import screen opens and takes them.
+const SHARE = 'rvapp-share';
+async function takeShare(req) {
+  try {
+    const form = await req.formData();
+    const c = await caches.open(SHARE);
+    let n = 0;
+    const put = (name, blob) => c.put(new Request('./__share/' + Date.now() + '-' + (n++) + '?name=' + encodeURIComponent(name)), new Response(blob));
+    for (const f of form.getAll('files')) if (f && typeof f === 'object' && f.size) await put(f.name || 'Shared note.txt', f);
+    const text = [form.get('title'), form.get('text'), form.get('url')].filter((x) => typeof x === 'string' && x.trim()).join('\n\n');
+    if (text) await put(((form.get('title') || 'Shared note') + '').slice(0, 60).replace(/[\\/]/g, '-') + '.txt', new Blob([text], { type: 'text/plain' }));
+  } catch (e) { /* open the import screen anyway */ }
+  return Response.redirect('./#/settings/notes', 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/share-target')) { event.respondWith(takeShare(req)); return; }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // maps, sign-in and other sites go straight to the network

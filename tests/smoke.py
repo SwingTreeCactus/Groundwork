@@ -700,7 +700,7 @@ with sync_playwright() as p:
     sctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "on"')
     sp = sctx.new_page(); sp.goto(URL + '#/home'); sp.wait_for_selector('.starter')
     check(sp.locator('.starter .st').count() == 5 and sp.locator('.starter .st.cur:has-text("Add your first contact")').count() == 1, 'Getting started: five steps, the first one current')
-    check(sp.locator('.starter .imports .setrow').count() == 3, 'Getting started: the import choices sit under the first step')
+    check(sp.locator('.starter .imports .setrow').count() == 4 and sp.locator('.starter .imports .setrow:has-text("From a notes app")').count() == 1, 'Getting started: the import choices sit under the first step')
     sp.screenshot(path=SHOTS + '/36-starter.png')
     sid = sp.evaluate("RV.store.addRv({ name: 'Nia Brooks', stage: 'yet' }).id"); time.sleep(0.3)
     sp.click('.starter .st.cur button:has-text("Show me")'); sp.wait_for_selector('.coach')
