@@ -93,6 +93,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Garden scene redesign built in v2.36.0 (design-doc 49). The draft generator claude/garden-scene-draft.js is now history; the live scene is in js/insights.js (`skySvg`, `stonePath`, `fireflies`, `gardenScene`) and the v2.36 block of css/app.css.
 - App icon is still purple (#5B3E96); ask Mark before recolouring it (clay or ink background).
 - Study track (garden-plan section 13, agreed 2026-10-29): approved, not built yet; waiting for Mark's next design notes so they can ship together.
+- Same batch (proposed 2026-10-29, not built): (1) Note cleanup meaning check: fix dictation swaps (I/it, we/he, missing small words) when context makes them clear, flag unclear phrases instead of guessing, worked examples incl. Mark's Jonathan note, test on Fast and Careful (consider Careful as default). (2) Slower growth and reveal moments (about 2.5 s) that stay on screen until tapped, with a quiet "Tap to continue"; revive and water bounce stay short and automatic.
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
   - A button to create a phone contact from a Groundwork contact (mapping name, phone, address). Mark: hold off on this for sure for now.
