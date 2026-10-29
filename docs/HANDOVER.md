@@ -91,6 +91,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.39.1: campaign banner and topics back on top of Today.
 - v2.39.0: layout release 2: Home is Today (one list by area, likely home first), Prepare leads the menu, Plan a campaign, two record buttons, no "due" in the garden, the likely-home estimate and availability from note cleanup.
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 

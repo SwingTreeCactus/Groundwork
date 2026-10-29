@@ -641,3 +641,4 @@ Likely-home estimate (`L.homeOdds`, `L.likelyHomeNow`, `L.bestHomeSlot`):
 - Note cleanup also returns `availability` when a note says when someone is home ("works weekdays, come Saturday evenings"): days, part of day and the exact phrase (kept only if the phrase is in the cleaned note). Under the note: "Likely home · Sun, Sat · evenings" with Set as best days (adds the days to best days; the phrase becomes the best-time note if there is none). In New contact it sets the best-day picker.
 
 Tests: logic 53, screens 55, smoke 294, ai_cleanup 44, kinds 23, notes_import 39, drive_folder 37, garden 49, notes 7, worker 6, ai-proxy 8. VERSION 2.39.0, cache rvapp-v89.
+- v2.39.1: the running campaign (or one starting within three weeks) and the topics card are back at the top of Today, above Who to see (Mark: they had dropped below the list). Plan a campaign, shown when nothing is scheduled, stays under the list. Cache rvapp-v90.

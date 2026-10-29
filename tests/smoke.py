@@ -155,7 +155,8 @@ with sync_playwright() as p:
     check([t.split('\n')[0].strip() for t in page.locator('.tab').all_inner_texts()] == ['Home', 'Contacts', 'My garden'], 'three tabs: Home, Contacts, My garden')
     order = ev("[...document.querySelector('.home').children].map(e => e.className + (e.querySelector('.campaign-bar') ? ' camp' : ''))")
     ti, ci = [next(i for i, c in enumerate(order) if k in c) for k in ('today', 'camp')]
-    check(ti < ci and page.locator('.upnext').count() == 0, 'v2.39 Home is Today: who to see, then the campaign and topics; no Up next (%s)' % order)
+    pi = next(i for i, c in enumerate(order) if 'sec' in c and 'today' not in c and 'camp' not in c)
+    check(ci < pi < ti and page.locator('.upnext').count() == 0, 'v2.39.1: the running campaign and topics on top, then who to see; no Up next (%s)' % order)
     check(page.locator('.sec:has(.campaign-bar) a:has-text("Plan")').count() == 1 and page.locator('.sec:has(.prow) a:has-text("Manage")').count() == 1, 'the campaign card has Plan, the topics card Manage')
 
     print('today')

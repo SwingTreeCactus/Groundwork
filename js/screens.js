@@ -269,7 +269,9 @@
     const hasPeople = S.rvs.some((r) => !r.deletedAt);
     return {
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, welcome, hasPeople ? todayList(d) : null, campaignBar(), homeSections(items)),
+      // v2.39.1: a running campaign and the topics stay at the top; Plan a campaign (nothing scheduled) sits under the list
+      el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
+        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, homeSections(items), hasPeople ? todayList(d) : null, planOnly ? camp : null); })(),
     };
   }
 
