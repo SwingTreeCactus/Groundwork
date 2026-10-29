@@ -1606,3 +1606,15 @@ select.niarea { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-si
 .ahead .nm { color: var(--fg); }
 .ahead .n { color: var(--fg); }
 .acard.open .ahead { background: var(--surface2); }
+
+/* v2.35: one palette, no brand colour. Warm paper and ink, the garden's own colours, and a single clay accent taken
+   from the terracotta pots (cozy plant games: muted, earthy, one accent used sparingly). The Purple / Blue choice is gone. */
+:root, :root[data-accent] { --bg: #f2eee5; --surface: #fffdf9; --surface2: #f6f2ea; --fg: #1f1d1a; --muted: #6e6a62; --line: #e6e0d4; --line-strong: #d2cbbd;
+  --accent: #1f1d1a; --accent-fg: #fffdf9; --red: #b4583a; --accent-soft: #f5e6dc; --danger: #8a5300; --danger-soft: #f8ecd9; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]), :root:not([data-theme="light"])[data-accent] { --bg: #141310; --surface: #1e1c18; --surface2: #282521; --fg: #f2eee5; --muted: #a39e94; --line: #2c2925; --line-strong: #3f3b35;
+    --accent: #f2eee5; --accent-fg: #141310; --red: #e39271; --accent-soft: #3a261d; --danger: #f2bd69; --danger-soft: #30250f; }
+}
+:root[data-theme="dark"], :root[data-theme="dark"][data-accent] { --bg: #141310; --surface: #1e1c18; --surface2: #282521; --fg: #f2eee5; --muted: #a39e94; --line: #2c2925; --line-strong: #3f3b35;
+  --accent: #f2eee5; --accent-fg: #141310; --red: #e39271; --accent-soft: #3a261d; --danger: #f2bd69; --danger-soft: #30250f; }
+.gyou { box-shadow: 0 0 0 10px rgba(180, 88, 58, .16); }

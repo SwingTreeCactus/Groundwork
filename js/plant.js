@@ -206,12 +206,9 @@
 
   // ---------- CSS (ported from the boards; colours as tokens per accent and theme) ----------
   const CSS = `
-:root{--pl-seed:#9A7454;--pl-soil:#7A6656;--pl-dry:#E2D3BC;--pl-crack:#A8937A;--pl-5:#43297E;--pl-4:#5B3E96;--pl-3:#8471B4;--pl-2:#A69AC0;--pl-1:#AEAAB4;--pl-pot:#E6DFD2;--pl-rim:#8C78BE;--pl-eye:#0E0E10;--pl-acc:#5B3E96;--pl-acc-ic:#FFFFFF;--pl-off:#E7E4DC}
-:root[data-accent="blue"]{--pl-5:#12407A;--pl-4:#1F5FAF;--pl-3:#5D86C4;--pl-2:#93ABCF;--pl-1:#AEAAB4;--pl-rim:#6E8FC4;--pl-acc:#1F5FAF;--pl-off:#E7E4DC}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#4A4540;--pl-rim:#9081C4;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3833}
-:root:not([data-theme="light"])[data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-1:#64616B;--pl-rim:#6E8FC4;--pl-acc:#8DB2EE;--pl-off:#3A3833}}
-:root[data-theme="dark"]{--pl-soil:#5E5058;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#D4C4FF;--pl-4:#B49BF5;--pl-3:#9081C4;--pl-2:#756C94;--pl-1:#64616B;--pl-pot:#4A4540;--pl-rim:#9081C4;--pl-eye:#F2F0F5;--pl-acc:#B49BF5;--pl-acc-ic:#0E0E10;--pl-off:#3A3833}
-:root[data-theme="dark"][data-accent="blue"]{--pl-5:#C4D8FF;--pl-4:#8DB2EE;--pl-3:#6E8FC4;--pl-2:#5E7194;--pl-rim:#6E8FC4;--pl-acc:#8DB2EE;--pl-off:#3A3833}
+:root{--pl-seed:#9A7454;--pl-soil:#6E5646;--pl-dry:#E2D3BC;--pl-crack:#A8937A;--pl-5:#8E3F25;--pl-4:#B4583A;--pl-3:#C9805F;--pl-2:#DDB39C;--pl-1:#C9BFB3;--pl-pot:#C77F5A;--pl-rim:#B0653F;--pl-eye:#2A1A12;--pl-acc:#B4583A;--pl-acc-ic:#FFFFFF;--pl-off:#E7E2D7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pl-soil:#4A3C32;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#F2B49A;--pl-4:#E39271;--pl-3:#C47A5C;--pl-2:#8E5F4B;--pl-1:#6B645B;--pl-pot:#9A6044;--pl-rim:#844E36;--pl-eye:#1E140F;--pl-acc:#E39271;--pl-acc-ic:#141310;--pl-off:#38352F}}
+:root[data-theme="dark"]{--pl-soil:#4A3C32;--pl-dry:#9C8D7A;--pl-crack:#6E6152;--pl-5:#F2B49A;--pl-4:#E39271;--pl-3:#C47A5C;--pl-2:#8E5F4B;--pl-1:#6B645B;--pl-pot:#9A6044;--pl-rim:#844E36;--pl-eye:#1E140F;--pl-acc:#E39271;--pl-acc-ic:#141310;--pl-off:#38352F}
 .pl{position:relative;flex:none;color:var(--pl-4);transform-origin:50% 100%;display:inline-block}
 .pl svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
 .pl.xl{width:104px;height:159px}.pl.lg{width:80px;height:123px}.pl.md{width:56px;height:86px}.pl.rw{width:48px;height:74px}.pl.tl{width:44px;height:67px}.pl.sm{width:32px;height:49px}

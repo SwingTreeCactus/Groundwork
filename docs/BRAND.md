@@ -80,6 +80,12 @@ SVG and re-render the PNGs.
   browns), and the accent at about a tenth (active tab, due marks, growth bars, selections, links). Plants no
   longer take the accent; pots are warm neutral with an accent rim.
 
+- v2.35 (2026-10-28): one palette, no brand colour (Mark: purple did not look good as an accent). Warm paper
+  #F2EEE5, cards #FFFDF9, ink #1F1D1A, muted #6E6A62 (dark #141310, #1E1C18, ink #F2EEE5); a single clay accent
+  #B4583A (dark #E39271) taken from the terracotta pots, used sparingly; the garden keeps its natural palette.
+  The Purple / Blue choice is gone. The table above is history. Open: the app icon is still purple #5B3E96;
+  recolouring it (clay or ink background) is a separate decision.
+
 ## 5. Type
 
 - Space Grotesk for everything in the UI.
