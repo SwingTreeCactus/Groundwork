@@ -92,6 +92,10 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.
 - Garden scene redesign built in v2.36.0 (design-doc 49). The draft generator claude/garden-scene-draft.js is now history; the live scene is in js/insights.js (`skySvg`, `stonePath`, `fireflies`, `gardenScene`) and the v2.36 block of css/app.css.
 - App icon is still purple (#5B3E96); ask Mark before recolouring it (clay or ink background).
+- Study track (garden-plan section 13, agreed 2026-10-29): approved, not built yet; waiting for Mark's next design notes so they can ship together.
+- Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
+  - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
+  - A button to create a phone contact from a Groundwork contact (mapping name, phone, address). Mark: hold off on this for sure for now.
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
