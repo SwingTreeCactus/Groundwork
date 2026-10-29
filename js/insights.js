@@ -403,7 +403,7 @@
   // ---------- visitors page (v2.26): found ones in colour, the rest as outlines; tap for the portrait ----------
   const SCENES = {
     day: { sky: '#24474D', hill: '#2F5A5E', ground: '#3B6B5A', shadow: '#2F5A4B' },
-    dusk: { sky: '#3A2B45', hill: '#4A3858', ground: '#5A4A3E', shadow: '#4A3C32' },
+    dusk: { sky: '#4A3530', hill: '#5A4038', ground: '#5A4A3E', shadow: '#4A3C32' },
     night: { sky: '#1C1F2E', hill: '#262A3D', ground: '#34394D', shadow: '#2A2E40', stars: true },
     dawn: { sky: '#B98235', hill: '#9E6E2E', ground: '#6E7A4A', shadow: '#5D683D' },
   };

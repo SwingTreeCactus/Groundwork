@@ -11,8 +11,8 @@
 
   // Groundwork colours for the base map. Light and dark.
   const THEMES = {
-    light: { bg: '#EFEAE0', water: '#CFE0F2', park: '#D9E7CF', land: '#ECE6DA', building: '#E5DED2', road: '#FFFFFF', roadCase: '#D9D0E6', minor: '#F8F6F1', rail: '#D6D0DF', text: '#6A5E86', halo: '#EFEAE0', boundary: '#C9C2D3', plot: '#E4DAF2', plotLine: '#B9A7DA' },
-    dark: { bg: '#1C1A22', water: '#22304A', park: '#1F2A1E', land: '#201E26', building: '#26232D', road: '#3A3644', roadCase: '#2B2833', minor: '#302D38', rail: '#34303E', text: '#B7ADCF', halo: '#1C1A22', boundary: '#3E3A48', plot: '#2E2740', plotLine: '#5C4E80' },
+    light: { bg: '#EFEAE0', water: '#CFE0F2', park: '#D9E7CF', land: '#ECE6DA', building: '#E5DED2', road: '#FFFFFF', roadCase: '#DDD6C8', minor: '#F8F6F1', rail: '#D6D0C4', text: '#6B6862', halo: '#EFEAE0', boundary: '#CBC4B6', plot: '#E3E8D6', plotLine: '#B4BE9C' },
+    dark: { bg: '#1A1A17', water: '#22304A', park: '#1F2A1E', land: '#1F1F1B', building: '#262622', road: '#3A3833', roadCase: '#2B2A26', minor: '#302F2A', rail: '#34332E', text: '#B5B0A5', halo: '#1A1A17', boundary: '#3E3C36', plot: '#2A3027', plotLine: '#59654E' },
   };
   // Restyle any OpenMapTiles-schema style: our colours, shops and bus stops hidden, street names kept.
   function restyle(style, dark) {
