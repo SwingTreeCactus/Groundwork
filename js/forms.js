@@ -60,6 +60,22 @@
 
   // ---------- note cleanup with Claude (shared helper, or the person's own key in Settings > Note cleanup) ----------
   // Tidies a dictated note; things to bring up next time move into Discuss next time (when that field is given).
+  // v2.37: phrases the cleanup could not resolve, under the note; a tap selects the words in the note
+  function showUnsure(text, btn, list) {
+    const box = btn.parentNode;
+    if (!box) return;
+    const old = box.parentNode && box.parentNode.querySelector('.unsure');
+    if (old) old.remove();
+    if (!list.length) return;
+    const el = h('div', { class: 'unsure', role: 'note' }, h('span', { class: 'lbl' }, 'Worth a look'),
+      list.map((p) => h('button', { type: 'button', class: 'chip', onclick: () => {
+        const i = text.value.indexOf(p);
+        text.focus();
+        if (i >= 0) try { text.setSelectionRange(i, i + p.length); } catch (e) { /* ignore */ }
+      } }, '\u201C' + p + '\u201D')));
+    box.parentNode.insertBefore(el, box.nextSibling);
+    text.addEventListener('input', () => el.remove(), { once: true });
+  }
   function cleanupButton(text, nextField) {
     if (!RV.ai || !RV.ai.available()) return null;
     const label = h('span', null, 'Clean up');
@@ -78,8 +94,9 @@
         const moved = !!next && r.discussNext !== before.next.trim();
         if (next) next.value = r.discussNext;
         text.dispatchEvent(new CustomEvent('cleaned'));
+        showUnsure(text, btn, r.unsure || []);
         toast(moved ? 'Cleaned up. Added to Discuss next time.' : 'Cleaned up', {
-          seconds: 6, actions: [{ label: 'Undo', fn: () => { text.value = before.note; if (next) next.value = before.next; text.dispatchEvent(new CustomEvent('cleaned')); } }],
+          seconds: 6, actions: [{ label: 'Undo', fn: () => { text.value = before.note; if (next) next.value = before.next; text.dispatchEvent(new CustomEvent('cleaned')); showUnsure(text, btn, []); } }],
         });
       } catch (e) {
         toast(RV.ai.AiError && e instanceof RV.ai.AiError ? e.message : 'Could not clean up the note.', { seconds: 5 });
@@ -432,7 +449,9 @@
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
     const studyStage = L.isStudyStage(S.settings, rv.stage);
     // "Study session" swaps in Publication, Covered today and Start next time; on by default in the study stage
-    let study = opts && typeof opts.study === 'boolean' ? opts.study : studyStage;
+    // v2.37: also on for anyone who has had a study session (they are on the study track)
+    const hasStudied = (ST.itemFor(rvId) ? ST.itemFor(rvId).entries : []).some((e) => !e.deletedAt && e.type === 'visit' && (e.study === true || e.progress || e.nextStart));
+    let study = opts && typeof opts.study === 'boolean' ? opts.study : studyStage || hasStudied;
     const text = h('textarea', { placeholder: 'What did you discuss?', style: { minHeight: '120px' } });
     // Tapping or typing in the note opens a full-screen writing view; "Show other fields" returns.
     const grow = () => { if (text.closest('.writing')) { text.style.height = ''; return; } text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight + 4, Math.round(window.innerHeight * 0.5)) + 'px'; };

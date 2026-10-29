@@ -1672,3 +1672,7 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 /* the tap area is the plant's middle, so plants in the row behind or beside never cover each other */
 .gbed .gp.xl { pointer-events: none; }
 .gbed .gp.xl::before { content: ""; position: absolute; left: 24%; right: 24%; top: 36%; bottom: 26%; pointer-events: auto; z-index: 1; }
+/* v2.37: phrases the note cleanup could not resolve */
+.unsure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.unsure .lbl { font-size: .82rem; color: var(--muted); margin-right: 2px; }
+.unsure .chip { font-size: .85rem; background: var(--accent-soft); border-color: transparent; }

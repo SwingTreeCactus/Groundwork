@@ -34,23 +34,39 @@
   const SYSTEM = [
     'You proofread notes for a private follow-up app used in door-to-door Bible-based ministry.',
     'The note was usually dictated with a phone keyboard microphone, so it may lack punctuation or have misheard words.',
-    'This is a light proofread, not an edit. The person wants their own words back, corrected.',
+    'This is a light proofread, not an edit. The person wants their own words back, corrected, and making sense.',
     '',
     'Rules for "note":',
-    '- Fix spelling, punctuation, capitalization and clearly misheard words. Add sentence breaks and line breaks where they help.',
+    '- Fix spelling, punctuation, capitalization and misheard words. Add sentence breaks and line breaks where they help.',
     '- Write scripture references in standard form (e.g. "john three sixteen" -> "John 3:16", "psalm eighty three eighteen" -> "Psalm 83:18").',
     '- Remove only filler sounds (um, uh, er, hmm) and a word repeated by accident ("the the").',
+    '- Meaning check: read the whole note first, then reread each sentence and ask whether it makes sense as something the',
+    '  speaker meant. Dictation often swaps small words. When the context makes the intended word clear, fix it:',
+    '  I/it/hi, we/he/she, a/the, an/and, there/their/they\'re, to/too/two, know/no, our/are/hour, here/hear,',
+    '  and add a small word dictation dropped ("come after the meeting" -> "come back after the meeting").',
+    '- Ministry topics are often said as questions; fix them when they come out garbled ("what happens when he died",',
+    '  said about a topic covered -> "what happens when we die"; "why does god allows suffering" -> "why does God allow suffering").',
     '- Never delete, shorten, merge, summarize, reorder or reword anything else. Every detail, name, number, date, aside and opinion stays,',
     '  in the same order, in the person\'s own words, even if it seems minor or repetitive.',
     '- Do not add anything that was not said. No headings, no bullet points unless the speaker listed items.',
+    '- When you cannot tell what was meant (for example, who "he" is), leave those words exactly as they are and list them in "unsure".',
     '',
     'Rules for "discussNext":',
     '- Start with the existing "discussNext" text exactly as given (it may be empty).',
-    '- If the note says what to bring, show, ask or talk about next time, add that item here as a short line.',
+    '- If the note says what to bring, show, ask, follow up on or talk about next time, add that item here as a short line.',
     '  It is a copy: the same words also stay in the note.',
     '- If there is nothing new, return the existing text unchanged.',
     '',
-    'Reply with only a JSON object: {"note": "...", "discussNext": "..."}. No other text.',
+    'Rules for "unsure":',
+    '- A list of short exact phrases from your cleaned note that still may not say what the speaker meant. Usually empty.',
+    '',
+    'Example. Input note: "first it came with jonathan and it was just his wife she said he wasn\'t home we came back half an hour later',
+    'and we covered the question of what happens when he died we still need to follow up about why there\'s war need to come after the',
+    'meeting on sunday". Output: {"note": "First I came with Jonathan, and it was just his wife. She said he wasn\'t home.\\n\\nWe came back',
+    'half an hour later, and we covered the question of what happens when we die. We still need to follow up about why there\'s war.',
+    'Need to come back after the meeting on Sunday.", "discussNext": "Why is there war?", "unsure": []}',
+    '',
+    'Reply with only a JSON object: {"note": "...", "discussNext": "...", "unsure": ["..."]}. No other text.',
   ].join('\n');
 
   // Safety net: a proofread barely changes the word count. Filler and accidental repeats may go, and spoken numbers
@@ -114,7 +130,7 @@
     return (data && data.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
   }
 
-  // Returns { note, discussNext }. discussNext is only meaningful when the caller passed one in (or wants one).
+  // Returns { note, discussNext, unsure }. discussNext is only meaningful when the caller passed one in (or wants one).
   async function cleanUp(input) {
     const note = String(input.note || '').trim();
     const discussNext = String(input.discussNext || '').trim();
@@ -131,7 +147,9 @@
     let dn = typeof j.discussNext === 'string' ? j.discussNext.trim() : discussNext;
     // never lose what was already in Discuss next time
     if (discussNext && !dn.includes(discussNext)) dn = discussNext + (dn ? '\n' + dn : '');
-    return { note: nn, discussNext: dn };
+    // phrases Claude could not resolve, kept only if they really are in the cleaned note
+    const unsure = Array.isArray(j.unsure) ? j.unsure.map((x) => String(x || '').trim()).filter((x) => x && nn.includes(x)).slice(0, 4) : [];
+    return { note: nn, discussNext: dn, unsure };
   }
 
   // ---------- notes import: turn free-form notes into contacts ----------

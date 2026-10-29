@@ -18,6 +18,14 @@ threading.Thread(target=httpd.serve_forever, daemon=True).start()
 URL = f'http://127.0.0.1:{PORT}/'
 
 fails, passes = [], 0
+def through_moment(page, toast):
+    # v2.37: growth and reveal moments wait for a tap; tap through one if it shows, then wait for the toast
+    page.wait_for_selector('.toast:has-text("%s"), .grow-ov' % toast)
+    for _ in range(3):
+        if not page.locator('.grow-ov').count(): break
+        page.wait_for_timeout(300); page.click('.grow-ov'); page.wait_for_timeout(150)
+    page.wait_for_selector('.toast:has-text("%s")' % toast)
+
 def check(cond, msg):
     global passes
     if cond: passes += 1; print('  ok  ' + msg)
@@ -199,7 +207,7 @@ with sync_playwright() as p:
     check(page.locator('.sheet:has-text("Next visit date")').count() == 0, 'no next visit date in the visit sheet')
     page.select_option('.sheet select', 'study')
     page.click('.sheet button:has-text("Save visit")')
-    page.wait_for_selector('.toast:has-text("Visit saved")')
+    through_moment(page, 'Visit saved')
     r = ev(f'RV.store.rvById("{ana}")')
     check(r['stage'] == 'study', 'visit moved stage to Bible Study')
     check(ev(f'RV.store.itemFor("{ana}").att.state') in ('ok', 'soon'), 'no longer overdue after a visit')
@@ -293,7 +301,7 @@ with sync_playwright() as p:
     check(page.locator('.sheet textarea').first.input_value().count('Topic: Family worries') == 1, 'tapping twice does not duplicate it')
     page.locator('.sheet textarea').nth(1).fill('Ask about his shift change')
     check(page.locator('.sheet .check:has-text("Fall invitation")').count() == 1, 'visit dialog has the campaign toggle')
-    page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
+    page.click('.sheet button:has-text("Save visit")'); through_moment(page, 'Visit saved')
     check(ev('RV.store.rvById("%s").whatsNext' % ben) == 'Ask about his shift change', 'next time replaced by what was entered')
     newest = ev('RV.store.itemFor("%s").entries[0]' % ben)
     check(newest['type'] == 'visit' and newest['campaignId'] == campaign['id'], 'visit tagged with the active campaign by default')
@@ -301,7 +309,7 @@ with sync_playwright() as p:
     page.click('button:has-text("Record a visit")'); page.wait_for_selector('.sheet textarea')
     page.locator('.sheet .check input').uncheck()
     page.locator('.sheet textarea').first.fill('Short follow up')
-    page.click('.sheet button:has-text("Save visit")'); page.wait_for_selector('.toast:has-text("Visit saved")')
+    page.click('.sheet button:has-text("Save visit")'); through_moment(page, 'Visit saved')
     follow = ev('RV.store.itemFor("%s").entries.find(e=>e.text=="Short follow up")' % ben)
     check(follow and follow['campaignId'] is None, 'campaign toggle off leaves the visit untagged')
     ev('(id) => RV.store.updateRv(id, {stage: "study"})', ben)
@@ -443,7 +451,7 @@ with sync_playwright() as p:
     check(nxt.input_value() == 'Lesson 5 ¶13', 'next follows what was covered (%s)' % nxt.input_value())
     nxt.fill('Lesson 6'); cov.fill('Lesson 5 ¶14')
     check(nxt.input_value() == 'Lesson 6', 'a typed next lesson is not overwritten')
-    page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached')
+    page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached'); through_moment(page, 'Study saved')
     blk = page.locator('.snap-row.study2').inner_text()
     check('Enjoy Life Forever' in blk and 'Next: Lesson 6' in blk and 'last covered Lesson 5 ¶14' in blk, 'block shows publication, next and last covered')
     check(page.locator('.tl li:has-text("Study")').count() == 1 and page.locator('.tl:has-text("Covered Lesson 5 ¶14")').count() == 1, 'timeline says what was covered')
@@ -955,7 +963,7 @@ with sync_playwright() as p:
     page.click('.btn.logstudy'); page.wait_for_selector('.sheet')
     check(page.locator('.sheet .field:has-text("Covered today") input').is_visible() and page.locator('.sheet button:has-text("Save study")').count() == 1, 'Log study on a brand new RV opens the study form')
     page.fill('.sheet .field:has-text("Publication") input', 'Enjoy Life Forever'); page.fill('.sheet .field:has-text("Covered today") input', 'Lesson 1')
-    page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached'); time.sleep(0.3)
+    page.click('.sheet button:has-text("Save study")'); page.wait_for_selector('.sheet', state='detached'); through_moment(page, 'Study saved'); time.sleep(0.3)
     e = ev("RV.store.S.entries.filter(e => e.rvId === '%s' && e.type === 'visit')[0]" % rid2)
     check(e and e.get('study') and e.get('progress') == 'Lesson 1', 'the study session is saved')
     pid = ev("RV.store.addRv({ name: 'Not Yet', stage: 'yet' }).id")

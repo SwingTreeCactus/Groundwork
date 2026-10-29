@@ -68,6 +68,34 @@ with sync_playwright() as p:
     check(r['impStage'] == 'initial' and r['impKind'] is None, 'imports land below the reveal, with no kind')
     check(r['study'] == 'study', 'an imported study stays a study')
 
+    # v2.37 the study track: a study at leafy puts it on track; the third study grows it straight into the tree,
+    # and the moment waits for a tap
+    r = pg.evaluate("""() => {
+      window.__RV_KIND = 'fig';
+      const d = (n) => new Date(Date.now() - n * 864e5).toISOString();
+      const m = RV.store.addRv({ name: 'Mario', stage: 'cultivating', createdAt: d(200), stageChangedAt: d(200) });
+      RV.store.logVisit(m.id, { text: 'Lesson 1', study: true, progress: 'Lesson 1', nextStart: 'Lesson 2', at: d(120) });
+      RV.store.logVisit(m.id, { text: 'Lesson 2', study: true, progress: 'Lesson 2', nextStart: 'Lesson 3', at: d(60) });
+      const it = RV.store.itemFor(m.id), st = RV.garden.forItem(it, RV.store.S.settings, new Date());
+      const res = RV.store.logVisit(m.id, { text: 'Lesson 3', study: true, progress: 'Lesson 3', nextStart: 'Lesson 4' });
+      window.__mres = res; window.__mid = m.id;
+      return { before: RV.store.rvById(m.id).stage, kindBefore: st.kind, haveBefore: st.have };
+    }""")
+    after = pg.evaluate("RV.store.rvById(window.__mid).stage")
+    check(after == 'study', 'three studies, months apart, grow a plant straight into the tree (%s)' % after)
+    pg.evaluate("() => { RV.forms.afterVisit(window.__mid, window.__mres, 'Study saved'); }")
+    pg.wait_for_selector('.grow-ov .gchip span', timeout=4000); pg.wait_for_timeout(1500)
+    check(pg.locator('.grow-ov').count() == 1 and pg.locator('.grow-ov .ghint.on').count() == 1, 'the moment stays, with Tap to continue')
+    pg.click('.grow-ov'); pg.wait_for_timeout(200)
+    check(pg.locator('.grow-ov').count() == 0, 'a tap closes it')
+    pg.evaluate("window.__RV_KIND = ''")
+    sid = pg.evaluate("() => { const x = RV.store.addRv({ name: 'Lena', stage: 'initial' }); RV.store.logVisit(x.id, { text: 'L1', study: true, progress: 'L1' }); return x.id; }")
+    pg.goto(base + '#/rv/' + sid); pg.wait_for_selector('.ghero')
+    check('2 more studies' in pg.locator('.gbar').inner_text(), 'a sprout with one study: 2 more studies')
+    pg.evaluate("RV.forms.visitDialog('%s')" % sid); pg.wait_for_selector('.sheet')
+    check(pg.locator('.sheet button:has-text("Save study")').count() == 1, 'the visit sheet opens as a study for someone who has studied')
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
+
     # the import pickers offer the three stages people see
     pg.goto(base + '#/settings/notes'); pg.wait_for_timeout(300)
 

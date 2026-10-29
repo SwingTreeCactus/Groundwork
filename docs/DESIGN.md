@@ -577,3 +577,19 @@ Mark: the app looked drab; the mockup "A more beautiful garden" (canvas "Groundw
 - Tests: screens 50, smoke 287, kinds 14, garden 48, logic 48, notes_import 39. VERSION 2.36.0, cache rvapp-v83.
 - v2.36.1: plants stood out too little against the grass (Mark). The meadow is lighter and softer (day #C2D395 / #B9CB8B, morning #C6D598, golden hour #D2CC8E, spring and autumn to match, lighter tufts and bed shadows), so the deeper plant greens read against it; at night the meadow is darker (#26382F) and the plants a little brighter than before. Cache rvapp-v84.
 - v2.36.2: study notes (Mark). A study session's note gets the same tools as a visit note: full-size box ("What did you talk about?"), the full-screen writing view and Clean up (proofread only: a study has Start next time, so nothing is copied to Discuss next time; `cleanupButton` takes the second field as a function read at tap time). The record screen shows the newest note at the top for everyone, labelled "Last study" when it came from a study session (it used to be hidden in the study stage); tapping it edits that entry. Tests: ai_cleanup 36. Cache rvapp-v85.
+
+## 50. v2.37.0 study track, held moments, cleanup meaning check (built 2026-10-29)
+
+Study track (garden-plan section 13, Mark):
+- Any RV plant (sprout, leafy or shrub) with a study session logged is on the study track (`G.progress`: kind 'study', `track: true`). The bar reads "Grows into Bible Study · N more studies"; three study sessions in all, ever (no chain, no time limit; live entries only, imports never count), grow it straight into the tree in one growth moment, skipping forms in between, with the kind reveal if it has none yet.
+- Studies logged before v2.37 count: plants that already have three grow at their next live visit or study, with the moment playing then.
+- The visit sheet opens in Study session mode for anyone who has had a study session.
+
+Moments (Mark: too fast, gone before you know what happened):
+- Growth and reveal moments run about 2.5 s (was 1.6), the words show at 2.5 s, and the moment stays until tapped anywhere, with a quiet "Tap to continue" after about 3 s. The Undo toast shows after the tap. Revive stays short (1.6 s) and closes itself (`quick`). Reduced motion: no animation, the words and hint at once.
+
+Note cleanup meaning check (Mark's Jonathan note: "it came" for "I came", "when he died" for "when we die", a dropped "back"):
+- The instructions add a meaning check: reread each sentence for sense and fix dictation swaps (I/it, we/he/she, a/the, there/their, to/too, know/no, our/hour, here/hear) and dropped small words when context makes the intended word clear; garbled topic questions are fixed; a worked example (Mark's note) is included. Follow-ups ("follow up on") go to Discuss next time.
+- Anything it can't resolve stays as said and comes back in `unsure`; up to four such phrases (only ones really in the cleaned note) show under the note as "Worth a look" chips, and a tap selects those words. The list goes when the note is edited or the cleanup is undone.
+- Not tested against the live model from here (no network to the proxy); Fast stays the default.
+- Tests: garden 49, kinds 19, ai_cleanup 40, smoke 287 (taps through held moments), screens 50, logic 48, notes_import 39, drive_folder 37, notes 7. VERSION 2.37.0, cache rvapp-v86.

@@ -149,7 +149,21 @@
     // nextName: what the plant grows into, as people see it (a stage name across shown stages, else the next form)
     const out = { form, need, have: 0, kind, next: nx ? nx.id : null, nextName: nx ? growthName(settings, rv.stage, nx.id) : '', fading: false, held: false, broken: false };
     if (!form || !need) return out;
-    if (kind === 'study') { out.have = Math.min(need, studyCount(entries)); return out; }
+    // v2.37 the study track: an RV plant with a study session logged grows straight into the tree after three
+    // study sessions in all (no chain, no time limit, earlier studies count), skipping the forms in between
+    const studied = studyCount(entries);
+    if (kind === 'chain' && studied > 0) {
+      const act = activeStages(settings);
+      const st = act.find((x) => x.study) || act[act.length - 1];
+      const before = act[act.indexOf(st) - 1];
+      const n = before ? needFor(settings, before.id) : 0;
+      if (st && n && st.id !== rv.stage) {
+        Object.assign(out, { kind: 'study', need: n, next: st.id, nextName: growthName(settings, rv.stage, st.id), track: true });
+        out.have = Math.min(n, studied);
+        return out;
+      }
+    }
+    if (kind === 'study') { out.have = Math.min(need, studied); return out; }
     if (kind === 'first') {
       out.have = conversations(entries, { liveOnly: true }).some((e) => ms(e.at) > ms(sinceOf(rv))) ? 1 : 0;
       return out;

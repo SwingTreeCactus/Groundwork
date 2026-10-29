@@ -514,4 +514,19 @@ test('plant kinds: every kind draws every form and care, and names itself', () =
   assert.ok(/fill="currentColor"/.test(K.svg('fig', 5, 4, { sil: 'currentColor' })));
 });
 
+test('study track (v2.37): one study puts any RV plant on it; three in all grow it straight into the tree', () => {
+  const r = rv({ stage: 'initial' });
+  let p = G.progress(r, [v(r, 30), v(r, 20, { study: true, progress: 'Lesson 1', nextStart: 'Lesson 2' })], S, NOW);
+  assert.equal(p.kind, 'study'); assert.equal(p.need, 3); assert.equal(p.have, 1); assert.equal(p.next, 'study');
+  const l = rv({ stage: 'cultivating' });
+  const es = [v(l, 300, { study: true }), v(l, 120, { progress: 'L2' }), v(l, 2, { study: true })]; // months apart: no chain needed
+  assert.equal(G.growth(l, es, S, NOW), 'study'); // leafy straight to the tree
+  assert.equal(G.growth(rv({ stage: 'initial' }), [v(r, 9, { study: true }), v(r, 5, { study: true })], S, NOW), null);
+  const imp = rv({ stage: 'cultivating' });
+  assert.equal(G.progress(imp, [v(imp, 9, { study: true, imported: true })], S, NOW).kind, 'chain'); // imports never count
+  const plain = rv({ stage: 'cultivating' });
+  assert.equal(G.progress(plain, [v(plain, 9)], S, NOW).kind, 'chain'); // no study yet: the conversation chain as before
+  assert.equal(G.progress(rv({ stage: 'yet' }), [v(r, 9, { study: true })], S, NOW).kind, 'first'); // Potential unchanged
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', with failures' : ''));

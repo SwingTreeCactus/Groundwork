@@ -256,19 +256,23 @@
 @keyframes pl-out{0%{transform:scale(1,1);opacity:1}20%{transform:scale(1.06,.86);opacity:1}46%{transform:scale(.5);opacity:0}100%{transform:scale(.5);opacity:0}}
 @keyframes pl-in{0%,34%{transform:scale(.3);opacity:0}52%{opacity:1}70%{transform:scale(1.14,.92)}85%{transform:scale(.96,1.05)}100%{transform:scale(1,1);opacity:1}}
 @keyframes pl-dip{0%,100%{transform:scale(1,1)}14%{transform:scale(1.07,.88)}30%{transform:scale(.97,1.04)}62%{transform:scale(1.04,.95)}78%{transform:scale(1,1)}}
-.grow-ov .lay.out{animation:pl-out 1.6s cubic-bezier(.4,0,.3,1) forwards}
-.grow-ov .lay.in{opacity:0;animation:pl-in 1.6s cubic-bezier(.3,1.2,.5,1) forwards}
-.grow-ov .potl.dip{animation:pl-dip 1.6s ease-in-out}
+.grow-ov .lay.out{animation:pl-out 2.5s cubic-bezier(.4,0,.3,1) forwards}
+.grow-ov .lay.in{opacity:0;animation:pl-in 2.5s cubic-bezier(.3,1.2,.5,1) forwards}
+.grow-ov .potl.dip{animation:pl-dip 2.5s ease-in-out}
 @keyframes pl-burst{0%,28%{transform:translateY(0);opacity:0}36%{opacity:1}76%{transform:translateY(-36px);opacity:0}100%{transform:translateY(-36px);opacity:0}}
-.grow-ov .bdot{fill:var(--pl-acc);animation:pl-burst 1.6s cubic-bezier(.2,.7,.3,1) forwards}
+.grow-ov .bdot{fill:var(--pl-acc);animation:pl-burst 2.5s cubic-bezier(.2,.7,.3,1) forwards}
 @keyframes pl-ring{0%,24%{transform:scale(.2);opacity:0}34%{opacity:.8}72%{transform:scale(2.8);opacity:0}100%{transform:scale(2.8);opacity:0}}
-.grow-ov .ring{fill:none;stroke:var(--pl-acc);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pl-ring 1.6s ease-out forwards}
+.grow-ov .ring{fill:none;stroke:var(--pl-acc);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pl-ring 2.5s ease-out forwards}
 @keyframes pl-chip{0%{transform:translateY(10px) scale(.9);opacity:0}60%{transform:translateY(-2px) scale(1.04);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+.grow-ov.quick .lay.out,.grow-ov.quick .lay.in,.grow-ov.quick .potl.dip,.grow-ov.quick .bdot,.grow-ov.quick .ring{animation-duration:1.6s}
+.grow-ov .ghint{position:absolute;left:0;right:0;bottom:calc(48px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;color:var(--muted);opacity:0;transition:opacity .6s}
+.grow-ov .ghint.on{opacity:1}
 .grow-ov .gchip{min-height:36px;display:flex;flex-direction:column;align-items:center;gap:8px}
 .grow-ov .gchip .gsub{font-size:15px;font-weight:500;color:var(--muted);animation:pl-chip .5s .15s cubic-bezier(.3,1.4,.5,1) both}
 .grow-ov .gchip span{background:var(--fg);color:var(--bg);border-radius:18px;padding:7px 16px;font-size:15px;font-weight:600;animation:pl-chip .5s cubic-bezier(.3,1.4,.5,1) forwards}
 @media (prefers-reduced-motion:reduce){.pl .sway,.pl .e-open,.pl .spark circle,.pl .stars path,.pl.pop,.grow-ov .lay,.grow-ov .potl,.grow-ov .bdot,.grow-ov .ring,.grow-ov .gchip span{animation:none!important}.grow-ov .lay.out,.grow-ov .bdot,.grow-ov .ring{opacity:0}.grow-ov .lay.in{opacity:1}}
 `;
+  const h2 = (tag, cls, text) => { const el = document.createElement(tag); el.className = cls; el.textContent = text; return el; };
   let styled = false;
   function ensureStyle() {
     if (styled || typeof document === 'undefined') return;
@@ -347,24 +351,30 @@
       for (let i = 0; i < 10; i++) dots += '<g transform="rotate(' + (i * 36) + ' 30 42)"><circle class="bdot" cx="30" cy="42" r="' + (i % 2 ? 1.5 : 1.9) + '"/></g>';
       fx.innerHTML = dots;
       wrap.append(lo, li, pw, fx);
+      // v2.37: growth and reveal moments stay until tapped, with a quiet hint; revive stays short and closes itself
+      const hold = !o.quick;
+      if (!hold) ov.classList.add('quick');
+      const hint = hold ? h2('div', 'ghint', 'Tap to continue') : null;
       ov.append(chip, wrap);
+      if (hint) ov.append(hint);
       document.body.appendChild(ov);
       try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) { /* ignore */ }
       let done = false;
-      const t1 = setTimeout(name, reduced() ? 0 : 1600);
-      const t2 = setTimeout(finish, reduced() ? 1200 : 2700);
+      const t1 = setTimeout(name, reduced() ? 0 : hold ? 2500 : 1600);
+      const t2 = hold ? null : setTimeout(finish, reduced() ? 1200 : 2700);
+      if (hint) setTimeout(() => hint.classList.add('on'), reduced() ? 300 : 3100);
       function name() {
         chip.innerHTML = ''; const s = document.createElement('span'); s.textContent = stageName; chip.appendChild(s);
         if (o.sub) { const b = document.createElement('b'); b.className = 'gsub'; b.textContent = o.sub; chip.appendChild(b); }
       }
-      function finish() { if (done) return; done = true; clearTimeout(t1); clearTimeout(t2); ov.remove(); resolve(); }
+      function finish() { if (done) return; done = true; clearTimeout(t1); if (t2) clearTimeout(t2); ov.remove(); resolve(); }
       ov.addEventListener('click', finish);
     });
   }
 
   // The revive moment: the same plant, drooping, perks back up to health (a visit after Thirsty or Wilting).
   function revive(form, fromCare, toCare, vid, kind) {
-    return grow(form, form, toCare, 'Revived', vid, { fromCare, label: 'Revived', fromKind: kind, kind });
+    return grow(form, form, toCare, 'Revived', vid, { fromCare, label: 'Revived', fromKind: kind, kind, quick: true });
   }
   // The reveal (v2.34): the growth moment from the unrevealed plant (or the sprout) to its kind, then
   // "It's an olive tree!" with the person's name under it.
