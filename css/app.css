@@ -1733,3 +1733,16 @@ body.immersive .view > div > .gscene:first-child { max-width: none; width: calc(
 /* plants stand in front of the gate objects; the empty space above the beds lets taps through to them */
 .gscene .gbeds { z-index: 7; pointer-events: none; } .gscene .gbeds > * { pointer-events: auto; }
 .gshrubs { overflow: hidden; }
+/* v2.39: Today */
+.sec.today .tcount { font-size: .9rem; }
+.tarea { margin-bottom: 14px; }
+.tarea .ghead { margin-top: 6px; }
+.tarea .ghead span:first-child { color: var(--fg); font-weight: 600; font-size: 1rem; }
+.tmore { display: block; padding: 8px 10px 0; font-size: .9rem; }
+.row.rv2 .line2.why { color: var(--muted); font-size: .84rem; }
+.plan-camp { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin: 0 0 22px; padding: 0 16px; border: 1px dashed var(--line); border-radius: 16px; background: transparent; color: var(--muted); font: inherit; font-size: .95rem; cursor: pointer; text-align: left; }
+.plan-camp:active { background: var(--surface2); }
+/* the cleaned note says when someone is home */
+.availnote { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft, #f5e6dc); }
+.availnote .at { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.availnote .lbl { font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }

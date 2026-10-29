@@ -223,19 +223,98 @@
     return null;
   }
 
+  // ---------- likely home (v2.39) ----------
+  // An estimate of how likely someone is to be home on a weekday and part of the day, from every visit (home)
+  // and Not home (away), recent ones counting more (half weight after six months). A contact added by hand counts
+  // its creation as one light "found home" sighting; imported records have no real creation time, so with little
+  // history they lean on how their neighbourhood answers at that time. Imported visits have a date but no real
+  // time, so they count for the weekday only.
+  const PARTS3 = ['morning', 'afternoon', 'evening'];
+  const part3 = (d) => { const p = partOf(d); return p === 'night' ? 'evening' : p; };
+  const HALF_LIFE = 180;
+  function sightings(it, now) {
+    const out = [];
+    const rec = (d) => Math.pow(0.5, Math.max(0, (now - d) / 864e5) / HALF_LIFE);
+    for (const e of it.entries) {
+      if (e.deletedAt || (e.type !== 'visit' && e.type !== 'nh')) continue;
+      const d = new Date(e.at);
+      if (isNaN(d) || d > now) continue;
+      out.push({ dow: d.getDay(), part: e.imported ? '' : part3(d), home: e.type === 'visit' ? 1 : 0, w: rec(d) });
+    }
+    const c = new Date(it.rv.createdAt);
+    if (!it.rv.imported && !isNaN(c) && c <= now) out.push({ dow: c.getDay(), part: part3(c), home: 1, w: 0.5 * rec(c), created: true });
+    return out;
+  }
+  // how much a sighting says about (dow, part): the same slot counts fully, the same weekday half,
+  // the same part of the day on a similar day (weekday / weekend) a little
+  function slotMatch(x, dow, part) {
+    if (!x.part) return x.dow === dow ? 0.6 : 0;
+    if (x.dow === dow) return x.part === part ? 1 : 0.5;
+    return dayType(x.dow) === dayType(dow) && x.part === part ? 0.3 : 0;
+  }
+  // n: all the evidence; day: only what was seen on that weekday (a similar day alone never makes someone likely)
+  function rateOf(list, dow, part) {
+    let n = 0, home = 0, day = 0;
+    for (const x of list) { const mm = slotMatch(x, dow, part), m = mm * x.w; n += m; home += m * x.home; if (mm >= 0.5) day += m; }
+    return { n, home, day };
+  }
+  // neighbourhood rates for the imported, built once per call
+  function areaRates(items, now) {
+    const by = new Map();
+    for (const it of items) {
+      if (it.att.state === 'closed') continue;
+      const k = it.rv.neighborhood || '';
+      if (!by.has(k)) by.set(k, []);
+      by.get(k).push(...sightings(it, now).filter((x) => !x.created));
+    }
+    return by;
+  }
+  const PRIOR_K = 1.5;
+  function homeOdds(it, now, dow, part, areas) {
+    const r = rateOf(sightings(it, now), dow, part);
+    let prior = 0.5, fromArea = false;
+    if (it.rv.imported && areas) {
+      const a = rateOf(areas.get(it.rv.neighborhood || '') || [], dow, part);
+      if (a.n >= 2) { prior = a.home / a.n; fromArea = true; }
+    }
+    return { p: (r.home + prior * PRIOR_K) / (r.n + PRIOR_K), n: r.day + (fromArea ? 1 : 0), own: r.day, fromArea };
+  }
+  // the best of what is left of today (or this evening, late at night)
+  function homeToday(it, now, areas) {
+    const dow = now.getDay(), cur = PARTS3.indexOf(part3(now));
+    let best = null;
+    for (const part of PARTS3.slice(cur)) {
+      const o = homeOdds(it, now, dow, part, areas);
+      if (!best || o.p > best.p) best = Object.assign({ part }, o);
+    }
+    return best;
+  }
+  const LIKELY_P = 0.6, LIKELY_N = 0.3;
+  const partWord = { morning: 'mornings', afternoon: 'afternoons', evening: 'evenings' };
+  const whenWord = (part, now) => (part === part3(now) ? 'now' : 'this ' + part);
   function likelyHomeNow(items, now) {
     now = now || new Date();
-    const dow = now.getDay();
+    const areas = areaRates(items, now);
     const out = [];
     for (const it of items) {
       if (it.att.state === 'closed') continue;
-      const t = tally(it.entries, (d) => d.getDay() === dow);
-      const n = t.nh + t.home;
-      if (t.home >= 1 && t.home / n >= 0.5) {
-        out.push({ item: it, score: 1 + t.home / n, why: 'Home ' + t.home + ' of ' + n + ' ' + U.DAYS[dow] + (n === 1 ? '' : 's') });
-      }
+      const o = homeToday(it, now, areas);
+      if (!o || o.p < LIKELY_P || o.n < LIKELY_N) continue;
+      const why = (o.own < LIKELY_N && o.fromArea ? 'Neighbours often home ' : 'Likely home ') + whenWord(o.part, now);
+      out.push({ item: it, score: o.p, part: o.part, why });
     }
     return out.sort((a, b) => b.score - a.score || byName(a.item, b.item));
+  }
+  // the weekday and part of the day someone is most likely home (for their record), or null without enough to go on
+  function bestHomeSlot(it, now, items) {
+    now = now || new Date();
+    const areas = items ? areaRates(items, now) : null;
+    let best = null;
+    for (let dow = 0; dow < 7; dow++) for (const part of PARTS3) {
+      const o = homeOdds(it, now, dow, part, areas);
+      if (o.n >= 1 && (!best || o.p > best.p + 1e-9)) best = Object.assign({ dow, part }, o);
+    }
+    return best && best.p >= LIKELY_P ? Object.assign(best, { label: U.DAYS[best.dow] + ' ' + partWord[best.part] }) : null;
   }
 
   // "Lesson 3" -> "Lesson 4", "Ch. 5 ¶12" -> "Ch. 5 ¶13"; text without a trailing number gives ''
@@ -637,7 +716,7 @@
     return { rvs, entries, skipped };
   }
 
-  RV.logic = {
+  RV.logic = { homeOdds, bestHomeSlot,
     isStudyStage, stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
     SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,

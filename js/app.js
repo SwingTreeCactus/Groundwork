@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.38.0';
+  RV.VERSION = '2.39.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -39,7 +39,7 @@
     const SC = RV.screens, SS = RV.settingsScreens;
     switch (p[0]) {
       case undefined: case 'home': return SC.home();
-      case 'today': if (!p[1]) { location.replace('#/home'); return SC.home(); } return SC.today(p[1]);
+      case 'today': location.replace('#/home'); return SC.home(); // v2.39: the stage tiles are gone
       case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
@@ -56,7 +56,6 @@
   }
 
   function renderTabs() {
-    const due = ST.items().filter((i) => i.att.state === 'overdue').length;
     // three tabs (v2.19.4): Home holds who to see today; the due count sits on Home
     // v2.24: the third tab is My garden (Insights when the garden is off), with a dot when a rare visitor came today
     const gOn = S.settings.garden !== false && RV.garden;
@@ -66,7 +65,7 @@
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
-        icon(ic, 22), label, id === 'home' && due ? h('span', { class: 'dot', 'aria-label': due + ' due for a visit' }, due > 99 ? '99+' : String(due)) : null,
+        icon(ic, 22), label, // v2.39: no count on Home (lower pressure; the garden shows who is thirsty)
         id === 'insights' && fresh ? h('span', { class: 'vdot', 'aria-label': 'A visitor is waiting in your garden' }) : null)));
   }
 
@@ -76,8 +75,9 @@
     if (document.querySelector('.drawer')) return;
     const lbl = UI.lbl;
     // v2.28: three groups and a foot line, instead of thirteen items
+    // v2.39: Prepare (topics and campaigns) leads the menu
     const groups = [
-      ['Ministry', [['lib/topic', lbl('topics'), 'note'], ['campaigns', lbl('campaign') + 's', 'calendar']]],
+      ['Prepare', [['lib/topic', lbl('topics'), 'note'], ['campaigns', lbl('campaign') + 's', 'calendar']]],
       ['App', [['display', 'Display', 'sliders'], ['data', 'Backup and import', 'download'], ['ai', 'Note cleanup', 'sparkle'], ['security', 'Security', 'lock']]],
       [null, [['customize', 'Customize', 'edit']]],
     ];
@@ -85,11 +85,11 @@
     const scrim = h('div', { class: 'drawer', onclick: (e) => { if (e.target === scrim) close(); } },
       h('nav', { class: 'drawer-panel', 'aria-label': 'Settings menu' },
         h('div', { class: 'drawer-head' }, h('h2', null, 'Menu'), h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('x'))),
-        // v2.37.1: a quick dark mode switch at the top (System stays in Display)
-        h('div', { class: 'drawer-group' }, h('label', { class: 'drawer-item drawer-switch' }, icon('moon', 20), h('span', { class: 'grow' }, 'Dark mode'),
-          UI.toggle(isDark(), (on) => { ST.saveSettings((st) => { st.theme = on ? 'dark' : 'light'; }); applyDisplay(); render(); }, 'Dark mode'))),
-        ...groups.map(([head, rows]) => h('div', { class: 'drawer-group' }, head ? h('div', { class: 'drawer-sub' }, head) : null,
-          rows.map(([path, label, ic]) => h('a', { class: 'drawer-item', href: '#/settings/' + path, onclick: close }, icon(ic, 20), label)))),
+        // Prepare first, then a quick dark mode switch (v2.37.1; System stays in Display), then the rest
+        ...groups.map(([head, rows], k) => [k === 1 ? h('div', { class: 'drawer-group' }, h('label', { class: 'drawer-item drawer-switch' }, icon('moon', 20), h('span', { class: 'grow' }, 'Dark mode'),
+          UI.toggle(isDark(), (on) => { ST.saveSettings((st) => { st.theme = on ? 'dark' : 'light'; }); applyDisplay(); render(); }, 'Dark mode'))) : null,
+        h('div', { class: 'drawer-group' }, head ? h('div', { class: 'drawer-sub' }, head) : null,
+          rows.map(([path, label, ic]) => h('a', { class: 'drawer-item', href: '#/settings/' + path, onclick: close }, icon(ic, 20), label)))]).flat().filter(Boolean),
         h('a', { class: 'drawer-foot', href: '#/settings/about', onclick: close }, 'Groundwork ' + RV.VERSION)));
     document.body.appendChild(scrim);
     document.body.classList.add('no-scroll');

@@ -55,7 +55,7 @@
       onclick: () => { days = days.includes(i) ? days.filter((x) => x !== i) : days.concat(i); render(); },
     }, d)));
     render();
-    return { el: box, get: () => days.slice().sort((a, b) => a - b) };
+    return { el: box, get: () => days.slice().sort((a, b) => a - b), set: (v) => { days = (v || []).slice(); render(); } };
   }
 
   // ---------- note cleanup with Claude (shared helper, or the person's own key in Settings > Note cleanup) ----------
@@ -76,7 +76,21 @@
     box.parentNode.insertBefore(el, box.nextSibling);
     text.addEventListener('input', () => el.remove(), { once: true });
   }
-  function cleanupButton(text, nextField) {
+  // v2.39: when the cleaned note says when someone is home ("works nights"), one tap saves it as best days
+  const PARTW = { morning: 'mornings', afternoon: 'afternoons', evening: 'evenings' };
+  const availText = (av) => [av.days.length === 7 ? 'most days' : av.days.map((d) => U.DAYS3[d]).join(', '), PARTW[av.part] || ''].filter(Boolean).join(' · ');
+  function showAvail(text, btn, av, apply) {
+    const box = btn.parentNode;
+    if (!box) return;
+    const old = box.parentNode && box.parentNode.querySelector('.availnote');
+    if (old) old.remove();
+    if (!av || !apply) return;
+    const go = h('button', { type: 'button', class: 'btn sm', onclick: () => { apply(av); go.replaceWith(h('span', { class: 'muted small' }, 'Saved')); } }, av.days.length ? 'Set as best days' : 'Save as best time');
+    const el = h('div', { class: 'availnote', role: 'note' }, h('div', { class: 'at' }, h('span', { class: 'lbl' }, 'Likely home'), h('span', null, availText(av)),
+      h('span', { class: 'muted small' }, '\u201C' + av.phrase + '\u201D')), go);
+    box.parentNode.insertBefore(el, box.nextSibling);
+  }
+  function cleanupButton(text, nextField, onAvail) {
     if (!RV.ai || !RV.ai.available()) return null;
     const label = h('span', null, 'Clean up');
     const btn = h('button', { class: 'btn sm cleanup', type: 'button' }, icon('sparkle', 16), label);
@@ -95,8 +109,9 @@
         if (next) next.value = r.discussNext;
         text.dispatchEvent(new CustomEvent('cleaned'));
         showUnsure(text, btn, r.unsure || []);
+        showAvail(text, btn, r.availability, onAvail);
         toast(moved ? 'Cleaned up. Added to Discuss next time.' : 'Cleaned up', {
-          seconds: 6, actions: [{ label: 'Undo', fn: () => { text.value = before.note; if (next) next.value = before.next; text.dispatchEvent(new CustomEvent('cleaned')); showUnsure(text, btn, []); } }],
+          seconds: 6, actions: [{ label: 'Undo', fn: () => { text.value = before.note; if (next) next.value = before.next; text.dispatchEvent(new CustomEvent('cleaned')); showUnsure(text, btn, []); showAvail(text, btn, null); } }],
         });
       } catch (e) {
         toast(RV.ai.AiError && e instanceof RV.ai.AiError ? e.message : 'Could not clean up the note.', { seconds: 5 });
@@ -318,7 +333,7 @@
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
         fillVisits,
-        isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
+        isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext, (av) => { if (av.days.length) bestDays.set(av.days); }); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
         moreBtn,
         more,
         h('div', { class: 'actions' },
@@ -504,7 +519,13 @@
       h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)));
     const noteBox = h('div', { class: 'field note-field' }, text,
       h('div', { class: 'note-tools' },
-        cleanupButton(text, () => (study ? null : whatsNext)),
+        cleanupButton(text, () => (study ? null : whatsNext), (av) => {
+          const cur = ST.rvById(rvId); if (!cur) return;
+          const patch = {};
+          if (av.days.length) patch.bestDays = Array.from(new Set(L.bestDaysOf(cur).concat(av.days))).sort((a, b) => a - b);
+          if (!cur.bestNote) patch.bestNote = av.phrase;
+          ST.updateRv(rvId, patch);
+        }),
         h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
     const topicBox = topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
       h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;

@@ -128,7 +128,51 @@ test('usually home on this weekday, from history', () => {
   const es = [mkEntry(b.id, 'visit', thuMorning(8)), mkEntry(b.id, 'visit', at(2026, 10, 1, 19)), mkEntry(c.id, 'nh', thuMorning(8))];
   const out = L.likelyHomeNow(L.buildItems([b, c], es, S, NOW), NOW);
   assert.deepEqual(out.map((o) => o.item.rv.name), ['History']);
-  assert.equal(out[0].why, 'Home 2 of 2 Thursdays');
+  assert.equal(out[0].why, 'Likely home now'); // 09:00 Thursday, home on Thursday mornings
+});
+
+console.log('v2.39 likely-home estimate');
+test('a hand-added contact counts its creation as one light found-home sighting', () => {
+  const thuEve = mkRv({ name: 'Eve', createdAt: at(2026, 10, 8, 18) }); // added last Thursday evening, nothing since
+  const tueEve = mkRv({ name: 'Tue', createdAt: at(2026, 10, 6, 18) });
+  const items = L.buildItems([thuEve, tueEve], [], S, NOW);
+  const out = L.likelyHomeNow(items, NOW);
+  assert.deepEqual(out.map((o) => o.item.rv.name), ['Eve']);
+  assert.equal(out[0].why, 'Likely home this evening');
+  assert.equal(L.bestHomeSlot(items[0], NOW), null); // one light sighting is not enough to name a slot on the record
+});
+test('Not homes count against a slot, and recent ones count more', () => {
+  const r = mkRv({ name: 'R', createdAt: daysAgo(400) });
+  const es = [mkEntry(r.id, 'visit', at(2026, 3, 5, 10)), mkEntry(r.id, 'visit', at(2026, 3, 12, 10)), // two Thursday mornings, seven months ago
+    mkEntry(r.id, 'nh', at(2026, 10, 8, 10)), mkEntry(r.id, 'nh', at(2026, 10, 1, 10))]; // two Thursday mornings lately: not home
+  const it = item(r, es);
+  assert.ok(L.homeOdds(it, NOW, 4, 'morning').p < 0.5);
+  assert.deepEqual(L.likelyHomeNow([it], NOW), []);
+});
+test('imported records with little history lean on their neighbourhood; imported visits count for the weekday only', () => {
+  const n1 = mkRv({ name: 'N1', neighborhood: 'Oak', createdAt: daysAgo(300) }), n2 = mkRv({ name: 'N2', neighborhood: 'Oak', createdAt: daysAgo(300) });
+  const imp = mkRv({ name: 'Imp', neighborhood: 'Oak', imported: true, createdAt: at(2026, 10, 8, 18) });
+  const far = mkRv({ name: 'Far', neighborhood: 'Elm', imported: true, createdAt: at(2026, 10, 8, 18) });
+  const es = [mkEntry(n1.id, 'visit', at(2026, 10, 8, 10)), mkEntry(n2.id, 'visit', at(2026, 10, 1, 10)), mkEntry(n2.id, 'visit', at(2026, 9, 24, 11))];
+  const out = L.likelyHomeNow(L.buildItems([n1, n2, imp, far], es, S, NOW), NOW);
+  const imo = out.find((o) => o.item.rv.name === 'Imp');
+  assert.ok(imo && imo.why === 'Neighbours often home now', JSON.stringify(out.map((o) => [o.item.rv.name, o.why])));
+  assert.ok(!out.some((o) => o.item.rv.name === 'Far')); // no neighbours to go on, and its creation time is the import
+  const iv = mkRv({ name: 'IV', imported: true });
+  const e2 = Object.assign(mkEntry(iv.id, 'visit', at(2026, 10, 8, 12)), { imported: true });
+  const it = item(iv, [e2]);
+  assert.equal(L.homeOdds(it, NOW, 4, 'evening').p, L.homeOdds(it, NOW, 4, 'morning').p); // a date, not a time
+});
+test('visits on other weekdays alone never make someone likely home today', () => {
+  const r = mkRv({ name: 'R', createdAt: daysAgo(300) });
+  const es = [mkEntry(r.id, 'visit', at(2026, 10, 13, 9)), mkEntry(r.id, 'visit', at(2026, 10, 6, 9)), mkEntry(r.id, 'visit', at(2026, 9, 29, 10))]; // Tuesday mornings
+  assert.deepEqual(L.likelyHomeNow([item(r, es)], NOW), []);
+});
+test('the record names the best slot once there is history', () => {
+  const r = mkRv({ name: 'R', createdAt: daysAgo(200) });
+  const es = [mkEntry(r.id, 'visit', at(2026, 10, 10, 14)), mkEntry(r.id, 'visit', at(2026, 10, 3, 15)), mkEntry(r.id, 'nh', at(2026, 10, 7, 10))];
+  const b = L.bestHomeSlot(item(r, es), NOW);
+  assert.equal(b && b.label, 'Saturday afternoons');
 });
 
 console.log('sorting and filtering');
@@ -270,7 +314,7 @@ test('Today: overdue split into good today (best day or usually home now) and ot
   const es = [a, b, d].map((r) => mkEntry(r.id, 'visit', daysAgo(40))).concat([mkEntry(c.id, 'visit', at(2026, 9, 24, 9))]); // c: home on a Thursday morning, 3 weeks ago
   const plan = L.todayPlan(L.buildItems([a, b, c, d], es, S, NOW), NOW);
   assert.deepEqual(plan.goodToday.map((x) => x.item.rv.name), ['a', 'd', 'c']);   // one list, most overdue first
-  assert.equal(plan.goodToday.find((x) => x.item.rv.name === 'c').why, 'Home 1 of 1 Thursday');
+  assert.equal(plan.goodToday.find((x) => x.item.rv.name === 'c').why, 'Likely home now');
   assert.equal(plan.goodToday.find((x) => x.item.rv.name === 'a').why, 'Best: Thu');
   assert.deepEqual(plan.otherDays.map((x) => x.rv.name), ['b']);
 });
@@ -380,7 +424,7 @@ console.log('settings migration');
 test('old Home cards are dropped, version bumped, new settings added', () => {
   const m = D.mergeSettings({ version: 1, homeCards: [{ id: 'campaign', on: true }, { id: 'starters', on: true }, { id: 'topics', on: false }, { id: 'attention', on: true }, { id: 'quickAdd', on: true }] });
   assert.equal(m.version, 2);
-  assert.deepEqual(m.homeCards.map((c) => c.id), ['topics', 'recent', 'likelyHome']); // the New RV card left Home in v2.11
+  assert.deepEqual(m.homeCards.map((c) => c.id), ['topics', 'recent']); // the New RV card left Home in v2.11; Likely home right now in v2.39
   assert.equal(m.homeCards[0].on, false);
   assert.equal(m.dayTagForceFactor, 2); assert.equal(m.points.nh, 1);
 });

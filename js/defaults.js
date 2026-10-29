@@ -6,8 +6,7 @@
   // Home is for planning, not for work lists. The active campaign banner is automatic (not a card).
   const HOME_CARD_NAMES = {
     topics: 'Topics',
-    recent: 'Recently added',
-    likelyHome: 'Likely home right now',
+    recent: 'Recently added', // v2.39: Likely home right now is gone (Today leads with who is likely home)
   };
 
   // Conversation starters and scriptures were folded into Topics in version 2.
@@ -59,7 +58,6 @@
       homeCards: [
         { id: 'topics', on: true },
         { id: 'recent', on: false },
-        { id: 'likelyHome', on: false },
       ],
       theme: 'system',
       accent: 'purple',

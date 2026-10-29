@@ -92,19 +92,19 @@
     const frac = r.due ? r.seen / r.due : 1;
     const svg = '<svg viewBox="0 0 104 104" width="104" height="104" aria-hidden="true"><circle class="bg" cx="52" cy="52" r="42" fill="none" stroke-width="12"/>' +
       (frac > 0 ? '<circle class="fg" cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') + '</svg>';
-    const rw = h('div', { class: 'rw', role: 'img', 'aria-label': r.seen + ' of ' + r.due + ' ' + lbl('rvs') + ' due this week watered' }, h('div', { class: 'n' }, r.seen + '/' + r.due));
+    const rw = h('div', { class: 'rw', role: 'img', 'aria-label': r.seen + ' of ' + r.due + ' thirsty plants watered this week' }, h('div', { class: 'n' }, r.seen + '/' + r.due));
     rw.insertAdjacentHTML('afterbegin', svg);
     return h('section', { class: 'icard' },
       h('div', { class: 'ring' }, rw,
         h('div', null,
-          h('div', { class: 't1' }, 'Due this week'),
+          h('div', { class: 't1' }, 'To water this week'),
           h('div', { class: 't2' }, r.left ? r.left + ' left to water' : 'All caught up'),
           )),
       h('div', { class: 'idiv' }),
       h('div', { class: 'streak' },
         h('div', { class: 'big' }, String(sk.streak)),
         h('div', null,
-          h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', nobody past due'),
+          h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', every thirsty plant watered'),
           h('div', { class: 't3' }, 'Best: ' + sk.best + (sk.freezes ? ' · ' + sk.freezes + (sk.freezes === 1 ? ' freeze' : ' freezes') + ' saved' : '')))),
       h('div', { class: 'wks', role: 'img', 'aria-label': 'Last 12 weeks' }, sk.weeks.map((w) => h('i', { class: w }))));
   }
@@ -226,7 +226,7 @@
       // this week's pennant, still to earn, hangs as an outline at the end of the string
       { const x = 370, y = 4 + 26 * (1 - Math.pow((x - 195) / 195, 2)) * 0.5;
         bunt += '<path class="pnext" d="M' + (x - 8) + ' ' + y.toFixed(1) + ' L' + (x + 8) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 15).toFixed(1) + ' Z" fill="#FFFFFF" fill-opacity=".35" stroke="#8E5B34" stroke-width="1" stroke-dasharray="2 2"/>'; }
-      els.push(objBtn('o-bunt', 'Streak: ' + sk.streak + (sk.streak === 1 ? ' week' : ' weeks') + ', nobody past due', bunt + '</svg>', () => UI.sheet('Streak', () => streakPart(sk))));
+      els.push(objBtn('o-bunt', 'Streak: ' + sk.streak + (sk.streak === 1 ? ' week' : ' weeks') + ', every thirsty plant watered', bunt + '</svg>', () => UI.sheet('Streak', () => streakPart(sk))));
       // the watering can: full at the start of the week, emptier as due plants are watered
       const r = sk.ring, left = r.due ? Math.max(0, r.due - r.seen) / r.due : 0, wh = Math.round(14 * left);
       els.push(objBtn('o-can', 'This week: ' + r.seen + ' of ' + r.due + ' watered',
@@ -263,8 +263,8 @@
     return out;
   }
   const sheetNote = (t) => h('p', { class: 'muted small onote' }, t);
-  function ringPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.ring'), sheetNote('The can empties as you water the plants that are due this week.')); }
-  function streakPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.streak'), c.querySelector('.wks'), sheetNote('A pennant for every week nobody went past due. A pale blue one is a week a freeze kept your streak.')); }
+  function ringPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.ring'), sheetNote('The can empties as you water this week\u2019s thirsty plants.')); }
+  function streakPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.streak'), c.querySelector('.wks'), sheetNote('A pennant for every week you watered every thirsty plant. A pale blue one is a week a freeze kept your streak.')); }
   // a card shown in a sheet drops its own heading (the sheet has one)
   const bare = (el) => { if (el) { const t = el.querySelector('.ih, h2'); if (t) t.remove(); el.classList.add('osheet'); } return el; };
   function gardenScene(plots, now, earned, opt) {
@@ -621,10 +621,10 @@
       h('h3', null, 'It shows how it is doing'),
       h('div', { class: 'gdrow four' }, pl(3, 5, 'Lush'), pl(3, 4, 'Healthy'), pl(3, 2, 'Thirsty'), pl(3, 1, 'Wilting')),
       line('sparkle', 'Leave a plan (Discuss next time) on each visit and it grows lush.'),
-      line('clock', 'It goes thirsty when a visit is due. A conversation revives it; a knock keeps it from wilting.'),
+      line('clock', 'It goes thirsty when it is time for a visit. A conversation revives it; a knock keeps it from wilting.'),
       line('check', 'Nothing ever dies, and nothing you have grown is lost.'),
       h('h3', null, 'Your week and your garden'),
-      line('calendar', 'Visit or knock on everyone who comes due each week to keep your streak.'),
+      line('calendar', 'Water every thirsty plant each week, with a visit or a knock, to keep your streak.'),
       line('flag', 'Milestones stand in your garden as you reach them.'),
       line('sun', 'Rare visitors come when you have been out. Tap one to learn why it came.'),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Got it'))));
@@ -717,8 +717,8 @@
     const fmt = (d) => U.MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
     const sat = U.addDays(r.ws, 6);
     const ring = r.ring.due
-      ? (r.ring.perfect ? ['Ring closed', 'All ' + r.ring.due + ' ' + lbl('rvs') + ' that came due got a visit.'] : [r.ring.seen + ' of ' + r.ring.due + ' watered', r.ring.left + ' came due and still need a visit.'])
-      : ['Nothing came due', 'Nobody reached their due date this week.'];
+      ? (r.ring.perfect ? ['Ring closed', 'All ' + r.ring.due + ' thirsty plants got watered.'] : [r.ring.seen + ' of ' + r.ring.due + ' watered', r.ring.left + ' still thirsty.'])
+      : ['Nobody went thirsty', 'No plant needed water this week.'];
     const C = 2 * Math.PI * 42, frac = r.ring.due ? r.ring.seen / r.ring.due : 1;
     const ringSvg = '<svg aria-hidden="true" width="76" height="76" viewBox="0 0 104 104"><circle cx="52" cy="52" r="42" fill="none" stroke-width="12" class="rbg"/>' +
       (frac > 0 ? '<circle cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" class="rfg" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') +
@@ -739,7 +739,7 @@
           r.grew.length > 4 ? h('div', { class: 'muted small' }, '+' + (r.grew.length - 4) + ' more') : null) : null,
         h('div', { class: 'rtwo' },
           h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
-          h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', nobody past due'))),
+          h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', every thirsty plant watered'))),
         r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New milestone'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
         (r.sets || []).length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.7s' } }, h('div', { class: 'acc small' }, 'Set complete'),
           r.sets.map((id) => { const st = G.SETS.find(([x]) => x === id); return h('b', null, st ? st[1] + ': ' + st[3].toLowerCase() + ' in your garden' : 'Every visitor found'); })) : null,

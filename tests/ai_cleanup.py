@@ -150,7 +150,7 @@ with sync_playwright() as p:
     page.keyboard.press('Escape'); time.sleep(0.3)
     sid = ev('''() => RV.store.addRv({name:'Ben Carter', stage:'study'}).id''')
     ev(f'RV.forms.visitDialog("{sid}")'); page.wait_for_selector('.sheet')
-    check(page.locator('.sheet .btn.cleanup').count() == 1, 'Clean up on Log study')
+    check(page.locator('.sheet .btn.cleanup').count() == 1, 'Clean up on a study')
     page.locator('.sheet textarea').first.fill('we talked about um prayer')
     mode['reply'] = json.dumps({'note': 'We talked about prayer.', 'discussNext': 'Ask about prayer.'})
     page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("Cleaned up")')
@@ -167,6 +167,18 @@ with sync_playwright() as p:
     check('Meaning check' in seen[-1]['body']['system'] and 'what happens when we die' in seen[-1]['body']['system'], 'meaning-check rules and the worked example are sent')
     page.locator('.sheet textarea').first.type(' ok')
     check(page.locator('.sheet .unsure').count() == 0, 'the list goes away once the note is edited')
+
+    print('availability (v2.39): when the note says when they are home, one tap sets best days')
+    page.locator('.sheet textarea').first.fill('she works weekdays so come on saturday or sunday evenings')
+    mode['reply'] = json.dumps({'note': 'She works weekdays, so come on Saturday or Sunday evenings.', 'discussNext': '', 'unsure': [],
+        'availability': {'days': [6, 0, 9], 'part': 'evening', 'phrase': 'works weekdays, so come on Saturday or Sunday evenings'}})
+    page.click('.sheet .btn.cleanup'); page.wait_for_selector('.sheet .availnote')
+    check('Sun, Sat · evenings' in page.locator('.sheet .availnote').inner_text(), 'the suggestion reads the days and part of day (%s)' % page.locator('.sheet .availnote').inner_text().replace('\n', ' | '))
+    check('availability' in seen[-1]['body']['system'], 'availability rules are sent')
+    page.click('.sheet .availnote button:has-text("Set as best days")'); time.sleep(0.2)
+    r = ev(f'RV.store.rvById("{sid}")')
+    check(sorted(r['bestDays']) == [0, 6] and 'Saturday or Sunday' in (r['bestNote'] or ''), 'best days and the best-time note saved (%s, %s)' % (r['bestDays'], r['bestNote']))
+    check(ev("RV.ai.availabilityOf({days: [1], part: '', phrase: 'not in it'}, 'A note.')") is None and ev("RV.ai.availabilityOf({days: [], part: '', phrase: 'A'}, 'A note.')") is None, 'nothing offered unless the phrase is in the note and says something')
 
     print('remove key')
     page.keyboard.press('Escape'); time.sleep(0.3)

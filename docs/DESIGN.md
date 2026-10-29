@@ -616,3 +616,28 @@ Evolution reveal (`RV.plant.evolve`): for the kind reveal and for growing into a
 - The screen dims, "Something's happening…" (0.7 s), the plant turns to a white silhouette and light gathers with drifting sparks, it flickers between the old and new silhouettes, each swap about 20% quicker (1.15–3.35 s), a soft white bloom (3.35 s), then the new plant in colour with its line ("It's an olive tree!", or the growth name for the tree) and the person's name (3.75 s). Held until tapped, "Tap to continue" a second later. Reduced motion shows the end at once.
 
 Tests: screens 53, kinds 23, smoke 294, ai_cleanup 40, notes_import 39, drive_folder 37, garden 49, logic 48, notes 7, worker 6, ai-proxy 8. Browser tests stub the map tiles and address lookups (Contacts now opens on the map). VERSION 2.38.0, cache rvapp-v88.
+
+## 52. v2.39.0 Today, Prepare, two record buttons, the likely-home estimate (built 2026-10-29)
+
+Release 2 of the layout update (agreed with Mark 2026-10-29).
+
+Today (Home):
+- Titled "Today" with the date. One list, "Who to see", of everyone in the Today scope (best day today, likely home today, or no best day; not snoozed, not seen today), grouped by area. Areas with the most thirsty plants come first; in each, people likely home lead (with "Likely home now" / "Likely home this afternoon", or "Neighbours often home …"), then the thirstiest, then whoever has gone longest. Six per area, then "N more in <area>" to the area screen.
+- Gone: the stage tiles and their pages (#/today links open Today), Today / All, Almost growing, Up next, the Likely home right now card, and the count on the Home tab.
+- Under the list: the campaign card (the running or next campaign with a Plan link; "Plan a campaign" when nothing is scheduled, which opens the new-campaign form) and the topics card (+ and Manage). Getting started still shows while it is on.
+
+Menu: "Prepare" (Topics, Campaigns) leads the menu, then the Dark mode switch, App and Customize. Settings uses the same name.
+
+Record screen: two buttons, Not Home and Record a visit. A study is a visit with Study session on (the switch is there for anyone past Potential, and on by default for anyone who has studied); the Log study button is gone. The Details card shows "Likely home: Saturday afternoons" once there is enough history.
+
+The word "due" is dropped from the garden: "To water this week", "every thirsty plant watered", "still thirsty", "Nobody went thirsty", and the guide lines. Plain rows (garden off) keep their words.
+
+Display: it was already in the menu once (App); nothing to move.
+
+Likely-home estimate (`L.homeOdds`, `L.likelyHomeNow`, `L.bestHomeSlot`):
+- Sightings: each visit (home) and Not home (away), weighted by recency (half weight after 180 days). A contact added by hand adds its creation as one half-weight "found home" sighting; an imported contact does not (its creation time is the import). Imported visits have a date but no real time, so they count for the weekday only.
+- For a weekday and part of day (morning, afternoon, evening): the same slot counts fully, the same weekday 0.5, the same part of a similar day (weekday / weekend) 0.3. The rate is blended with a prior of 0.5 (weight 1.5); for an imported contact the prior is its neighbourhood's rate for that slot when the neighbourhood has enough history.
+- Likely home today: the best remaining part of today scores 0.6 or more, with at least 0.3 of evidence from that weekday (similar days alone never make someone likely), or from the neighbourhood for an imported contact.
+- Note cleanup also returns `availability` when a note says when someone is home ("works weekdays, come Saturday evenings"): days, part of day and the exact phrase (kept only if the phrase is in the cleaned note). Under the note: "Likely home · Sun, Sat · evenings" with Set as best days (adds the days to best days; the phrase becomes the best-time note if there is none). In New contact it sets the best-day picker.
+
+Tests: logic 53, screens 55, smoke 294, ai_cleanup 44, kinds 23, notes_import 39, drive_folder 37, garden 49, notes 7, worker 6, ai-proxy 8. VERSION 2.39.0, cache rvapp-v89.

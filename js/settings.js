@@ -23,7 +23,7 @@
   const MENU = () => {
     const cnt = (k) => ST.libItems(k).length;
     return [
-      ['Ministry', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
+      ['Prepare', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
       ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
         ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
       [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],

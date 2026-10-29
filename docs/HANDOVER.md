@@ -60,12 +60,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.38.0)
+## Tests (all passing at v2.39.0)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (294; needs /tmp/out to exist)
-- `python3 -I tests/screens.py . /tmp/out/scr` (53)
-- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (40)
+- `python3 -I tests/screens.py . /tmp/out/scr` (55)
+- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (44)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
-- `node tests/garden.test.js` (49), `node tests/logic.test.js` (48), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `python3 -I tests/notes_import.py` (39)
+- `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - Growth and reveal moments wait for a tap (v2.37); browser tests use `through_moment` (smoke) or click `.grow-ov` / `.evo-ov` (the evolution reveal, v2.38).
   - Contacts opens on the map (v2.38): every browser test stubs openfreemap tiles and nominatim at context level, or the run logs network errors.
@@ -91,6 +91,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.39.0: layout release 2: Home is Today (one list by area, likely home first), Prepare leads the menu, Plan a campaign, two record buttons, no "due" in the garden, the likely-home estimate and availability from note cleanup.
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 
 ## Pending
@@ -99,8 +100,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Garden scene redesign built in v2.36.0 (design-doc 49). The draft generator claude/garden-scene-draft.js is now history; the live scene is in js/insights.js (`skySvg`, `stonePath`, `fireflies`, `gardenScene`) and the v2.36 block of css/app.css.
 - App icon is still purple (#5B3E96); ask Mark before recolouring it (clay or ink background).
 - v2.37.0 shipped the study track, held growth/reveal moments and the cleanup meaning check. To watch: whether Fast catches dictation swaps well enough on real notes (Careful is the fallback default); Mario's plant should grow at his next study if he has three study sessions logged.
-- Big layout update (agreed with Mark 2026-10-29; Mark said "Go ahead"). Release 1 built as v2.38.0 (design-doc 51). Release 2 next: no Home tab badge (lower pressure); stage tiles and Up next removed (the garden carries progress); Home becomes "Today": one list of who to see grouped by area, thirsty plants first, likely-home people leading; topics and campaigns out of settings (Manage and Plan links on their Home cards, a "Prepare" group at the top of the menu, "Plan a campaign" even with nothing scheduled); record screen back to two buttons (Not home, Record a visit); the word "due" dropped where plants show it (words kept only with the garden off); Display once. Last: a 15-second text tutorial, four cards (Home, Contacts, My garden, record screen), drafted after the layout. Mockups: canvas "Groundwork plant kinds".
-- Likely-home estimate (proposed 2026-10-29): on-device scoring by weekday and time of day with recency and neighbourhood fallback; note cleanup also extracts stated availability ("works nights") as a one-tap best-time suggestion.
+- Big layout update: release 1 built as v2.38.0 (design-doc 51), release 2 as v2.39.0 (design-doc 52). Next: the 15-second text tutorial, four cards (Home/Today, Contacts, My garden, record screen), drafted with Mark before building. To watch: whether the likely-home estimate feels right on real data (thresholds LIKELY_P 0.6, LIKELY_N 0.3 in js/logic.js) and whether cleanup's availability suggestion fires sensibly on real notes (untested against the live model).
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
   - A button to create a phone contact from a Groundwork contact (mapping name, phone, address). Mark: hold off on this for sure for now.

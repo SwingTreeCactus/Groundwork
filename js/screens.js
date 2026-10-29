@@ -66,6 +66,7 @@
         h('div', { class: 'line2' }, area ? h('span', { class: 'area' }, area) : null, area ? h('span', { class: 'sep' }, '·') : null, stage,
           dnc ? h('span', { class: 'badge flag-overdue' }, 'Do not call') : null),
         o.hit ? h('div', { class: 'line2 hit' }, o.hit) : null,
+        o.why ? h('div', { class: 'line2 why' }, o.why) : null,
         study ? h('div', { class: 'line2' }, study) : null,
         garden
           ? h('div', { class: 'gstat' }, statusLine(it, st))
@@ -146,24 +147,27 @@
   function section(title, body, extra) {
     return h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, title), extra || null), body);
   }
+  // v2.39: the campaign card always shows: the one running (or starting within three weeks) with a Plan link,
+  // or Plan a campaign when nothing is scheduled
   function campaignBar() {
     const camps = ST.campaigns();
     const now = new Date();
     const c = L.activeCampaign(camps, now);
+    const plan = h('a', { class: 'link-quiet', href: '#/settings/campaigns' }, 'Plan');
     if (c) {
-      return h('button', { class: 'campaign-bar', type: 'button', onclick: () => campaignSheet(c) },
+      return section(lbl('campaign'), h('button', { class: 'campaign-bar', type: 'button', onclick: () => campaignSheet(c) },
         h('div', { class: 'cb-text' },
           h('div', { class: 'cb-label' }, lbl('campaign') + ' now'),
           h('div', { class: 'cb-title' }, c.title),
           h('div', { class: 'cb-sub' }, [c.topic, 'until ' + U.fmtDate(c.end)].filter(Boolean).join(' · '))),
-        icon('right', 22));
+        icon('right', 22)), plan);
     }
     const nx = L.nextCampaign(camps, now);
     if (nx && U.daysBetween(U.parseDateStr(nx.start), now) <= 21) {
-      return h('button', { class: 'campaign-soon', type: 'button', onclick: () => campaignSheet(nx) },
-        icon('calendar', 16), 'Next ' + lbl('campaign').toLowerCase() + ': ' + nx.title + ' starts ' + U.fmtDate(nx.start));
+      return section(lbl('campaign'), h('button', { class: 'campaign-soon', type: 'button', onclick: () => campaignSheet(nx) },
+        icon('calendar', 16), 'Next: ' + nx.title + ' starts ' + U.fmtDate(nx.start)), plan);
     }
-    return null;
+    return h('button', { class: 'plan-camp', type: 'button', onclick: () => RV.settingsScreens.campaignForm(null) }, icon('calendar', 18), 'Plan a ' + lbl('campaign').toLowerCase());
   }
   function homeSections(items) {
     const now = new Date();
@@ -185,22 +189,10 @@
         const top = L.recentlyAdded(items, now).slice(0, 5);
         return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'None'));
       },
-      likelyHome() {
-        const out = L.likelyHomeNow(items, now).slice(0, 8);
-        return section('Likely home right now', out.length
-          ? h('div', { class: 'list' }, out.map((o) => rvRow(o.item, { why: o.why })))
-          : h('div', { class: 'muted small' }, 'Nobody stands out yet.'));
-      },
     };
     return S.settings.homeCards.filter((c) => c.on && builders[c.id]).map((c) => builders[c.id]());
   }
 
-  // the few people who have gone longest without a visit, at the foot of Home
-  function upNext(items) {
-    const next = items.filter((i) => i.att.state !== 'closed').sort(L.SORTS.oldest).slice(0, 3);
-    if (!next.length) return null;
-    return h('section', { class: 'upnext' }, h('div', { class: 'upn' }, h('span', null, 'Up next'), h('span', { class: 'muted' }, 'longest since a visit')), listOf(next));
-  }
   // ---------- Getting started (v2.29) ----------
   // A one-time tip, shown inline while Getting started is on, until "Got it".
   function coach(id, text) {
@@ -240,6 +232,31 @@
       h('button', { class: 'link stskip', type: 'button', onclick: () => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { state: 'off' }); }) }, 'Skip getting started'));
   }
 
+  // v2.39: Home is Today: who to see, one list grouped by area. Areas with thirsty plants come first; in each,
+  // the people likely home lead, then the thirstiest, then whoever has gone longest without a visit.
+  // Topics and the campaign are prepared from their cards (Manage, Plan).
+  const AREA_CAP = 6;
+  function todayList(now) {
+    const items = ST.items();
+    const pool = L.todaySet(items, now);
+    const likely = new Map(L.likelyHomeNow(items, now).map((x) => [x.item.rv.id, x]));
+    const head = h('div', { class: 'sec-head' }, h('h2', null, 'Who to see'), h('span', { class: 'muted small tcount' }, pool.length ? pool.length + (pool.length === 1 ? ' person' : ' people') : ''));
+    if (!pool.length) return h('section', { class: 'sec today' }, head, UI.emptyState('check', 'Nobody to see today.'));
+    const careOf = (it) => (gardenOn() ? gstate(it).care || 9 : it.att.state === 'overdue' ? 1 : 9);
+    const thirsty = (it) => careOf(it) <= (G ? G.CARE.DRY : 2);
+    const groups = areaGroups(pool).map((g) => {
+      const rows = g.items.slice().sort((a, b) => {
+        const la = likely.get(a.rv.id), lb = likely.get(b.rv.id);
+        return (lb ? lb.score : 0) - (la ? la.score : 0) || careOf(a) - careOf(b) || L.SORTS.oldest(a, b);
+      });
+      return Object.assign(g, { rows, dry: rows.filter(thirsty).length, home: rows.filter((r) => likely.has(r.rv.id)).length });
+    }).sort((a, b) => (a.key === NO_AREA) - (b.key === NO_AREA) || b.dry - a.dry || b.home - a.home || U.cmp(a.name, b.name));
+    return h('section', { class: 'sec today' }, head,
+      groups.map((g) => h('div', { class: 'tarea' },
+        h('div', { class: 'ghead' }, h('span', null, g.name), h('span', null, String(g.rows.length))),
+        h('div', { class: 'list' }, g.rows.slice(0, AREA_CAP).map((it) => rvRow(it, { hideArea: true, why: likely.has(it.rv.id) ? likely.get(it.rv.id).why : null }))),
+        g.rows.length > AREA_CAP ? h('a', { class: 'link-quiet tmore', href: '#/rvs/area/' + encodeURIComponent(g.key) }, (g.rows.length - AREA_CAP) + ' more in ' + g.name) : null)));
+  }
   function home() {
     const items = ST.items();
     const welcome = RV.garden && RV.garden.starterOn(S.settings) ? starterCard() : !S.rvs.some((r) => !r.deletedAt)
@@ -249,96 +266,15 @@
         importRows()))
       : null;
     const d = new Date();
+    const hasPeople = S.rvs.some((r) => !r.deletedAt);
     return {
-      title: 'Groundwork', sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      el: h('div', { class: 'home' }, campaignBar(), welcome, homeSections(items),
-        welcome ? null : h('div', { class: 'home-today' }, todayDash().el),
-        welcome ? null : upNext(items)),
+      title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
+      el: h('div', { class: 'home' }, welcome, hasPeople ? todayList(d) : null, campaignBar(), homeSections(items)),
     };
   }
 
-  // ---------- Today ----------
-  // A dashboard: one circle per stage with how many people are in it, for today or for everyone.
-  // Today = best day is today, usually home on this weekday, or no best day set (not visited today, not snoozed).
-  const TODAY_KEY = 'rvapp.today';
-  const todayScope = () => { try { return localStorage.getItem(TODAY_KEY) === 'all' ? 'all' : 'today'; } catch (e) { return 'today'; } };
-  const setTodayScope = (v) => { try { localStorage.setItem(TODAY_KEY, v); } catch (e) { /* ignore */ } };
-  function todayPool(scope, now) {
-    const items = ST.items();
-    return scope === 'all' ? items.filter((i) => i.att.state !== 'closed') : L.todaySet(items, now);
-  }
-  function seg(options, value, onPick) {
-    return h('div', { class: 'seg2', role: 'tablist' }, options.map(([v, label]) =>
-      h('button', { type: 'button', role: 'tab', class: v === value ? 'on' : '', 'aria-selected': String(v === value), onclick: () => onPick(v) }, label)));
-  }
-  // "Cultivating Interest" -> "Cultivating"; short names fit two tiles across
-  const shortName = (n) => (n === 'Cultivating Interest' ? 'Cultivating' : n);
-  // RVs one qualifying visit from their next form, beside the silhouette of that form.
-  function almostCard(items, now) {
-    const list = G.almost(items, S.settings, now);
-    if (!list.length) return null;
-    const shown = list.slice(0, 4);
-    return h('section', { class: 'almost' },
-      h('h2', null, 'Almost growing'),
-      h('div', { class: 'sub' }, list.length === 1 ? '1 ' + lbl('rv') + ' is one visit from growing' : list.length + ' ' + lbl('rvs') + ' are one visit from growing'),
-      h('div', { class: 'ag' }, shown.map(({ it, st }, k) =>
-        h('a', { href: '#/rv/' + it.rv.id, 'aria-label': it.rv.name + ' grows into ' + st.nextName },
-          h('div', { class: 'pair' }, plantOf(st, 'sm', { seed: k }), icon('right', 16), P.make(G.formOf(S.settings, st.next), 4, { size: 'sm', ghost: true, still: true })),
-          h('div', { class: 'nm' }, it.rv.name)))));
-  }
-  function today(stageId) {
-    if (stageId) return todayStage(stageId);
-    const d = todayDash();
-    return { title: lbl('today'), fab: true, el: d.el, update: d.paint };
-  }
-  // Who to see: Today / All, the stage tiles and Almost growing. Shown on Home under topics and the campaign.
-  function todayDash() {
-    const box = h('div', { class: 'dash' });
-    function paint() {
-      const now = new Date(), scope = todayScope();
-      const pool = todayPool(scope, now);
-      const stages = L.shownStages(S.settings);
-      const day = U.DAYS[now.getDay()];
-      box.replaceChildren(
-        seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
-        h('div', { class: 'dsum' }, h('b', null, String(pool.length)), scope === 'all' ? ' ' + (pool.length === 1 ? lbl('rv') : lbl('rvs')) : ' to see on ' + day),
-        gardenOn()
-          ? h('div', { class: 'cgrid gd' }, stages.map((x, k) => {
-            // five tiles, each with that stage's plant, the count and a short name
-            const n = pool.filter((i) => x.ids.includes(i.rv.stage)).length;
-            const wide = k === stages.length - 1 && stages.length % 2 === 1;
-            return h('a', { class: 'gtile' + (wide ? ' wide' : '') + (n ? '' : ' zero'), href: '#/today/' + encodeURIComponent(x.key), 'aria-label': x.name + ': ' + n },
-              P.make(G.formOf(S.settings, x.ids[Math.floor((x.ids.length - 1) / 2)]), 4, { size: 'tl', ghost: !n, seed: k }),
-              h('span', { class: 'num' }, String(n)),
-              h('span', { class: 'clab' }, shortName(x.name)));
-          }))
-          : h('div', { class: 'cgrid' }, stages.map((x, k) => {
-            const n = pool.filter((i) => x.ids.includes(i.rv.stage)).length;
-            const wide = k === stages.length - 1 && stages.length % 2 === 1;
-            return h('a', { class: 'cell' + (wide ? ' wide' : ''), href: '#/today/' + encodeURIComponent(x.key), 'aria-label': x.name + ': ' + n },
-              h('span', { class: 'circ' + (n ? '' : ' zero') + (n && x.study ? ' study' : '') }, h('span', { class: 'num' }, String(n))),
-              h('span', { class: 'clab' }, x.name));
-          })),
-        (gardenOn() && almostCard(ST.items(), now)) || '');
-    }
-    paint();
-    return { el: box, paint };
-  }
-  function todayStage(stageId) {
-    // a shown stage key (Potential, rv, study); an old internal id opens its shown stage
-    const st = L.shownStages(S.settings).find((x) => x.key === stageId) || L.shownStage(S.settings, stageId);
-    const box = h('div');
-    function paint() {
-      const now = new Date(), scope = todayScope();
-      const rows = todayPool(scope, now).filter((i) => st.ids.includes(i.rv.stage)).sort(L.SORTS.oldest);
-      box.replaceChildren(
-        seg([['today', 'Today'], ['all', 'All']], scope, (v) => { setTodayScope(v); paint(); }),
-        h('div', { class: 'dsum' }, h('b', null, String(rows.length)), scope === 'all' ? ' in ' + st.name : ' to see on ' + U.DAYS[now.getDay()]),
-        rows.length ? listOf(rows) : UI.emptyState('check', scope === 'all' ? 'Nobody in this stage.' : 'Nobody in this stage today.'));
-    }
-    paint();
-    return { title: st.name, back: '#/home', fab: true, el: box, update: paint };
-  }
+  // v2.39: the stage tiles are gone; #/today and its old stage links open Today (Home)
+  function today() { return home(); }
 
   // ---------- RV list ----------
   // Search plus one filter button. Filters live on a separate page, one picker wheel per category.
@@ -731,17 +667,14 @@
       !closed
         ? h('div', { class: 'stack', style: { marginTop: '12px' } },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), 'Record ' + lbl('notHomeShort')),
-            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), study ? lbl('logStudy') : lbl('recordVisit'))),
-          // any RV can log a study, even on the first visit (not Potential: no conversation yet)
-          L.shownStage(S.settings, rv.stage).key === 'rv'
-            ? h('button', { class: 'btn logstudy', type: 'button', onclick: () => F.visitDialog(rv.id, { study: true }) }, icon('note', 18), lbl('logStudy'))
-            : null,
+            // v2.39: two buttons; a study is a visit with Study session on (it opens on for anyone who has studied)
+            h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
+            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), lbl('recordVisit'))),
           // v2.29: Getting started tips
           (() => { const G = RV.garden; if (!G || !G.starterOn(S.settings)) return null; const cur = G.starterSteps(ST.items(), S.settings, false).current;
             const first = String(rv.name || '').split(' ')[0];
             if (cur && cur.key === 'visit') return coach('visit', 'This is ' + first + '\u2019s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
-            if (cur && cur.key === 'nh') return coach('nh', 'Nobody home? Tap Record ' + lbl('notHomeShort') + '. Knocking counts toward your week.');
+            if (cur && cur.key === 'nh') return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
             return null; })())
         : null);
     els.push(head);
@@ -753,6 +686,8 @@
       UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
       rv.snoozedUntil && U.parseDateStr(rv.snoozedUntil) >= U.startOfDay(new Date()) ? ['Snoozed until', U.fmtDate(rv.snoozedUntil)] : null,
       L.dayTagsOf(rv).length || rv.bestNote ? ['Best days', [L.tagsLabel(rv), rv.bestNote].filter(Boolean).join('\n')] : null,
+      // v2.39: the estimate from visits and Not homes
+      (() => { const b = !closed && L.bestHomeSlot(it, new Date(), ST.items()); return b ? ['Likely home', b.label] : null; })(),
     ].concat(custom).concat([
       ['Activity', it.visits + ' visits · ' + it.nh + ' ' + lbl('notHome').toLowerCase()],
       ['Added', U.fmtDate(new Date(rv.createdAt))],

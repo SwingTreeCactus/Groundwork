@@ -57,6 +57,14 @@
     '  It is a copy: the same words also stay in the note.',
     '- If there is nothing new, return the existing text unchanged.',
     '',
+    'Rules for "availability":',
+    '- Only when the note says when the person is usually home or away ("works nights", "home on weekends", "best after 5",',
+    '  "retired, home most days"): {"days": [...], "part": "...", "phrase": "..."}. Otherwise null.',
+    '- days: the days of the week they are likely home, 0 = Sunday to 6 = Saturday ("works weekdays" -> [0, 6]; "home most days" -> all seven).',
+    '  Empty if the note gives no days.',
+    '- part: "morning", "afternoon" or "evening" if the note says when in the day, else "".',
+    '- phrase: the exact short words from your cleaned note that say it.',
+    '',
     'Rules for "unsure":',
     '- A list of short exact phrases from your cleaned note that still may not say what the speaker meant. Usually empty.',
     '',
@@ -64,9 +72,9 @@
     'and we covered the question of what happens when he died we still need to follow up about why there\'s war need to come after the',
     'meeting on sunday". Output: {"note": "First I came with Jonathan, and it was just his wife. She said he wasn\'t home.\\n\\nWe came back',
     'half an hour later, and we covered the question of what happens when we die. We still need to follow up about why there\'s war.',
-    'Need to come back after the meeting on Sunday.", "discussNext": "Why is there war?", "unsure": []}',
+    'Need to come back after the meeting on Sunday.", "discussNext": "Why is there war?", "availability": null, "unsure": []}',
     '',
-    'Reply with only a JSON object: {"note": "...", "discussNext": "...", "unsure": ["..."]}. No other text.',
+    'Reply with only a JSON object: {"note": "...", "discussNext": "...", "availability": null, "unsure": ["..."]}. No other text.',
   ].join('\n');
 
   // Safety net: a proofread barely changes the word count. Filler and accidental repeats may go, and spoken numbers
@@ -130,7 +138,7 @@
     return (data && data.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
   }
 
-  // Returns { note, discussNext, unsure }. discussNext is only meaningful when the caller passed one in (or wants one).
+  // Returns { note, discussNext, unsure, availability }. discussNext is only meaningful when the caller passed one in (or wants one).
   async function cleanUp(input) {
     const note = String(input.note || '').trim();
     const discussNext = String(input.discussNext || '').trim();
@@ -149,7 +157,18 @@
     if (discussNext && !dn.includes(discussNext)) dn = discussNext + (dn ? '\n' + dn : '');
     // phrases Claude could not resolve, kept only if they really are in the cleaned note
     const unsure = Array.isArray(j.unsure) ? j.unsure.map((x) => String(x || '').trim()).filter((x) => x && nn.includes(x)).slice(0, 4) : [];
-    return { note: nn, discussNext: dn, unsure };
+    return { note: nn, discussNext: dn, unsure, availability: availabilityOf(j.availability, nn) };
+  }
+  // v2.39: when the note says when someone is home ("works nights"): likely-home days and part of day, kept only
+  // when the phrase really is in the cleaned note and it says something usable
+  function availabilityOf(a, note) {
+    if (!a || typeof a !== 'object') return null;
+    const phrase = String(a.phrase || '').trim();
+    if (!phrase || !note.toLowerCase().includes(phrase.toLowerCase())) return null;
+    const days = Array.isArray(a.days) ? Array.from(new Set(a.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))).sort() : [];
+    const part = ['morning', 'afternoon', 'evening'].includes(a.part) ? a.part : '';
+    if (!days.length && !part) return null;
+    return { days, part, phrase };
   }
 
   // ---------- notes import: turn free-form notes into contacts ----------
@@ -211,7 +230,7 @@
     return true;
   }
 
-  RV.ai = {
+  RV.ai = { availabilityOf,
     MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson, cutTooMuch, readNotes, IMPORT_SYSTEM,
     setKey: (k) => set(KEY, String(k || '').trim()),
     setModel: (m) => set(MODEL, m),
