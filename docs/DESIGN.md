@@ -575,3 +575,4 @@ Mark: the app looked drab; the mockup "A more beautiful garden" (canvas "Groundw
 - Night: plants and visitors dim (brightness filter, no transparency); fireflies over the grass (a few at dusk); the lantern milestone is lit from dusk.
 - The scene follows the time of day and season, not the app's dark mode (the old dark-mode ground and soil overrides are removed).
 - Tests: screens 50, smoke 287, kinds 14, garden 48, logic 48, notes_import 39. VERSION 2.36.0, cache rvapp-v83.
+- v2.36.1: plants stood out too little against the grass (Mark). The meadow is lighter and softer (day #C2D395 / #B9CB8B, morning #C6D598, golden hour #D2CC8E, spring and autumn to match, lighter tufts and bed shadows), so the deeper plant greens read against it; at night the meadow is darker (#26382F) and the plants a little brighter than before. Cache rvapp-v84.

@@ -1617,23 +1617,23 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 .gscene {
   --s0: #8EC1E6; --s1: #B7D8EE; --s2: #DCEBF1; --sun: #FFF7DC; --ring1: #FDF0C8; --ring2: #F3EAD0; --cloud: #FFFFFF; --moonbite: transparent;
   --far: #A8C8C6; --far2: #93BBA8; --mid: #7FAE70; --t0: #4F7D4C; --t1: #5E8E55; --t2: #406B41; --trunk: #33502F;
-  --meadow: #90BC63; --meadow2: #86B25A; --tuft: #6A9446; --stone: #EDE3CC; --stoneEdge: #CDBF9F;
-  --wood: #B57B4B; --woodDark: #8E5B34; --woodTop: #C9905D; --soil: #6A4C37; --soilTop: #7C5B43; --shade: #739F4D;
+  --meadow: #C2D395; --meadow2: #B9CB8B; --tuft: #9AB46B; --stone: #EDE3CC; --stoneEdge: #CDBF9F;
+  --wood: #B57B4B; --woodDark: #8E5B34; --woodTop: #C9905D; --soil: #6A4C37; --soilTop: #7C5B43; --shade: #A3B978;
   --pk: #F4EFE4; --fsh: #D9D2C2; --sign: #E9CBA3; --signInk: #2A1D12; --wf0: #FFFFFF; --wf1: #F2C94C; --wf2: #F2A7B8;
   background: var(--meadow);
 }
 .gscene[data-t="morning"] { --s0: #A9CDE6; --s1: #F3DCC2; --s2: #FBEBD6; --sun: #FFE7A8; --ring1: #FCE2B2; --ring2: #F8E6CA; --cloud: #FFF6EA;
-  --far: #B9C7B4; --far2: #A3BE9A; --mid: #86B172; --meadow: #95BF66; --meadow2: #8BB55D; --soil: #6A4C37; --soilTop: #7C5B43; --stone: #EDE3CC; }
+  --far: #B9C7B4; --far2: #A3BE9A; --mid: #9DBB86; --meadow: #C6D598; --meadow2: #BDCD8F; --soil: #6A4C37; --soilTop: #7C5B43; --stone: #EDE3CC; }
 .gscene[data-t="dusk"] { --s0: #F2B880; --s1: #F7CE98; --s2: #FBE3BC; --sun: #FFE6A6; --ring1: #FBD892; --ring2: #F8D59F; --cloud: #FCE4C4;
   --far: #D2B48C; --far2: #B8A97A; --mid: #A2A964; --t0: #6E7B44; --t1: #7F8A4C; --t2: #5D6A3A; --trunk: #4A4A2C;
-  --meadow: #A9B95F; --meadow2: #9DAE56; --tuft: #7F8E42; --stone: #F3DDB8; --stoneEdge: #D6B88C; --wood: #BC7746; --woodDark: #925631; --woodTop: #D0905A;
-  --soil: #6B4A33; --soilTop: #7E5A40; --shade: #8C9A4C; --pk: #FBEBD3; --fsh: #E5CBA5; --sign: #F2D3A8; }
+  --meadow: #D2CC8E; --meadow2: #C9C385; --tuft: #ACA766; --stone: #F3DDB8; --stoneEdge: #D6B88C; --wood: #BC7746; --woodDark: #925631; --woodTop: #D0905A;
+  --soil: #6B4A33; --soilTop: #7E5A40; --shade: #BBB377; --pk: #FBEBD3; --fsh: #E5CBA5; --sign: #F2D3A8; }
 .gscene[data-t="night"] { --s0: #152036; --s1: #1F2C47; --s2: #2D3B57; --sun: #F6EED6; --ring1: #2F3D5C; --ring2: #26334F; --cloud: #34425F; --moonbite: #1F2C47;
   --far: #2A3A4A; --far2: #2C4140; --mid: #30493E; --t0: #22382F; --t1: #284034; --t2: #1C3029; --trunk: #172720;
-  --meadow: #36513A; --meadow2: #324C36; --tuft: #2C4632; --stone: #8E8B80; --stoneEdge: #6E6B62; --wood: #6F4C34; --woodDark: #563A28; --woodTop: #80593D;
-  --soil: #3E2F23; --soilTop: #4A392B; --shade: #2D4631; --pk: #9C988C; --fsh: #7C786E; --sign: #B8A080; --wf0: #C9CCD6; --wf1: #B9A65A; --wf2: #A98B98; }
-.gscene[data-season="spring"]:not([data-t="night"]) { --meadow: #96C466; --meadow2: #8CBA5D; }
-.gscene[data-season="autumn"]:not([data-t="night"]) { --meadow: #A7B45E; --meadow2: #9CA955; --tuft: #84873F; --t0: #B5853E; --t1: #C99A48; --t2: #8E6A34; --mid: #A8A462; --wf1: #E9A23B; --wf2: #D9773E; }
+  --meadow: #26382F; --meadow2: #22332B; --tuft: #31473A; --stone: #8E8B80; --stoneEdge: #6E6B62; --wood: #6F4C34; --woodDark: #563A28; --woodTop: #80593D;
+  --soil: #3E2F23; --soilTop: #4A392B; --shade: #1C2A23; --pk: #9C988C; --fsh: #7C786E; --sign: #B8A080; --wf0: #C9CCD6; --wf1: #B9A65A; --wf2: #A98B98; }
+.gscene[data-season="spring"]:not([data-t="night"]) { --meadow: #C3D88F; --meadow2: #BACF86; }
+.gscene[data-season="autumn"]:not([data-t="night"]) { --meadow: #CFCB8C; --meadow2: #C6C283; --tuft: #A8A464; --t0: #B5853E; --t1: #C99A48; --t2: #8E6A34; --mid: #A8A462; --wf1: #E9A23B; --wf2: #D9773E; }
 .gscene[data-season="winter"]:not([data-t="night"]) { --meadow: #D8DED4; --meadow2: #CFD6CA; --tuft: #B4BEB0; --t0: #6E8574; --t1: #7F9583; --t2: #5E7464; --mid: #BCC8BA; --far2: #C2CEC8; --wf0: #FFFFFF; }
 .gsky { height: 250px; }
 .gsky .s0 { stop-color: var(--s0); } .gsky .s1 { stop-color: var(--s1); } .gsky .s2 { stop-color: var(--s2); }
@@ -1655,7 +1655,7 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
   background: linear-gradient(to bottom, var(--wood) 0 13px, var(--woodDark) 13px 15px, var(--wood) 15px 28px, var(--woodDark) 28px 30px);
   box-shadow: inset 7px 0 0 var(--woodDark), inset -7px 0 0 var(--woodDark), 0 10px 0 -2px var(--shade); }
 .gbed > .gp { z-index: 2; }
-.gscene[data-t="night"] .gbed > .gp, .gscene[data-t="night"] .gvis { filter: brightness(.66) saturate(.8); }
+.gscene[data-t="night"] .gbed > .gp, .gscene[data-t="night"] .gvis { filter: brightness(.82) saturate(.85); }
 .gplot { gap: 0; }
 .gsign { position: relative; margin: -24px 0 0 auto; background: var(--sign); color: var(--signInk); border-radius: 6px; padding: 4px 10px; box-shadow: 0 2px 0 var(--woodDark); z-index: 3; }
 .gsign i { background: #C9B79A; } .gsign i.due { background: var(--red); }
