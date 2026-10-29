@@ -691,7 +691,8 @@
     // the Studying block shows from the first study session, whatever the stage
     const showStudy = !closed && (study || (gst && gst.studied));
     const lastStudy = it.entries.find((e) => e.type === 'visit' && e.progress);
-    const lastVisit = study ? null : it.entries.find((e) => e.type === 'visit' && e.text);
+    // v2.36.2: the newest note, a visit's or a study's, shows at the top for everyone (studies used to hide it)
+    const lastVisit = it.entries.find((e) => e.type === 'visit' && e.text);
     const editNext = async () => {
       const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
@@ -711,7 +712,7 @@
           : null,
         lastVisit
           ? h('button', { class: 'snap-row lastv', type: 'button', 'aria-label': 'Edit the last visit', onclick: () => UI.editEntrySheet(lastVisit.id) },
-            h('div', { class: 'snap-k' }, 'Last visit · ' + U.fmtDateTime(lastVisit.at)),
+            h('div', { class: 'snap-k' }, (lastVisit.study || lastVisit.progress ? 'Last study · ' : 'Last visit · ') + U.fmtDateTime(lastVisit.at)),
             h('div', { class: 'snap-v' }, lastVisit.text))
           : null)
       : null;

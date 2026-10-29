@@ -140,11 +140,16 @@ with sync_playwright() as p:
     check(page.locator('.sheet textarea').first.input_value() == 'Met at the door. Likes gardening.', 'New RV note cleaned')
     shot('05-new-rv')
 
-    print('study log has no button')
+    print('study log has Clean up too (v2.36.2), proofreading only')
     page.keyboard.press('Escape'); time.sleep(0.3)
     sid = ev('''() => RV.store.addRv({name:'Ben Carter', stage:'study'}).id''')
     ev(f'RV.forms.visitDialog("{sid}")'); page.wait_for_selector('.sheet')
-    check(page.locator('.sheet .btn.cleanup').count() == 0, 'no Clean up on Log study')
+    check(page.locator('.sheet .btn.cleanup').count() == 1, 'Clean up on Log study')
+    page.locator('.sheet textarea').first.fill('we talked about um prayer')
+    mode['reply'] = json.dumps({'note': 'We talked about prayer.', 'discussNext': 'Ask about prayer.'})
+    page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("Cleaned up")')
+    sent = json.loads(seen[-1]['body']['messages'][0]['content'])
+    check(page.locator('.sheet textarea').first.input_value() == 'We talked about prayer.' and sent['discussNext'] == '', 'study note cleaned; nothing moved to Discuss next time')
 
     print('remove key')
     page.keyboard.press('Escape'); time.sleep(0.3)

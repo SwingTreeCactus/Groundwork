@@ -60,11 +60,12 @@
 
   // ---------- note cleanup with Claude (shared helper, or the person's own key in Settings > Note cleanup) ----------
   // Tidies a dictated note; things to bring up next time move into Discuss next time (when that field is given).
-  function cleanupButton(text, next) {
+  function cleanupButton(text, nextField) {
     if (!RV.ai || !RV.ai.available()) return null;
     const label = h('span', null, 'Clean up');
     const btn = h('button', { class: 'btn sm cleanup', type: 'button' }, icon('sparkle', 16), label);
     btn.addEventListener('click', async () => {
+      const next = typeof nextField === 'function' ? nextField() : nextField;
       const note = text.value.trim();
       if (!note) { toast('Nothing to clean up yet'); text.focus(); return; }
       const before = { note: text.value, next: next ? next.value : '' };
@@ -435,7 +436,7 @@
     const text = h('textarea', { placeholder: 'What did you discuss?', style: { minHeight: '120px' } });
     // Tapping or typing in the note opens a full-screen writing view; "Show other fields" returns.
     const grow = () => { if (text.closest('.writing')) { text.style.height = ''; return; } text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight + 4, Math.round(window.innerHeight * 0.5)) + 'px'; };
-    const writing = () => { const sh = text.closest('.sheet'); if (sh && !study) { sh.classList.add('writing'); text.style.height = ''; } };
+    const writing = () => { const sh = text.closest('.sheet'); if (sh) { sh.classList.add('writing'); text.style.height = ''; } };
     text.addEventListener('pointerdown', writing);
     text.addEventListener('input', () => { writing(); grow(); });
     text.addEventListener('cleaned', grow);
@@ -480,9 +481,8 @@
       h('div', { class: 'two' }, field('Covered today', prog), field('Start next time', nextStart)));
     const noteBox = h('div', { class: 'field note-field' }, text,
       h('div', { class: 'note-tools' },
-        cleanupButton(text, whatsNext),
+        cleanupButton(text, () => (study ? null : whatsNext)),
         h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
-    const noteTools = noteBox.lastChild;
     const topicBox = topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
       h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;
     // plan nudge (v2.22): a plan left on each visit is what makes a plant lush; say where this one stands
@@ -521,10 +521,10 @@
       show(studyBox, study);
       show(studyBox.firstChild, study && !rv.publication);
       show(topicBox, !study); show(nextBox, !study); show(campBox, !study);
-      // the AI clean-up and full-screen writing belong to a conversation note, not a study note
-      if (study) noteTools.remove(); else if (!noteTools.isConnected) noteBox.appendChild(noteTools);
-      text.placeholder = study ? 'Note (optional)' : 'What did you discuss?';
-      text.style.minHeight = study ? '64px' : '120px';
+      // v2.36.2: a study note gets the same full-screen writing and Clean up as a visit note (Clean up only
+      // proofreads it: a study has Start next time, not Discuss next time)
+      text.placeholder = study ? 'What did you talk about?' : 'What did you discuss?';
+      text.style.minHeight = '120px';
       title.textContent = (study ? lbl('logStudy') : lbl('recordVisit')) + ': ' + rv.name;
       saveBtn.textContent = study ? 'Save study' : 'Save visit';
       (study ? prog : text).setAttribute('data-autofocus', '');
