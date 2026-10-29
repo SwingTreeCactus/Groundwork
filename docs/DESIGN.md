@@ -564,3 +564,14 @@ Mark: purple as an accent still didn't look good; make the palette the most beau
 - The Purple / Blue choice is removed from Display (`settings.accent` is ignored; the CSS no longer depends on `data-accent`).
 - Not changed: the installed app icon is still purple (#5B3E96); see the brand guide.
 - Tests: smoke 287 (the accent check now looks for the single clay accent; Display has one fewer control), screens 50, kinds 14, garden 48, logic 48, drive_folder 37, ai_cleanup 35, notes_import 39. VERSION 2.35.0, cache rvapp-v82.
+
+## 49. v2.36.0 a more beautiful garden (built 2026-10-28)
+
+Mark: the app looked drab; the mockup "A more beautiful garden" (canvas "Groundwork plant kinds") approved.
+- The garden screen draws edge to edge with its sky under a see-through title bar (`screen.immersive`, `body.immersive`, `data-gsky` for light title text at night); the bar fills in with paper once scrolled past the sky.
+- Landscape (`skySvg`): sky gradient, sun with two soft rings (low and gold at dusk, a moon with craters at night, stars), clouds, two layers of far hills, a tree line of round trees and poplars, near hills, and a picket fence with a gate. All colours are CSS variables per time of day (morning, day, dusk as golden hour, night) and season (spring fresher grass, autumn golden grass and turning trees, winter frosted).
+- Ground: a mown meadow in two greens, grass tufts and small wildflowers (`gwf`), autumn leaves and spring blossoms as before; a stepping-stone path winding down from the gate (`stonePath`, stones placed in %).
+- Beds: wooden raised beds of dark speckled soil with a rim, a plank front and a shadow on the grass; signs are painted wooden plaques (due dot in clay). Plants are drawn larger (`xl`, about 1.3×), rows 58 px deep; each plant's tap area is its middle, so plants behind or beside never cover each other.
+- Night: plants and visitors dim (brightness filter, no transparency); fireflies over the grass (a few at dusk); the lantern milestone is lit from dusk.
+- The scene follows the time of day and season, not the app's dark mode (the old dark-mode ground and soil overrides are removed).
+- Tests: screens 50, smoke 287, kinds 14, garden 48, logic 48, notes_import 39. VERSION 2.36.0, cache rvapp-v83.

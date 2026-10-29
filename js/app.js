@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.35.0';
+  RV.VERSION = '2.36.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -142,6 +142,10 @@
     (screen.actions || []).forEach((a) => topbar.appendChild(a));
     if (!screen.back) topbar.appendChild(h('button', { class: 'iconbtn menubtn', type: 'button', 'aria-label': 'Menu', onclick: openMenu }, icon('menu', 24)));
     view.replaceChildren(screen.el);
+    // v2.36: the garden draws edge to edge with its sky under a see-through title bar, which fills in once scrolled
+    document.body.classList.toggle('immersive', !!screen.immersive);
+    if (screen.immersive) document.body.dataset.gsky = screen.immersive; else delete document.body.dataset.gsky;
+    topbar.classList.remove('solid');
     fab.hidden = !screen.fab;
     document.body.classList.toggle('has-fab', !!screen.fab);
     document.title = screen.title && screen.title !== 'Groundwork' ? screen.title + ' · Groundwork' : 'Groundwork';
@@ -151,7 +155,10 @@
     root.scrollTo(0, y);
   }
 
-  root.addEventListener('scroll', () => { if (lastHash) scrollPos[lastHash] = root.scrollY; }, { passive: true });
+  root.addEventListener('scroll', () => {
+    if (lastHash) scrollPos[lastHash] = root.scrollY;
+    if (document.body.classList.contains('immersive')) topbar.classList.toggle('solid', root.scrollY > 170);
+  }, { passive: true });
   root.addEventListener('hashchange', () => { if (!location.hash) location.replace('#/home'); render(); });
 
   RV.drive.onChange(() => { if (S.ready) renderStatus(); });

@@ -115,12 +115,44 @@
   const FLY = '<svg aria-hidden="true" viewBox="0 0 16 14"><g class="w"><ellipse cx="4.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="11.5" cy="5" rx="4" ry="4.5" class="f1"/><ellipse cx="5" cy="10.5" rx="3" ry="3" class="f2"/><ellipse cx="11" cy="10.5" rx="3" ry="3" class="f2"/></g><rect x="7.3" y="3" width="1.4" height="10" rx=".7" class="fb"/></svg>';
   // v2.23 rare visitors: by chance, only when the garden is doing well. Purely decorative.
   const BIRD = '<svg aria-hidden="true" viewBox="0 0 22 16"><ellipse cx="10" cy="10" rx="8" ry="5.5" class="bb"/><circle cx="16" cy="6" r="4" class="bb"/><path d="M19.5 6 L22 7 L19.5 8 Z" fill="#E0A458"/><circle cx="17" cy="5" r="1" fill="#FFFFFF"/><path d="M2 9 L-1 6 L3 7 Z" class="bb"/></svg>';
+  // v2.36: a layered landscape behind the page title: sky, sun or moon, clouds, far hills, a tree line, near hills and a
+  // picket fence with a gate. Colours come from CSS variables per time of day and season.
   function skySvg(t) {
-    const stars = t === 'night' ? '<g class="stars"><circle cx="40" cy="30" r="1.4"/><circle cx="96" cy="58" r="1.1"/><circle cx="150" cy="22" r="1.3"/><circle cx="214" cy="48" r="1"/><circle cx="248" cy="16" r="1.2"/><circle cx="120" cy="96" r="1"/></g>' : '';
-    const sun = t === 'night' ? '<circle cx="304" cy="52" r="20" class="sun"/><circle cx="314" cy="46" r="18" class="skyf"/>' : '<circle cx="304" cy="52" r="22" class="sun"/>';
-    const clouds = t === 'night' ? '' : '<g class="cloud"><ellipse cx="62" cy="62" rx="26" ry="9"/><ellipse cx="76" cy="55" rx="14" ry="9"/></g><g class="cloud c2"><ellipse cx="190" cy="92" rx="22" ry="7"/><ellipse cx="200" cy="86" rx="11" ry="7"/></g>';
-    return '<svg class="gsky" aria-hidden="true" viewBox="0 0 366 170" preserveAspectRatio="xMidYMax slice"><rect width="366" height="170" class="skyf"/>' + stars + sun + clouds +
-      '<path d="M0 150 C60 118 120 120 180 140 C240 160 300 116 366 132 L366 170 L0 170 Z" class="hill"/><path d="M0 162 C80 146 160 152 230 160 C290 166 330 154 366 156 L366 170 L0 170 Z" class="hill2"/></svg>';
+    let r = 5; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    const f = (v) => String(Math.round(v * 10) / 10);
+    const night = t === 'night';
+    let o = '<defs><linearGradient id="gskyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="s0"/><stop offset=".55" class="s1"/><stop offset="1" class="s2"/></linearGradient></defs>';
+    o += '<rect width="390" height="260" fill="url(#gskyg)"/>';
+    if (night) { o += '<g class="stars">'; for (let k = 0; k < 40; k++) o += '<circle cx="' + f(rnd() * 390) + '" cy="' + f(rnd() * 170) + '" r="' + f(.5 + rnd() * 1.1) + '"/>'; o += '</g>'; }
+    const sx = t === 'dusk' ? 92 : t === 'morning' ? 70 : 304, sy = t === 'dusk' ? 196 : t === 'morning' ? 150 : 86, sr = t === 'dusk' ? 32 : night ? 20 : 24;
+    o += '<circle cx="' + sx + '" cy="' + sy + '" r="' + (sr + 26) + '" class="ring2"/><circle cx="' + sx + '" cy="' + sy + '" r="' + (sr + 12) + '" class="ring1"/><circle cx="' + sx + '" cy="' + sy + '" r="' + sr + '" class="sun"/>';
+    if (night) o += '<circle cx="' + (sx - 6) + '" cy="' + (sy - 4) + '" r="4" class="crater"/><circle cx="' + (sx + 6) + '" cy="' + (sy + 6) + '" r="3" class="crater"/><circle cx="' + (sx + 7) + '" cy="' + (sy - 8) + '" r="2" class="crater"/>';
+    const cloud = (x, y, k, c) => '<g class="cloud' + (c || '') + '" transform="translate(' + x + ' ' + y + ') scale(' + k + ')"><ellipse cx="0" cy="0" rx="26" ry="9"/><circle cx="-8" cy="-6" r="10"/><circle cx="8" cy="-9" r="12"/><circle cx="22" cy="-3" r="8"/></g>';
+    o += cloud(86, 74, 1.1) + cloud(214, 128, .8, ' c2') + cloud(352, 158, .7);
+    o += '<path d="M0 196 Q60 158 130 178 Q200 196 260 166 Q320 138 390 172 L390 260 L0 260 Z" class="far"/>';
+    o += '<path d="M0 220 Q80 192 160 212 Q240 230 310 204 Q350 192 390 202 L390 260 L0 260 Z" class="far2"/>';
+    for (let x = -6; x < 400; x += 15 + rnd() * 12) {
+      const y = 232 + rnd() * 10, k = .8 + rnd() * .35;
+      o += rnd() < .3
+        ? '<g transform="translate(' + f(x) + ' ' + f(y) + ') scale(' + f(k) + ')"><rect x="-1.2" y="-3" width="2.4" height="8" class="trunk"/><ellipse cx="0" cy="-16" rx="6" ry="15" class="t0"/><ellipse cx="-1.5" cy="-19" rx="2.5" ry="9" class="t1"/></g>'
+        : '<g transform="translate(' + f(x) + ' ' + f(y) + ') scale(' + f(k) + ')"><rect x="-1.5" y="-4" width="3" height="10" class="trunk"/><circle cx="-7" cy="-10" r="9" class="t2"/><circle cx="6" cy="-12" r="10" class="t0"/><circle cx="-1" cy="-19" r="9" class="t1"/></g>';
+    }
+    o += '<path d="M0 246 Q100 228 200 240 Q300 252 390 236 L390 260 L0 260 Z" class="mid"/>';
+    o += '<path d="M0 260 V252 Q120 244 240 254 Q320 258 390 250 V260 Z" class="lip"/>';
+    // the fence, with a gate in the middle
+    o += '<rect x="0" y="240" width="390" height="3" class="fsh"/><rect x="0" y="250" width="390" height="3" class="fsh"/>';
+    for (let x = 6; x < 390; x += 13) { if (x > 172 && x < 218) continue; o += '<path d="M' + x + ' 260 V236 L' + (x + 3) + ' 232 L' + (x + 6) + ' 236 V260 Z" class="pk"/>'; }
+    o += '<rect x="170" y="228" width="6" height="32" class="pk"/><rect x="214" y="228" width="6" height="32" class="pk"/><circle cx="173" cy="226" r="3.5" class="pk"/><circle cx="217" cy="226" r="3.5" class="pk"/>';
+    return '<svg class="gsky" aria-hidden="true" viewBox="0 0 390 260" preserveAspectRatio="xMidYMax slice">' + o + '</svg>';
+  }
+  // v2.36: a stepping-stone path winding down from the gate (stones placed in %, so it fits any height)
+  function stonePath() {
+    const box = h('div', { class: 'gpath', 'aria-hidden': 'true' });
+    for (let k = 0; k < 46; k++) {
+      const t = k / 45, x = 50 + Math.sin(t * 7.2) * 30 * (0.4 + t * 0.6) + (k % 2 ? 2.4 : -2.4), y = t * 100;
+      box.appendChild(h('i', { style: { left: x.toFixed(1) + '%', top: y.toFixed(1) + '%', width: (24 + t * 8).toFixed(0) + 'px', height: (11 + t * 3).toFixed(0) + 'px' } }));
+    }
+    return box;
   }
   // grass tufts and pebbles scattered over the ground (same spots every time)
   // v2.29: season details in the grass (fallen leaves in autumn, blossoms in spring, frost in winter)
@@ -144,14 +176,24 @@
     const box = h('div', { class: 'gdecor', 'aria-hidden': 'true' });
     let r = 7;
     const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
-    for (let i = 0; i < 22; i++) {
-      const x = (rnd() * 92 + 2).toFixed(1), y = (rnd() * 94 + 2).toFixed(1);
-      const extra = (season === 'autumn' || season === 'spring') && i % 3 === 1;
-      const html = extra ? (season === 'autumn' ? LEAF : BLOSSOM) : i % 4 === 3
-        ? '<svg viewBox="0 0 14 8"><ellipse cx="5" cy="5" rx="4.5" ry="3" class="peb"/><ellipse cx="11" cy="6" rx="2.6" ry="2" class="peb"/></svg>'
+    // v2.36: a meadow: grass tufts and small wildflowers (season details mixed in)
+    const FLW = '<svg viewBox="0 0 8 8"><g class="pt"><circle cx="4" cy="1.8" r="1.6"/><circle cx="6.1" cy="3.4" r="1.6"/><circle cx="5.3" cy="5.9" r="1.6"/><circle cx="2.7" cy="5.9" r="1.6"/><circle cx="1.9" cy="3.4" r="1.6"/></g><circle cx="4" cy="4" r="1.1" class="pc"/></svg>';
+    for (let i = 0; i < 70; i++) {
+      const x = (rnd() * 96 + 1).toFixed(1), y = (rnd() * 97 + 1).toFixed(1);
+      const extra = (season === 'autumn' || season === 'spring') && i % 4 === 1;
+      const fl = !extra && i % 5 >= 3 && season !== 'winter';
+      const html = extra ? (season === 'autumn' ? LEAF : BLOSSOM) : fl ? FLW
         : '<svg viewBox="0 0 16 12"><path d="M3 12 C3 8 2 5 0 3 M7 12 C7 7 7 4 8 0 M11 12 C11 8 12 5 15 3" class="tuft"/></svg>';
-      box.appendChild(svgEl(html, extra ? (season === 'autumn' ? 'gleaf' : 'gbloss') : i % 4 === 3 ? 'gpeb' : 'gtuft', 'left:' + x + '%;top:' + y + '%' + (extra ? ';transform:rotate(' + Math.round(rnd() * 360) + 'deg)' : '')));
+      box.appendChild(svgEl(html, extra ? (season === 'autumn' ? 'gleaf' : 'gbloss') : fl ? 'gwf w' + (i % 3) : 'gtuft', 'left:' + x + '%;top:' + y + '%' + (extra ? ';transform:rotate(' + Math.round(rnd() * 360) + 'deg)' : '')));
     }
+    return box;
+  }
+  // v2.36: fireflies over the grass after dark (and a few at dusk)
+  function fireflies(t) {
+    if (t !== 'night' && t !== 'dusk') return null;
+    const box = h('div', { class: 'gff', 'aria-hidden': 'true' });
+    let r = 3; const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    for (let i = 0; i < (t === 'night' ? 22 : 8); i++) box.appendChild(h('i', { style: { left: (rnd() * 96 + 2).toFixed(1) + '%', top: (rnd() * 92 + 4).toFixed(1) + '%', animationDelay: (-rnd() * 4).toFixed(2) + 's', animationDuration: (3 + rnd() * 3).toFixed(1) + 's' } }));
     return box;
   }
   function gardenScene(plots, now, earned, opt) {
@@ -204,37 +246,37 @@
       return el;
     };
     let seed = 0, flies = 0, birds = 0, hums = 0, rabbits = 0, bi = 0;
-    const ROW = 52; // depth between rows of a bed
+    const ROW = 58; // depth between rows of a bed (v2.36: bigger plants)
     const beds = plots.map((p) => {
       // fit the bed to the screen: up to 4 plants a row, a little closer together on narrow phones
       const avail = Math.min(root.innerWidth || 390, 640) - 24 - 20 - 4;
       // three a row on phones (four on wider screens), spaced so each plant reads on its own
-      const PER = avail >= 380 ? 4 : 3, SP = Math.max(64, Math.min(96, Math.floor((avail - 12) / (PER + 0.5))));
+      const PER = avail >= 380 ? 4 : 3, SP = Math.max(72, Math.min(104, Math.floor((avail - 12) / (PER + 0.5))));
       // tallest forms in the back rows, so nothing hides behind a tree; same height: thirstiest first
       p.plants = p.plants.slice().sort((a, b) => b.st.form - a.st.form || a.st.care - b.st.care || U.cmp(a.it.rv.name, b.it.rv.name));
       const cols = Math.min(p.plants.length, PER);
       const rows = Math.ceil(p.plants.length / PER);
-      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * ROW + 26) + 'px' } });
+      const bed = h('div', { class: 'gbed', style: { width: (cols * SP + 12 + (rows > 1 ? SP / 2 : 0)) + 'px', height: (rows * ROW + 4) + 'px' } });
       p.plants.forEach((x, i) => {
         const r = Math.floor(i / PER), c = i % PER;
-        const el = SC.plantOf(x.st, 'lg', { seed: seed++, bare: true });
+        const el = SC.plantOf(x.st, 'xl', { seed: seed++, bare: true });
         el.classList.add('gp');
         el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.removeAttribute('aria-hidden');
         el.setAttribute('aria-label', x.it.rv.name + ', ' + (x.st.word || L.shownName(S.settings, x.it.rv.stage)));
-        const left = 6 + c * SP + (r % 2 ? SP / 2 : 0), top = r * ROW - 78;
+        const left = 6 + c * SP + (r % 2 ? SP / 2 : 0) - 10, top = r * ROW - 102;
         el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.zIndex = String(10 + r);
         el.addEventListener('click', () => pick(el, x));
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el, x); } });
         bed.appendChild(el);
-        if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 56) + 'px;top:' + (top + 14) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
-        if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 18) + 'px;top:' + (top + 2) + 'px')); }
+        if (x.st.care === G.CARE.LUSH && flies < 6) bed.appendChild(svgEl(FLY, 'gfly', 'left:' + (left + 72) + 'px;top:' + (top + 24) + 'px;animation-delay:' + (-flies++ * 1.7) + 's'));
+        if (x.st.form === 5 && x.st.care >= G.CARE.HEALTHY && birds < 2) { birds++; bed.appendChild(svgEl(BIRD, 'gbird', 'left:' + (left + 26) + 'px;top:' + (top + 12) + 'px')); }
         // a hummingbird, now and then, by a flowering shrub that is doing well
-        if (vis.hum === x.it.rv.id && !hums) { hums++; bed.appendChild(visEl('hum', 'left:' + (left + 46) + 'px;top:' + (top - 2) + 'px')); }
+        if (vis.hum === x.it.rv.id && !hums) { hums++; bed.appendChild(visEl('hum', 'left:' + (left + 62) + 'px;top:' + (top + 14) + 'px')); }
         // a squirrel by the plant that grew today; a ladybug on a lush plant
-        if (vis.squirrel === x.it.rv.id) bed.appendChild(visEl('squirrel', 'left:' + (left - 22) + 'px;top:' + (top + 50) + 'px'));
-        if (vis.ladybug === x.it.rv.id) bed.appendChild(visEl('ladybug', 'left:' + (left + 30) + 'px;top:' + (top + 34) + 'px'));
+        if (vis.squirrel === x.it.rv.id) bed.appendChild(visEl('squirrel', 'left:' + (left - 16) + 'px;top:' + (top + 76) + 'px'));
+        if (vis.ladybug === x.it.rv.id) bed.appendChild(visEl('ladybug', 'left:' + (left + 42) + 'px;top:' + (top + 58) + 'px'));
         // v2.28: a snail low on the stem of someone kept up for months; a snake on a stone at the bed's left end
-        if (vis.snail === x.it.rv.id) bed.appendChild(visEl('snail', 'left:' + (left + 4) + 'px;top:' + (top + 62) + 'px'));
+        if (vis.snail === x.it.rv.id) bed.appendChild(visEl('snail', 'left:' + (left + 12) + 'px;top:' + (top + 92) + 'px'));
         if (vis.snake === x.it.rv.id && !placed.has('snake')) bed.appendChild(visEl('snake', 'left:-30px;top:2px'));
       });
       const due = p.wilting + p.thirsty;
@@ -273,7 +315,7 @@
         vis.fox ? visEl('fox', 'right:12%;top:-50px') : null,
         vis.deer ? visEl('deer', 'left:10%;top:-58px') : null,
         vis.owl ? visEl('owl', 'left:44%;top:-62px') : null,
-        vis.geese ? visEl('geese', 'left:22%;top:-128px') : null, svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {}, opt.sets)),
+        vis.geese ? visEl('geese', 'left:22%;top:-128px') : null, stonePath(), fireflies(t), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {}, opt.sets)),
       card, seasonFall(season),
       // v2.25: a light rain over the beds when today's tending is all done (once a day)
       opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
@@ -324,7 +366,7 @@
   // ---------- the empty garden (v2.27): what it will be, with a few bubbles ----------
   function emptyGarden(now) {
     const t = G.skyOf(now);
-    const bed = h('div', { class: 'gbed gempty', style: { width: '300px', height: '86px' } });
+    const bed = h('div', { class: 'gbed gempty', style: { width: '300px', height: '40px' } });
     [0, 1, 2].forEach((i) => {
       const el = P.make(1, 4, { size: 'lg', ghost: true, still: true, bare: true, seed: i });
       el.classList.add('gp'); el.style.left = (18 + i * 92) + 'px'; el.style.top = '-78px';
@@ -335,7 +377,7 @@
     return h('section', { class: 'gscene gscene-empty', 'data-t': t, 'data-season': season, 'aria-label': 'Your garden, empty for now' },
       svgEl(skySvg(t)), seasonFall(season),
       h('div', { class: 'gground' }, tufts(season),
-        svgEl('<svg class="gwalk" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M45 100 C45 80 30 70 55 55 C80 40 40 30 60 15 C70 7 80 3 82 0" /></svg>'),
+        stonePath(),
         bub('b1', 'Everyone you add grows here as a plant.'),
         h('div', { class: 'gbeds' }, h('div', { class: 'gplot' }, bed)),
         bub('b2', 'Have conversations and it grows. Leave a plan and it thrives.'),
@@ -565,8 +607,8 @@
     if (starter && !(S.settings.starter || {}).garden) setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { garden: true }); }), 0);
     const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap How your garden works any time to see how it grows.');
     // v2.27: nobody yet: an empty garden that explains itself
-    if (!plots.length) return { title: 'My garden', el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip, starter ? SC.starterCard() : null) };
-    return { title: 'My garden', el: h('div', null,
+    if (!plots.length) return { title: 'My garden', immersive: G.skyOf(now), el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip, starter ? SC.starterCard() : null) };
+    return { title: 'My garden', immersive: G.skyOf(now), el: h('div', null,
       gardenScene(plots, now, earned, opt),
       h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip,
       starter ? SC.starterCard() : null, ringCard(sk), starter ? null : tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };

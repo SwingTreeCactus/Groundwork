@@ -1064,16 +1064,6 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .gscene[data-t="morning"] { --sky: #F5E9DC; --sun: #F6D99A; --hill: #D3DCC6; --hill2: #E3E6D6; --ground: #ECE7DD; --soil: #DCCFB8; --gpath: #F4F1EA; }
 .gscene[data-t="dusk"] { --sky: #F2D9C6; --sun: #F0A986; --hill: #B9C2A6; --hill2: #CFD3BD; --ground: #E2DCD3; --soil: #CDBFA9; --gpath: #ECE7DF; }
 .gscene[data-t="night"] { --sky: #1F2A3A; --sun: #F2F0EA; --hill: #2E3B3A; --hill2: #3A4744; --ground: #D3CFC4; --soil: #BFB3A8; --gpath: #E3DFD5; }
-:root[data-theme="dark"] .gscene { --ground: #22231F; --soil: #3A352C; --gpath: #2C2D28; --hill: #2F3A33; --hill2: #38433B; --cloud: #4A4E4A; }
-:root[data-theme="dark"] .gscene[data-t="morning"] { --hill: #3A4744; --sky: #A9BCD3; --sun: #F6E3B4; --cloud: #E8EDF4; }
-:root[data-theme="dark"] .gscene[data-t="day"] { --hill: #3A4744; --sky: #7FA3C8; --sun: #FFFFFF; --cloud: #DCE6F1; }
-:root[data-theme="dark"] .gscene[data-t="dusk"] { --sky: #B9866E; --sun: #F0A986; --cloud: #D4B6A2; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .gscene { --ground: #22231F; --soil: #3A352C; --gpath: #2C2D28; --hill: #2F3A33; --hill2: #38433B; --cloud: #4A4E4A; }
-  :root:not([data-theme="light"]) .gscene[data-t="morning"] { --hill: #3A4744; --sky: #A9BCD3; --sun: #F6E3B4; --cloud: #E8EDF4; }
-  :root:not([data-theme="light"]) .gscene[data-t="day"] { --hill: #3A4744; --sky: #7FA3C8; --sun: #FFFFFF; --cloud: #DCE6F1; }
-  :root:not([data-theme="light"]) .gscene[data-t="dusk"] { --sky: #B9866E; --sun: #F0A986; --cloud: #D4B6A2; }
-}
 .gsky { display: block; width: 100%; height: 150px; }
 .gsky .skyf { fill: var(--sky); } .gsky .sun { fill: var(--sun); } .gsky .hill { fill: var(--hill); } .gsky .hill2 { fill: var(--ground); }
 .gsky .cloud { fill: var(--cloud); opacity: .8; animation: g-drift 18s ease-in-out infinite alternate; } .gsky .cloud.c2 { animation-delay: -7s; opacity: .65; }
@@ -1142,8 +1132,6 @@ button.link-quiet { background: none; border: 0; font: inherit; color: var(--mut
 .gtuft .tuft { fill: none; stroke: var(--grass, #B9C7AE); stroke-width: 1.6; stroke-linecap: round; }
 .gpeb { position: absolute; width: 14px; height: 8px; } .gpeb .peb { fill: var(--soil); }
 .gscene[data-t="dusk"], .gscene[data-t="night"] { --grass: #A9AE95; }
-:root[data-theme="dark"] .gscene { --grass: #3F4A44; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gscene { --grass: #3F4A44; } }
 .gfly { width: 20px; height: 17px; } .gbird { width: 24px; height: 18px; }
 /* the thirsty bubble sits just over short plants instead of floating high above them */
 .gcard .gct > span.gword { color: var(--red); font-weight: 600; }
@@ -1465,9 +1453,6 @@ details.fstats[open] > summary .icon { transform: rotate(180deg); }
 .cr .q-chick.c2 { animation-delay: -.45s; }
 @keyframes cr-chick { from { transform: translateY(0); } to { transform: translateY(-2px); } }
 /* v2.29 seasons: ground tints, details in the grass, slow falling leaves and snow */
-.gscene[data-season="autumn"] { --ground: #ECE2D2; --soil: #D8C6AA; }
-.gscene[data-season="winter"] { --ground: #EEF0F2; --soil: #D6D2CB; }
-.gscene[data-season="spring"] { --ground: #E8ECDC; }
 .gscene[data-season="winter"] .gtuft .tuft { stroke: #C9CFD6; }
 .gleaf, .gbloss { position: absolute; width: 12px; height: 9px; pointer-events: none; }
 .gbloss { width: 10px; height: 10px; }
@@ -1618,3 +1603,72 @@ select.niarea { min-height: 40px; padding-top: 6px; padding-bottom: 6px; font-si
 :root[data-theme="dark"], :root[data-theme="dark"][data-accent] { --bg: #141310; --surface: #1e1c18; --surface2: #282521; --fg: #f2eee5; --muted: #a39e94; --line: #2c2925; --line-strong: #3f3b35;
   --accent: #f2eee5; --accent-fg: #141310; --red: #e39271; --accent-soft: #3a261d; --danger: #f2bd69; --danger-soft: #30250f; }
 .gyou { box-shadow: 0 0 0 10px rgba(180, 88, 58, .16); }
+
+/* v2.36: a more beautiful garden. The scene draws edge to edge with its sky under a see-through title bar; a layered
+   landscape, a mown meadow with wildflowers, a stepping-stone path, wooden raised beds of dark soil with painted signs,
+   bigger plants, fireflies after dark. It follows the time of day and the season, not the app's dark mode. */
+body.immersive .topbar { position: fixed; left: 0; right: 0; top: 0; background: transparent; border-bottom: 0; transition: background .25s; }
+body.immersive .topbar.solid { background: var(--bg); }
+body.immersive[data-gsky="night"] .topbar:not(.solid) { color: #F2EEE5; }
+body.immersive[data-gsky="night"] .topbar:not(.solid) .iconbtn { color: #F2EEE5; }
+body.immersive .view > div > .gscene:first-child { margin: calc(-8px - env(safe-area-inset-top, 0px)) -12px 12px; border-radius: 0; }
+body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + env(safe-area-inset-top, 0px)); }
+
+.gscene {
+  --s0: #8EC1E6; --s1: #B7D8EE; --s2: #DCEBF1; --sun: #FFF7DC; --ring1: #FDF0C8; --ring2: #F3EAD0; --cloud: #FFFFFF; --moonbite: transparent;
+  --far: #A8C8C6; --far2: #93BBA8; --mid: #7FAE70; --t0: #4F7D4C; --t1: #5E8E55; --t2: #406B41; --trunk: #33502F;
+  --meadow: #90BC63; --meadow2: #86B25A; --tuft: #6A9446; --stone: #EDE3CC; --stoneEdge: #CDBF9F;
+  --wood: #B57B4B; --woodDark: #8E5B34; --woodTop: #C9905D; --soil: #6A4C37; --soilTop: #7C5B43; --shade: #739F4D;
+  --pk: #F4EFE4; --fsh: #D9D2C2; --sign: #E9CBA3; --signInk: #2A1D12; --wf0: #FFFFFF; --wf1: #F2C94C; --wf2: #F2A7B8;
+  background: var(--meadow);
+}
+.gscene[data-t="morning"] { --s0: #A9CDE6; --s1: #F3DCC2; --s2: #FBEBD6; --sun: #FFE7A8; --ring1: #FCE2B2; --ring2: #F8E6CA; --cloud: #FFF6EA;
+  --far: #B9C7B4; --far2: #A3BE9A; --mid: #86B172; --meadow: #95BF66; --meadow2: #8BB55D; --soil: #6A4C37; --soilTop: #7C5B43; --stone: #EDE3CC; }
+.gscene[data-t="dusk"] { --s0: #F2B880; --s1: #F7CE98; --s2: #FBE3BC; --sun: #FFE6A6; --ring1: #FBD892; --ring2: #F8D59F; --cloud: #FCE4C4;
+  --far: #D2B48C; --far2: #B8A97A; --mid: #A2A964; --t0: #6E7B44; --t1: #7F8A4C; --t2: #5D6A3A; --trunk: #4A4A2C;
+  --meadow: #A9B95F; --meadow2: #9DAE56; --tuft: #7F8E42; --stone: #F3DDB8; --stoneEdge: #D6B88C; --wood: #BC7746; --woodDark: #925631; --woodTop: #D0905A;
+  --soil: #6B4A33; --soilTop: #7E5A40; --shade: #8C9A4C; --pk: #FBEBD3; --fsh: #E5CBA5; --sign: #F2D3A8; }
+.gscene[data-t="night"] { --s0: #152036; --s1: #1F2C47; --s2: #2D3B57; --sun: #F6EED6; --ring1: #2F3D5C; --ring2: #26334F; --cloud: #34425F; --moonbite: #1F2C47;
+  --far: #2A3A4A; --far2: #2C4140; --mid: #30493E; --t0: #22382F; --t1: #284034; --t2: #1C3029; --trunk: #172720;
+  --meadow: #36513A; --meadow2: #324C36; --tuft: #2C4632; --stone: #8E8B80; --stoneEdge: #6E6B62; --wood: #6F4C34; --woodDark: #563A28; --woodTop: #80593D;
+  --soil: #3E2F23; --soilTop: #4A392B; --shade: #2D4631; --pk: #9C988C; --fsh: #7C786E; --sign: #B8A080; --wf0: #C9CCD6; --wf1: #B9A65A; --wf2: #A98B98; }
+.gscene[data-season="spring"]:not([data-t="night"]) { --meadow: #96C466; --meadow2: #8CBA5D; }
+.gscene[data-season="autumn"]:not([data-t="night"]) { --meadow: #A7B45E; --meadow2: #9CA955; --tuft: #84873F; --t0: #B5853E; --t1: #C99A48; --t2: #8E6A34; --mid: #A8A462; --wf1: #E9A23B; --wf2: #D9773E; }
+.gscene[data-season="winter"]:not([data-t="night"]) { --meadow: #D8DED4; --meadow2: #CFD6CA; --tuft: #B4BEB0; --t0: #6E8574; --t1: #7F9583; --t2: #5E7464; --mid: #BCC8BA; --far2: #C2CEC8; --wf0: #FFFFFF; }
+.gsky { height: 250px; }
+.gsky .s0 { stop-color: var(--s0); } .gsky .s1 { stop-color: var(--s1); } .gsky .s2 { stop-color: var(--s2); }
+.gsky .sun { fill: var(--sun); } .gsky .ring1 { fill: var(--ring1); } .gsky .ring2 { fill: var(--ring2); } .gsky .crater { fill: #E3D9BE; }
+.gsky .cloud, .gsky .cloud.c2 { fill: var(--cloud); opacity: 1; }
+.gsky .far { fill: var(--far); } .gsky .far2 { fill: var(--far2); } .gsky .mid { fill: var(--mid); } .gsky .lip { fill: var(--meadow); }
+.gsky .t0 { fill: var(--t0); } .gsky .t1 { fill: var(--t1); } .gsky .t2 { fill: var(--t2); } .gsky .trunk { fill: var(--trunk); }
+.gsky .pk { fill: var(--pk); } .gsky .fsh { fill: var(--fsh); }
+.gsky .stars circle { fill: #F4EEDC; }
+.gground { margin-top: -1px; background: repeating-linear-gradient(to bottom, var(--meadow) 0 30px, var(--meadow2) 30px 60px); }
+.gtuft { width: 18px; height: 13px; } .gtuft .tuft { stroke: var(--tuft); stroke-width: 1.8; }
+.gwf { position: absolute; width: 8px; height: 8px; pointer-events: none; } .gwf svg { width: 100%; height: 100%; display: block; }
+.gwf .pc { fill: #E7B53C; } .gwf.w0 .pt { fill: var(--wf0); } .gwf.w1 .pt { fill: var(--wf1); } .gwf.w2 .pt { fill: var(--wf2); }
+.gpath { position: absolute; inset: 0 0 60px; pointer-events: none; }
+.gpath i { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: var(--stone); box-shadow: 0 2px 0 var(--stoneEdge); }
+/* raised wooden beds: dark soil framed by a rim, plank front, a shadow on the grass */
+.gbed { background-color: var(--soil); background-image: radial-gradient(circle, var(--soilTop) 0 1.6px, transparent 1.7px), radial-gradient(circle, var(--soilTop) 0 1.2px, transparent 1.3px); background-size: 30px 22px, 21px 17px; background-position: 0 0, 8px 6px; border-radius: 10px; box-shadow: 0 0 0 5px var(--woodTop); margin-bottom: 40px; }
+.gbed::before { content: ""; position: absolute; left: -5px; right: -5px; top: calc(100% + 5px); height: 30px; border-radius: 0 0 8px 8px;
+  background: linear-gradient(to bottom, var(--wood) 0 13px, var(--woodDark) 13px 15px, var(--wood) 15px 28px, var(--woodDark) 28px 30px);
+  box-shadow: inset 7px 0 0 var(--woodDark), inset -7px 0 0 var(--woodDark), 0 10px 0 -2px var(--shade); }
+.gbed > .gp { z-index: 2; }
+.gscene[data-t="night"] .gbed > .gp, .gscene[data-t="night"] .gvis { filter: brightness(.66) saturate(.8); }
+.gplot { gap: 0; }
+.gsign { position: relative; margin: -24px 0 0 auto; background: var(--sign); color: var(--signInk); border-radius: 6px; padding: 4px 10px; box-shadow: 0 2px 0 var(--woodDark); z-index: 3; }
+.gsign i { background: #C9B79A; } .gsign i.due { background: var(--red); }
+.gff { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.gff i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #F4E27A; box-shadow: 0 0 0 3px #3E5A3C; animation: g-ff 4s ease-in-out infinite; }
+.gscene[data-t="dusk"] .gff i { box-shadow: 0 0 0 3px #9DAE56; }
+@keyframes g-ff { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(6px, -8px) scale(.6); } }
+@media (prefers-reduced-motion: reduce) { .gff i { animation: none; } }
+/* the lantern is lit from dusk */
+.gscene[data-t="dusk"] .o-study .oa, .gscene[data-t="night"] .o-study .oa { fill: #FFD87A; }
+.gscene .gsquare { padding-bottom: 8px; }
+.gscene-empty .gbed { background: var(--soil); }
+.gscene-empty .gbed.gempty .pl { opacity: 1; }
+/* the tap area is the plant's middle, so plants in the row behind or beside never cover each other */
+.gbed .gp.xl { pointer-events: none; }
+.gbed .gp.xl::before { content: ""; position: absolute; left: 24%; right: 24%; top: 36%; bottom: 26%; pointer-events: auto; z-index: 1; }
