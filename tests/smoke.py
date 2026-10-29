@@ -508,6 +508,15 @@ with sync_playwright() as p:
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')
     page.click('.seg >> nth=0 >> button:has-text("System")'); page.click('.seg >> nth=1 >> button:has-text("Default")')
 
+    print('v2.37.1: dark mode switch in the menu')
+    page.goto(URL + '#/home'); page.wait_for_selector('.menubtn'); page.click('.menubtn'); page.wait_for_selector('.drawer')
+    page.click('.drawer .drawer-switch .switch'); page.wait_for_timeout(200)
+    check(ev('document.documentElement.getAttribute("data-theme")') == 'dark' and ev('RV.store.S.settings.theme') == 'dark', 'menu switch turns dark mode on')
+    page.click('.drawer .drawer-switch .switch'); page.wait_for_timeout(200)
+    check(ev('document.documentElement.getAttribute("data-theme")') == 'light', 'and off again (light)')
+    page.keyboard.press('Escape'); page.click('.drawer', position={'x': 10, 'y': 400}) if page.locator('.drawer').count() else None
+    ev('RV.store.saveSettings(s => { s.theme = "system"; })'); ev('RV.app.applyDisplay()')
+
     print('backup and restore')
     backup = ev('RV.store.exportAll()')
     check(backup['app'] == 'rv-app' and len(backup['rvs']) >= 7, 'backup has everything')
@@ -732,7 +741,7 @@ with sync_playwright() as p:
     page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab'); time.sleep(0.4)
     ev("document.querySelectorAll('.overlay, .recap, .vann').forEach(e => e.remove())"); time.sleep(0.2)
     page.click('.menubtn'); page.wait_for_selector('.drawer')
-    check(page.locator('.drawer-item').count() == 7 and page.locator('.drawer-sub:has-text("Ministry")').count() == 1 and 'Groundwork' in page.locator('.drawer-foot').inner_text(), 'menu: Ministry, App and Customize, version at the foot')
+    check(page.locator('a.drawer-item').count() == 7 and page.locator('.drawer-switch').count() == 1 and page.locator('.drawer-sub:has-text("Ministry")').count() == 1 and 'Groundwork' in page.locator('.drawer-foot').inner_text(), 'menu: Dark mode switch, Ministry, App and Customize, version at the foot')
     page.click('.drawer-item:has-text("Customize")'); page.wait_for_selector('.setrow')
     check(page.locator('.setrow').count() == 5 and 'Lead stages' in page.locator('.view').inner_text(), 'Customize: one page with the five setup pages')
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')

@@ -1676,3 +1676,4 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 .unsure { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .unsure .lbl { font-size: .82rem; color: var(--muted); margin-right: 2px; }
 .unsure .chip { font-size: .85rem; background: var(--accent-soft); border-color: transparent; }
+.drawer-switch { cursor: pointer; } .drawer-switch .grow { flex: 1; }

@@ -593,3 +593,4 @@ Note cleanup meaning check (Mark's Jonathan note: "it came" for "I came", "when 
 - Anything it can't resolve stays as said and comes back in `unsure`; up to four such phrases (only ones really in the cleaned note) show under the note as "Worth a look" chips, and a tap selects those words. The list goes when the note is edited or the cleanup is undone.
 - Not tested against the live model from here (no network to the proxy); Fast stays the default.
 - Tests: garden 49, kinds 19, ai_cleanup 40, smoke 287 (taps through held moments), screens 50, logic 48, notes_import 39, drive_folder 37, notes 7. VERSION 2.37.0, cache rvapp-v86.
+- v2.37.1: a Dark mode switch at the top of the menu (Mark). On sets the theme to Dark, off to Light; System stays available in Display. The screen redraws so the plants pick up the new colours. Tests: smoke 289. Cache rvapp-v87.

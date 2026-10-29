@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.37.0';
+  RV.VERSION = '2.37.1';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -18,6 +18,7 @@
   const scrollPos = {};
 
   // ---------- display ----------
+  const isDark = () => S.settings.theme === 'dark' || (S.settings.theme !== 'light' && !!(root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches));
   function applyDisplay() {
     const html = document.documentElement;
     if (S.settings.theme === 'light' || S.settings.theme === 'dark') html.setAttribute('data-theme', S.settings.theme);
@@ -84,6 +85,9 @@
     const scrim = h('div', { class: 'drawer', onclick: (e) => { if (e.target === scrim) close(); } },
       h('nav', { class: 'drawer-panel', 'aria-label': 'Settings menu' },
         h('div', { class: 'drawer-head' }, h('h2', null, 'Menu'), h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('x'))),
+        // v2.37.1: a quick dark mode switch at the top (System stays in Display)
+        h('div', { class: 'drawer-group' }, h('label', { class: 'drawer-item drawer-switch' }, icon('moon', 20), h('span', { class: 'grow' }, 'Dark mode'),
+          UI.toggle(isDark(), (on) => { ST.saveSettings((st) => { st.theme = on ? 'dark' : 'light'; }); applyDisplay(); render(); }, 'Dark mode'))),
         ...groups.map(([head, rows]) => h('div', { class: 'drawer-group' }, head ? h('div', { class: 'drawer-sub' }, head) : null,
           rows.map(([path, label, ic]) => h('a', { class: 'drawer-item', href: '#/settings/' + path, onclick: close }, icon(ic, 20), label)))),
         h('a', { class: 'drawer-foot', href: '#/settings/about', onclick: close }, 'Groundwork ' + RV.VERSION)));
