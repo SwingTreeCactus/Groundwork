@@ -434,7 +434,11 @@
       const name = G.growthName(S.settings, res.grew.from, res.grew.to);
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
-      await P.grow(G.formOf(S.settings, res.grew.from), G.formOf(S.settings, res.grew.to), care || 4, name, rvId);
+      const fromF = G.formOf(S.settings, res.grew.from), toF = G.formOf(S.settings, res.grew.to);
+      const rv = ST.rvById(rvId), kind = rv && rv.kind;
+      // v2.38: growing into a study tree gets the evolution-style moment; other growth stays the short one
+      if (toF === 5 && P.evolve) await P.evolve(fromF, toF, care || 4, { kind, fromKind: kind, line: name, sub: rv ? rv.name : '', vid: rvId });
+      else await P.grow(fromF, toF, care || 4, name, rvId);
     } else if (on && res.revived) {
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;

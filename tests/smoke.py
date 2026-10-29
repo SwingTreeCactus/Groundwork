@@ -20,10 +20,11 @@ URL = f'http://127.0.0.1:{PORT}/'
 fails, passes = [], 0
 def through_moment(page, toast):
     # v2.37: growth and reveal moments wait for a tap; tap through one if it shows, then wait for the toast
-    page.wait_for_selector('.toast:has-text("%s"), .grow-ov' % toast)
+    page.wait_for_selector('.toast:has-text("%s"), .grow-ov, .evo-ov' % toast)
     for _ in range(3):
-        if not page.locator('.grow-ov').count(): break
-        page.wait_for_timeout(300); page.click('.grow-ov'); page.wait_for_timeout(150)
+        ov = '.grow-ov' if page.locator('.grow-ov').count() else '.evo-ov' if page.locator('.evo-ov').count() else None
+        if not ov: break
+        page.wait_for_timeout(300); page.click(ov); page.wait_for_timeout(150)
     page.wait_for_selector('.toast:has-text("%s")' % toast)
 
 def check(cond, msg):
@@ -72,6 +73,8 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles')
     ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"') # no surprise visitors unless a test asks
+    ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -388,27 +391,41 @@ with sync_playwright() as p:
       const r = ST.addRv({name: 'Neverhome', stage: 'initial', createdAt: d(30), snoozedUntil: fut});
       [7, 14, 21].forEach(n => ST.addEntry(r.id, 'nh', {}, d(n)));
       ST.addRv({name: 'Stuckguy', stage: 'initial', createdAt: d(60), stageChangedAt: d(60), snoozedUntil: fut}); }''')
-    page.goto(URL + '#/insights'); page.wait_for_selector('.ring')
+    page.goto(URL + '#/insights'); page.wait_for_selector('.gscene')
+    # v2.38: the cards under the garden are objects in it now
+    check(page.locator('.gscene .ggate .o-can').count() == 1 and page.locator('.gscene .ggate .o-bunt').count() == 1 and page.locator('.gscene .ggate .o-slate').count() == 1 and page.locator('.gscene .ggate .o-sign').count() == 1, 'v2.38: watering can, bunting, slate and signpost at the gate')
+    check(page.locator('.gsquare .o-guide').count() == 1, 'v2.38: the field guide by the bench')
+    check(page.locator('.view > div > .icard, .ctiles, .howbtn').count() == 0, 'v2.38: no cards under the garden')
+    check(not any(ch.isdigit() for ch in page.locator('.ggate').inner_text()), 'v2.38: no numbers in the scene until something is tapped')
+    page.click('.o-can', force=True); page.wait_for_selector('.sheet .ring')
+    ring = page.locator('.ring .rw .n').inner_text()
+    check('/' in ring and 'Due this week' in page.locator('.ring').inner_text(), 'the watering can opens this week (%s)' % ring)
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    page.click('.o-bunt', force=True); page.wait_for_selector('.sheet .streak')
+    check(page.locator('.sheet .streak .big').count() == 1 and page.locator('.sheet .wks i').count() == 12, 'the bunting opens the streak and 12 week dots')
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    page.click('.o-slate', force=True); page.wait_for_selector('.sheet .tend')
+    check(page.locator('.sheet .tend .tg').count() == 3, "the slate opens today's tending, three goals")
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    page.click('.o-guide', force=True); page.wait_for_selector('.sheet .ctile.ms')
+    check('of 20' in page.locator('.ctile.ms').inner_text() and page.locator('.ctile.vs').count() == 1, 'the field guide opens Milestones and Visitors')
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    page.click('details.fstats > summary'); page.wait_for_selector('.funnel')
     check(page.locator('.frow').count() == 3, 'funnel shows the three stages: Potential, RV, Bible Study')
     check(page.locator('.effort').count() == 0, 'effort points are gone (the garden replaces them)')
-    ring = page.locator('.ring .rw .n').inner_text()
-    check('/' in ring and page.locator('.streak .big').count() == 1 and page.locator('.wks i').count() == 12, 'weekly ring (%s), streak and 12 week dots' % ring)
     nlive = ev("RV.store.items().filter(i => i.att.state !== 'closed' && RV.garden.forItem(i, RV.store.S.settings, new Date()).form).length")
     check(page.locator('.gscene .gplot').count() >= 1 and page.locator('.gscene .gp').count() == nlive, 'garden scene: a bed per area, every plant (%d)' % nlive)
     check(page.locator('.gscene .gsky').count() == 1 and page.locator('.gscene').get_attribute('data-t') in ('morning', 'day', 'dusk', 'night'), 'sky follows the clock')
     page.locator('.gscene .gp').first.click(); time.sleep(0.2)
     check(page.locator('.gcard').is_visible() and page.locator('.gcard a:has-text("Open")').count() == 1, 'tapping a plant shows its card')
-    check('Due this week' in page.locator('.ring').inner_text(), 'ring: due this week')
-    check(page.locator('.ctile.ms').count() == 1 and 'of 20' in page.locator('.ctile.ms').inner_text() and page.locator('.ctile.vs').count() == 1, 'v2.25: Milestones and Visitors tiles under the garden')
-    check(page.locator('.tend .tg').count() == 3, "v2.25: today's tending has three goals")
-    check(page.locator('details.fstats').count() == 1 and not page.locator('details.fstats').evaluate('d => d.open'), 'v2.25: field stats folded at the foot')
-    page.click('.howbtn'); page.wait_for_selector('.guide')
+    check(page.locator('details.fstats').count() == 1, 'field stats at the foot')
+    page.click('.o-sign', force=True); page.wait_for_selector('.guide')
     check(page.locator('.guide .gdrow .pl').count() == 9, 'v2.25: How your garden works shows the five forms and four care levels')
     page.keyboard.press('Escape'); time.sleep(0.2)
     check(page.locator('.rates > div').count() == 2 and page.locator('.dgrid i').count() == 84, 'found-home and prepared rates, 84-day dot grid')
     page.click('.gsign >> nth=0'); page.wait_for_selector('.plotbed')
     check(page.locator('.plotbed .pl').count() == page.locator('.list .row').count() > 0, 'an area plot shows every plant and the list')
-    page.goto(URL + '#/insights'); page.wait_for_selector('.ring'); page.click('details.fstats > summary'); page.wait_for_selector('.funnel')
+    page.goto(URL + '#/insights'); page.wait_for_selector('.gscene'); page.click('details.fstats > summary'); page.wait_for_selector('.funnel')
     check(page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Neverhome")').count() == 1, 'Worth reconsidering lists repeated not-homes')
     check('Try' in page.locator('.sec:has(h2:text-is("Worth reconsidering")) .row:has-text("Neverhome")').inner_text(), 'and suggests something else')
     check(page.locator('.sec:has(h2:text-is("Stuck in stage")) .row:has-text("Stuckguy")').count() == 1, 'Stuck in stage lists long-stalled records')
@@ -504,7 +521,7 @@ with sync_playwright() as p:
     page.click('.seg >> nth=1 >> button:has-text("Large")')
     check(ev('document.documentElement.getAttribute("data-theme")') == 'dark', 'dark theme applied')
     check(ev('getComputedStyle(document.documentElement).fontSize') == '18.4px', 'text scale applied (%s)' % ev('getComputedStyle(document.documentElement).fontSize'))
-    page.goto(URL + '#/rvs'); page.wait_for_selector('.atile'); shot('11-list-dark')
+    page.goto(URL + '#/rvs'); page.wait_for_selector('.vswitch'); shot('11-list-dark')
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')
     page.click('.seg >> nth=0 >> button:has-text("System")'); page.click('.seg >> nth=1 >> button:has-text("Default")')
 
@@ -617,10 +634,10 @@ with sync_playwright() as p:
     print('v2.8: row buttons, best days picker, accent, migration')
     page.goto(URL + '#/home'); page.wait_for_selector('.upnext .row')
     row = page.locator('.row').first
-    nh = row.locator('.nhbtn'); mp = row.locator('.navbtn')
-    check(nh.inner_text().strip() == 'NH' and mp.inner_text().strip() == 'Map', 'row buttons read NH and Map (v2.11)')
+    nh = row.locator('.nhbtn'); mp = row.locator('.rowpin')
+    check(nh.inner_text().strip() == 'NH' and mp.count() == 1 and mp.get_attribute('aria-label').startswith('Directions'), 'v2.38: row buttons are a map pin and NH')
     bn, bm = nh.bounding_box(), mp.bounding_box()
-    check(abs(bn['x'] - bm['x']) < 2 and bm['y'] > bn['y'] + bn['height'], 'Map sits under Log NH in one column')
+    check(abs(bn['y'] + bn['height'] / 2 - bm['y'] - bm['height'] / 2) < 4 and bm['x'] < bn['x'], 'the pin sits beside NH, in one row')
     rb = row.bounding_box()
     check(bn['x'] + bn['width'] > rb['x'] + rb['width'] - 20, 'buttons are at the right edge of the row')
     rid = ev('RV.store.S.rvs.find(r => r.name === "Dee Alvarez").id')
@@ -715,6 +732,8 @@ with sync_playwright() as p:
     print('v2.29: Getting started')
     sctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, service_workers='block')
     sctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "on"')
+    sctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    sctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     sp = sctx.new_page(); sp.goto(URL + '#/home'); sp.wait_for_selector('.starter')
     check(sp.locator('.starter .st').count() == 5 and sp.locator('.starter .st.cur:has-text("Add your first contact")').count() == 1, 'Getting started: five steps, the first one current')
     check(sp.locator('.starter .imports .setrow').count() == 4 and sp.locator('.starter .imports .setrow:has-text("From a notes app")').count() == 1, 'Getting started: the import choices sit under the first step')
@@ -834,7 +853,7 @@ with sync_playwright() as p:
     shot('32-garden-rows')
     page.fill('input[type=search]', ''); time.sleep(0.2)
     page.goto(URL + '#/today'); page.wait_for_selector('.gtile'); shot('33-garden-today')
-    page.goto(URL + '#/insights'); page.wait_for_selector('.ring'); shot('34-garden-insights')
+    page.goto(URL + '#/insights'); page.wait_for_selector('.gscene'); shot('34-garden-insights')
     page.click('.gsign:has-text("Plotville")'); page.wait_for_selector('.plotbed')
     check(page.locator('.plotbed .pl').count() == 1, 'Plotville plot has one plant')
     # v2.18: exhibits stand in the garden; the map
@@ -842,8 +861,8 @@ with sync_playwright() as p:
     page.goto(URL + '#/insights'); page.wait_for_selector('.gscene')
     nex = ev('Object.keys(RV.store.S.settings.exhibits).filter(k => RV.garden.EXHIBITS.some(e => e[0] === k)).length')
     fams = ev('new Set(RV.garden.EXHIBITS.filter(e => RV.store.S.settings.exhibits[e[0]]).map(e => e[3])).size')
-    check(page.locator('.gsquare .gobj').count() == fams and nex >= 2, 'earned exhibits stand in the garden, one object per family (%d of %d)' % (fams, nex))
-    page.click('.ctile.ms'); page.wait_for_selector('.exgrid')
+    check(page.locator('.gsquare > .gobj, .gsquare > .gfam').count() == fams and nex >= 2, 'earned exhibits stand in the garden, one object per family (%d of %d)' % (fams, nex))
+    page.click('.o-guide', force=True); page.click('.sheet .ctile.ms'); page.wait_for_selector('.exgrid')
     check(page.locator('.exgrid').first.locator('.exitem').count() == 20 and page.locator('.exgrid').first.locator('.exitem.locked').count() == 20 - nex, 'Exhibits sheet: all twenty, the rest greyed')
     page.keyboard.press('Escape'); time.sleep(0.2)
     # v2.23: tiers and rare visitors
@@ -875,7 +894,7 @@ with sync_playwright() as p:
     check(ev('RV.gardenRecap.visitor()') is False or page.locator('.vann').count() <= 1, 'it is announced only once')
     page.keyboard.press('Escape'); ev("document.querySelectorAll('.vann').forEach(e => e.remove())")
     ev("window.__RV_SURPRISE = 0"); ev("RV.store.saveSettings(s => { s.visitorsHere = {}; })")
-    page.click('.ctile.ms'); page.wait_for_selector('.exgrid')
+    page.click('.o-guide', force=True); page.click('.sheet .ctile.ms'); page.wait_for_selector('.exgrid')
     page.keyboard.press('Escape'); time.sleep(0.2)
     style = json.dumps({'version': 8, 'sources': {}, 'layers': [{'id': 'background', 'type': 'background', 'paint': {'background-color': '#ffffff'}}, {'id': 'poi_label', 'type': 'symbol', 'source-layer': 'poi', 'paint': {}}]})
     page.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body=style))
@@ -889,7 +908,8 @@ with sync_playwright() as p:
     check(page.locator('.gview, .gmap').count() == 0, 'Insights is just the garden (no map there)')
     ev("localStorage.setItem('rvapp.list', '{}')")
     page.goto(URL + '#/rvs'); page.wait_for_selector('.vswitch')
-    page.click('.vswitch button:has-text("Map")'); page.wait_for_selector('.gmap')
+    check(page.locator('.vswitch button.on').inner_text() == 'Map', 'Contacts opens on the map')
+    page.wait_for_selector('.gmap')
     try:
         page.wait_for_selector('.gmap .gpin', timeout=15000); ok_map = True
     except Exception:
@@ -929,8 +949,8 @@ with sync_playwright() as p:
         v = ev("(() => { const m = document.querySelector('.gmap').gmapMap(), c = m.getCenter(); return [c.lng, c.lat, m.getZoom()]; })()")
         check(page.locator('.gmap .gyou').count() == 1 and abs(v[0] + 121.25) < 0.002 and abs(v[1] - 37.99) < 0.002 and v[2] >= 15, 'a fresh map opens zoomed in on you (%s)' % v)
     ctx.clear_permissions()
-    page.click('.vswitch button:has-text("Tiles")'); page.wait_for_selector('.atile')
-    check(page.locator('.gmap').count() == 0, 'back to tiles')
+    page.click('.vswitch button:has-text("Areas")'); page.wait_for_selector('.acard')
+    check(page.locator('.gmap').count() == 0, 'Areas instead of the map')
     page.unroute('https://tiles.openfreemap.org/**'); page.unroute('https://nominatim.openstreetmap.org/search**')
     # week's-end recap: once, after the week ends
     ev('''() => RV.store.saveSettings(s => { s.gardenSince = new Date(Date.now() - 30*864e5).toISOString(); s.recapSeen = null; })''')

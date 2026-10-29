@@ -65,6 +65,8 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True, service_workers='block')
     ctx.route('https://ai.test/**', helper)
     ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and 'status of' not in m.text else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -218,6 +220,8 @@ with sync_playwright() as p:
     ctx2 = b.new_context(viewport={'width': 390, 'height': 844}, service_workers='allow')
     ctx2.route('https://ai.test/**', helper)
     ctx2.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    ctx2.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    ctx2.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     p2 = ctx2.new_page()
     p2.goto(URL); p2.wait_for_selector('.tabbar .tab')
     p2.evaluate('navigator.serviceWorker.ready.then(() => true)')

@@ -188,6 +188,17 @@
     }
     return box;
   }
+  // v2.38: flowering shrubs along the edges of the meadow
+  function edgeShrubs(t) {
+    const box = h('div', { class: 'gshrubs', 'aria-hidden': 'true' });
+    const spots = [[3, 3], [95, 34], [3, 58], [94, 80], [4, 92]];
+    spots.forEach(([x, y], k) => {
+      const fc = ['#FFFFFF', '#F2C94C', '#F2A7B8'][k % 3];
+      box.appendChild(svgEl('<svg viewBox="-20 -24 40 32"><ellipse cx="0" cy="6" rx="18" ry="4" class="bsh"/><circle cx="-9" cy="-2" r="10" class="b0"/><circle cx="8" cy="-3" r="11" class="b0"/><circle cx="0" cy="-10" r="11" class="b1"/>' +
+        [[-12, -8], [-4, -16], [6, -12], [10, -4], [-7, -1], [2, -4]].map(([a, b]) => '<circle cx="' + a + '" cy="' + b + '" r="1.9" fill="' + fc + '" class="bf"/>').join('') + '</svg>', 'gshrub', 'left:' + x + '%;top:' + y + '%'));
+    });
+    return box;
+  }
   // v2.36: fireflies over the grass after dark (and a few at dusk)
   function fireflies(t) {
     if (t !== 'night' && t !== 'dusk') return null;
@@ -196,6 +207,66 @@
     for (let i = 0; i < (t === 'night' ? 22 : 8); i++) box.appendChild(h('i', { style: { left: (rnd() * 96 + 2).toFixed(1) + '%', top: (rnd() * 92 + 4).toFixed(1) + '%', animationDelay: (-rnd() * 4).toFixed(2) + 's', animationDuration: (3 + rnd() * 3).toFixed(1) + 's' } }));
     return box;
   }
+  // v2.38: the game lives in the scene. At the gate: bunting on the fence (the streak), a watering can (this week),
+  // a chalk slate (today's tending) and a signpost (how it works). Numbers only show when one is tapped.
+  const PENN = ['#C8473A', '#E5BF45', '#5C8C55', '#3D6B63', '#D9773E', '#EEB4C3'];
+  function gateObjects(opt) {
+    const sk = opt.sk, tend = opt.tend;
+    const objBtn = (cls, label, html, on) => { const b = h('button', { class: 'gobt ' + cls, type: 'button', 'aria-label': label, onclick: (e) => { e.stopPropagation(); on(); } }); b.innerHTML = html; return b; };
+    const els = [];
+    if (sk) {
+      // one pennant per week (the last twelve): coloured for a good week, pale blue for a freeze, none for a miss
+      const wk = sk.weeks.slice(-12);
+      let bunt = '<svg viewBox="0 0 390 34" preserveAspectRatio="none" aria-hidden="true"><path d="M0 4 Q195 30 390 4" stroke="#8E5B34" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke"/>';
+      wk.forEach((w, i) => {
+        if (w !== 'ok' && w !== 'frz') return;
+        const x = 390 - 51 - (wk.length - 1 - i) * 29, y = 4 + 26 * (1 - Math.pow((x - 195) / 195, 2)) * 0.5;
+        bunt += '<path d="M' + (x - 8) + ' ' + y.toFixed(1) + ' L' + (x + 8) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 15).toFixed(1) + ' Z" fill="' + (w === 'frz' ? '#9DC3D8' : PENN[i % PENN.length]) + '"/>';
+      });
+      // this week's pennant, still to earn, hangs as an outline at the end of the string
+      { const x = 370, y = 4 + 26 * (1 - Math.pow((x - 195) / 195, 2)) * 0.5;
+        bunt += '<path class="pnext" d="M' + (x - 8) + ' ' + y.toFixed(1) + ' L' + (x + 8) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 15).toFixed(1) + ' Z" fill="#FFFFFF" fill-opacity=".35" stroke="#8E5B34" stroke-width="1" stroke-dasharray="2 2"/>'; }
+      els.push(objBtn('o-bunt', 'Streak: ' + sk.streak + (sk.streak === 1 ? ' week' : ' weeks') + ', nobody past due', bunt + '</svg>', () => UI.sheet('Streak', () => streakPart(sk))));
+      // the watering can: full at the start of the week, emptier as due plants are watered
+      const r = sk.ring, left = r.due ? Math.max(0, r.due - r.seen) / r.due : 0, wh = Math.round(14 * left);
+      els.push(objBtn('o-can', 'This week: ' + r.seen + ' of ' + r.due + ' watered',
+        '<svg viewBox="0 0 72 60" aria-hidden="true"><ellipse cx="30" cy="54" rx="22" ry="4" class="osh"/><path d="M14 22 H44 L42 52 H16 Z" fill="#7C98A6"/><rect x="12" y="18" width="34" height="6" rx="3" fill="#5F7C8A"/><path d="M44 30 L60 18" stroke="#5F7C8A" stroke-width="5" stroke-linecap="round"/><ellipse cx="61" cy="17" rx="5" ry="3" fill="#5F7C8A" transform="rotate(-35 61 17)"/><path d="M18 18 C18 6 40 6 40 18" stroke="#5F7C8A" stroke-width="4" fill="none"/><rect x="18" y="34" width="22" height="14" rx="2" fill="#6D8A98"/>' +
+        (wh ? '<rect x="19" y="' + (48 - wh) + '" width="20" height="' + wh + '" fill="#8FC6E3"/>' : '') + '</svg>', () => UI.sheet('This week', () => ringPart(sk))));
+    }
+    if (tend) {
+      const done = tend.goals.filter((g) => g.done).length;
+      let sl = '<svg viewBox="0 0 56 64" aria-hidden="true"><rect x="4" y="44" width="5" height="20" fill="#8E5B34"/><rect x="47" y="44" width="5" height="20" fill="#8E5B34"/><rect x="0" y="4" width="56" height="44" rx="5" fill="#A9733F"/><rect x="5" y="9" width="46" height="34" rx="3" fill="#3B4540"/>';
+      tend.goals.slice(0, 3).forEach((g, k) => {
+        const y = 19 + k * 10;
+        sl += g.done ? '<path d="M11 ' + y + ' l3 3 6-6" stroke="#F2EEE5" stroke-width="2" fill="none" stroke-linecap="round"/>' : '<rect x="11" y="' + (y - 3) + '" width="7" height="5" rx="1" stroke="#C9CDC5" stroke-width="1.4" fill="none"/>';
+        sl += '<path d="M24 ' + y + ' H' + (44 - k * 3) + '" stroke="#C9CDC5" stroke-width="1.6" stroke-linecap="round"/>';
+      });
+      els.push(objBtn('o-slate', "Today's tending: " + done + ' of ' + tend.goals.length + ' done', sl + '</svg>', () => UI.sheet("Today's tending", () => bare(tendCard(tend)))));
+    }
+    els.push(objBtn('o-sign', 'How your garden works', '<svg viewBox="0 0 42 62" aria-hidden="true"><rect x="15" y="20" width="5" height="40" fill="#8E5B34"/><path d="M2 6 H34 L40 14 L34 22 H2 Z" fill="#E9CBA3"/><text x="18" y="19" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#2A1D12">?</text></svg>', guideSheet));
+    return h('div', { class: 'ggate' }, els);
+  }
+  // the field guide on the bench and the next milestone as a faint sketch, with the earned objects
+  function footObjects(opt, earned) {
+    const out = [];
+    const book = h('button', { class: 'gobt o-guide', type: 'button', 'aria-label': 'Field guide: visitors and milestones', onclick: (e) => { e.stopPropagation(); UI.sheet('Field guide', (close) => collectTiles(earned, close)); } });
+    book.innerHTML = '<svg viewBox="0 0 40 32" aria-hidden="true"><rect x="2" y="6" width="34" height="24" rx="3" fill="#8E3F25"/><rect x="6" y="6" width="30" height="20" rx="2" fill="#B4583A"/><rect x="10" y="11" width="18" height="2.4" rx="1.2" fill="#F2D3A8"/><rect x="10" y="16" width="12" height="2" rx="1" fill="#F2D3A8"/><path d="M30 6 V20 L33 17 L36 20 V6" fill="#E5BF45"/></svg>';
+    out.push(book);
+    if (opt.items && opt.sk) {
+      const c = G.milestoneCounts(opt.items, S.settings, opt.now || new Date(), S.settings.gardenSince, opt.sk.best);
+      const next = G.nextMilestones(c, earned, 1)[0];
+      if (next) {
+        const b = h('button', { class: 'gobt o-sketch', type: 'button', 'aria-label': 'Coming next: ' + next.name, onclick: (e) => { e.stopPropagation(); const card = nextCard(opt.items, earned, opt.sk, opt.now || new Date()); UI.sheet('Coming next', () => bare(card) || h('p', null, 'All milestones found.')); } }, exhibitObj(next.fam, next.name, true));
+        out.push(b);
+      }
+    }
+    return out;
+  }
+  const sheetNote = (t) => h('p', { class: 'muted small onote' }, t);
+  function ringPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.ring'), sheetNote('The can empties as you water the plants that are due this week.')); }
+  function streakPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.streak'), c.querySelector('.wks'), sheetNote('A pennant for every week nobody went past due. A pale blue one is a week a freeze kept your streak.')); }
+  // a card shown in a sheet drops its own heading (the sheet has one)
+  const bare = (el) => { if (el) { const t = el.querySelector('.ih, h2'); if (t) t.remove(); el.classList.add('osheet'); } return el; };
   function gardenScene(plots, now, earned, opt) {
     opt = opt || {};
     const t = G.skyOf(now);
@@ -212,7 +283,7 @@
         h('div', { class: 'gct' }, h('b', null, x.it.rv.name),
           h('span', null, word)),
         h('a', { class: 'btn primary sm', href: '#/rv/' + x.it.rv.id }, 'Open'), closeBtn());
-      card.hidden = false;
+      card.hidden = false; y0 = root.scrollY; // a scroll closes the card, counted from where it opened
     };
     // v2.24 visitors: rolled once a day; they arrive the first time they are seen that day; tap to learn why they came
     // v2.27: the visitors staying in the garden (settings.visitorsHere); one that has not played its arrival waits,
@@ -239,7 +310,7 @@
         selEl = el;
         card.replaceChildren(h('div', { class: 'gct' }, h('span', { class: 'gvk' }, COATN[kind] ? 'Rare coat' : VINFO[k].mood), h('b', null, name + (where ? ' in ' + where : '')), h('span', null, VINFO[k].why)),
           h('a', { class: 'btn sm', href: '#/insights/visitors/' + kind }, 'See'), closeBtn());
-        card.hidden = false;
+        card.hidden = false; y0 = root.scrollY;
       };
       el.addEventListener('click', show);
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(e); } });
@@ -315,7 +386,7 @@
         vis.fox ? visEl('fox', 'right:12%;top:-50px') : null,
         vis.deer ? visEl('deer', 'left:10%;top:-58px') : null,
         vis.owl ? visEl('owl', 'left:44%;top:-62px') : null,
-        vis.geese ? visEl('geese', 'left:22%;top:-128px') : null, stonePath(), fireflies(t), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {}, opt.sets)),
+        vis.geese ? visEl('geese', 'left:22%;top:-128px') : null, stonePath(), edgeShrubs(t), fireflies(t), gateObjects(opt), h('div', { class: 'gbeds' }, beds), exhibitSquare(earned || {}, opt.sets, footObjects(opt, earned || {}))),
       card, seasonFall(season),
       // v2.25: a light rain over the beds when today's tending is all done (once a day)
       opt.rain ? h('div', { class: 'grain', 'aria-hidden': 'true' }, Array.from({ length: 28 }, (_, i) => h('i', { style: { left: ((i * 37) % 100) + '%', animationDelay: (-(i * 0.23) % 1.4).toFixed(2) + 's', animationDuration: (0.9 + (i % 5) * 0.12).toFixed(2) + 's' } }))) : null);
@@ -425,13 +496,13 @@
     d.innerHTML = SET_ART[id] || '';
     return d;
   }
-  function exhibitSquare(earned, sets) {
+  function exhibitSquare(earned, sets, extra) {
     const top = new Map();
     for (const [id, , name, fam, tier] of G.EXHIBITS) if (earned[id] && (!top.has(fam) || top.get(fam).tier < tier)) top.set(fam, { name, tier });
     const done = sets ? G.SETS.filter(([id]) => sets.done[id]).map(([id, n, , what]) => setObj(id, what + ' (' + n + ' set)', sets.fresh.includes(id))) : [];
     if (sets && sets.done.all) done.push(setObj('all', 'Wildlife garden sign', sets.fresh.includes('all')));
-    if (!top.size && !done.length) return null;
-    return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)), done);
+    if (!top.size && !done.length && !(extra && extra.length)) return null;
+    return h('div', { class: 'gsquare' }, Array.from(top, ([fam, x]) => exhibitObj(fam, x.name, false, x.tier)), done, extra || null);
   }
   // v2.25: Milestones (formerly Exhibits)
   function exhibitSheet(earned) {
@@ -502,7 +573,7 @@
     };
   }
   // the two collection tiles under the garden
-  function collectTiles(earned) {
+  function collectTiles(earned, close) {
     const n = G.EXHIBITS.filter(([id]) => earned[id]).length;
     const seen = S.settings.visitors || {}, v = G.VISITORS.filter(([k]) => seen[k] && seen[k].first).length;
     const tile = (cls, title, count, art, on) => {
@@ -510,8 +581,8 @@
       return h('button', { class: 'ctile ' + cls, type: 'button', onclick: on }, a, h('b', null, title), h('span', null, count));
     };
     return h('div', { class: 'ctiles' },
-      tile('ms', 'Milestones', n + ' of ' + G.EXHIBITS.length, EXH_ART.rv, () => exhibitSheet(earned)),
-      tile('vs', 'Visitors', v + ' of ' + G.VISITORS.length, RV.critters.html('fox', { size: 40, still: true }), () => { location.hash = '#/insights/visitors'; }));
+      tile('ms', 'Milestones', n + ' of ' + G.EXHIBITS.length, EXH_ART.rv, () => { if (close) close(); exhibitSheet(earned); }),
+      tile('vs', 'Visitors', v + ' of ' + G.VISITORS.length, RV.critters.html('fox', { size: 40, still: true }), () => { if (close) close(); location.hash = '#/insights/visitors'; }));
   }
   // the nearest milestones, with how close they are
   function nextCard(items, earned, sk, now) {
@@ -598,20 +669,20 @@
     const setsDone = Object.assign({}, S.settings.setsDone || {}), comp = G.setsComplete(S.settings);
     const freshSets = Object.keys(comp).filter((id) => comp[id] && !setsDone[id]);
     if (freshSets.length) { const at = U.nowISO(); freshSets.forEach((id) => { setsDone[id] = at; }); setTimeout(() => ST.saveSettings((s) => { s.setsDone = Object.assign({}, s.setsDone || {}, setsDone); }), 0); }
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus, sets: { done: setsDone, fresh: freshSets } }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus, sets: { done: setsDone, fresh: freshSets }, sk, tend, items, now }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
     if (opt.rain && !(root.__RV_GARDEN_OPT && root.__RV_GARDEN_OPT.rain)) setTimeout(() => ST.saveSettings((s) => { s.tendDone = U.toDateStr(now); }), 3200);
     // v2.25: the game first (how it works, this week, today, next, collections); field stats folded at the foot
     const stats = h('details', { class: 'fstats' }, h('summary', null, icon('down', 18), 'Field stats'), goingCard(items, now), keep);
     // v2.29: Getting started: seeing the garden is a step; its card replaces Today's tending until done
     const starter = G.starterOn(S.settings);
     if (starter && !(S.settings.starter || {}).garden) setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { garden: true }); }), 0);
-    const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap How your garden works any time to see how it grows.');
+    const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap the watering can, the slate, the bunting or the signpost by the gate to see how you are doing.');
     // v2.27: nobody yet: an empty garden that explains itself
     if (!plots.length) return { title: 'My garden', immersive: G.skyOf(now), el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip, starter ? SC.starterCard() : null) };
+    // v2.38: the weekly ring, streak, tending, next milestones and collections are objects in the scene now
     return { title: 'My garden', immersive: G.skyOf(now), el: h('div', null,
-      gardenScene(plots, now, earned, opt),
-      h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip,
-      starter ? SC.starterCard() : null, ringCard(sk), starter ? null : tendCard(tend), nextCard(items, earned, sk, now), collectTiles(earned), stats) };
+      gardenScene(plots, now, earned, opt), gardenTip,
+      starter ? SC.starterCard() : null, stats) };
   }
 
   // One area's plot: every plant in a row of soil, then the list.

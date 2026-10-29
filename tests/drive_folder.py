@@ -108,6 +108,8 @@ def run():
         ctx.route('https://www.googleapis.com/**', api)
         ctx.route('https://oauth2.googleapis.com/**', api)
 
+        ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+        ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
         page = ctx.new_page()
         errors = []
         page.on('pageerror', lambda e: errors.append(str(e)))
@@ -222,6 +224,8 @@ def run():
                 return route.fulfill(status=200, headers=hdr, content_type='application/json', body=json.dumps({'access_token': 'AT%d' % n_at[0], 'expires_in': 3599}))
             route.fulfill(status=404, headers=hdr, body='')
         hctx.route('https://helper.test/**', helper)
+        hctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+        hctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
         page = hctx.new_page(); page.on('pageerror', lambda e: errors.append(str(e))); ev = page.evaluate
         page.goto(URL + '#/settings/data'); page.wait_for_selector('button:has-text("Back up to Google Drive")')
         del auths[:]

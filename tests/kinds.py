@@ -16,6 +16,8 @@ def check(c, label):
 with sync_playwright() as p:
     b = p.chromium.launch(); c = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, service_workers='block')
     c.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"'); pg = c.new_page()
+    # v2.38: Contacts opens on the map; keep its tiles off the network
+    pg.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
     base = f'http://127.0.0.1:{PORT}/'
     pg.goto(base + '#/home'); pg.wait_for_selector('.tabbar .tab')
@@ -31,14 +33,23 @@ with sync_playwright() as p:
     }""")
     check(r['kind'] == 'olive' and r['revealed'] and r['revealed']['kind'] == 'olive' and r['revealed']['toForm'] == 3, 'a live visit at leafy reveals the kind')
     pg.evaluate("() => { RV.forms.afterVisit(window.__dee, window.__res, 'Saved'); }")
-    pg.wait_for_selector('.grow-ov .gchip span', timeout=4000)
-    chip = pg.locator('.grow-ov .gchip span').inner_text(); sub = pg.locator('.grow-ov .gchip .gsub').inner_text()
+    # v2.38: the evolution-style moment
+    pg.wait_for_selector('.evo-ov'); pg.wait_for_timeout(300)
+    check('Something’s happening' in pg.locator('.evo-top').inner_text(), 'the garden dims: "Something’s happening…"')
+    pg.wait_for_timeout(1200)
+    check(pg.locator('.evo-ov.gather').count() == 1 and pg.locator('.evo-lay.sil').count() == 2, 'the plant turns to a white silhouette while light gathers')
+    seen = set()
+    for _ in range(12):
+        seen.add(pg.evaluate("[...document.querySelectorAll('.evo-lay')].map(e => e.classList.contains('hide') ? 0 : 1).join('')")); pg.wait_for_timeout(120)
+    check('10' in seen and '01' in seen, 'it flickers between the old and new silhouettes (%s)' % sorted(seen))
+    pg.wait_for_selector('.evo-ov .evo-chip span', timeout=4000)
+    chip = pg.locator('.evo-ov .evo-chip span').inner_text(); sub = pg.locator('.evo-ov .evo-chip .gsub').inner_text()
     check(chip == 'It’s an olive tree!', 'the reveal says "It’s an olive tree!" (%s)' % chip)
     check(sub == 'Dee Harper', 'with the person’s name under it')
-    check(pg.locator('.grow-ov .lay.in .pl.k-olive').count() == 1 and pg.locator('.grow-ov .lay.out .pl.k-olive').count() == 0, 'the old plant turns into the olive')
+    check(pg.locator('.evo-lay:not(.hide):not(.sil) .pl.k-olive').count() == 1 and pg.locator('.evo-lay:not(.hide)').count() == 1, 'the olive stands in colour')
     pg.screenshot(path=f'{OUT}/k-reveal.png')
-    pg.click('.grow-ov'); pg.wait_for_timeout(200)
-    check(pg.locator('.grow-ov').count() == 0, 'a tap closes the moment')
+    pg.click('.evo-ov'); pg.wait_for_timeout(200)
+    check(pg.locator('.evo-ov').count() == 0, 'a tap closes the moment')
 
     # undo takes the kind back
     r = pg.evaluate("""() => { window.__res.undo(); return RV.store.rvById(window.__dee).kind || null; }""")
@@ -84,10 +95,11 @@ with sync_playwright() as p:
     after = pg.evaluate("RV.store.rvById(window.__mid).stage")
     check(after == 'study', 'three studies, months apart, grow a plant straight into the tree (%s)' % after)
     pg.evaluate("() => { RV.forms.afterVisit(window.__mid, window.__mres, 'Study saved'); }")
-    pg.wait_for_selector('.grow-ov .gchip span', timeout=4000); pg.wait_for_timeout(1500)
-    check(pg.locator('.grow-ov').count() == 1 and pg.locator('.grow-ov .ghint.on').count() == 1, 'the moment stays, with Tap to continue')
-    pg.click('.grow-ov'); pg.wait_for_timeout(200)
-    check(pg.locator('.grow-ov').count() == 0, 'a tap closes it')
+    pg.wait_for_selector('.evo-ov .evo-chip span', timeout=6000); pg.wait_for_timeout(1500)
+    check(pg.locator('.evo-ov').count() == 1 and pg.locator('.evo-ov .ghint.on').count() == 1, 'growing into the tree gets the evolution moment, and it stays with Tap to continue')
+    check(pg.locator('.evo-lay:not(.hide) .pl.s5').count() == 1, 'and ends on the tree')
+    pg.click('.evo-ov'); pg.wait_for_timeout(200)
+    check(pg.locator('.evo-ov').count() == 0, 'a tap closes it')
     pg.evaluate("window.__RV_KIND = ''")
     sid = pg.evaluate("() => { const x = RV.store.addRv({ name: 'Lena', stage: 'initial' }); RV.store.logVisit(x.id, { text: 'L1', study: true, progress: 'L1' }); return x.id; }")
     pg.goto(base + '#/rv/' + sid); pg.wait_for_selector('.ghero')

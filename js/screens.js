@@ -44,9 +44,9 @@
       : null;
     const navBtn = o.nh !== false && (rv.address || rv.geo) && it.att.state !== 'closed'
       ? h('button', {
-        class: 'navbtn', type: 'button', 'aria-label': 'Directions to ' + rv.name,
+        class: 'rowpin', type: 'button', 'aria-label': 'Directions to ' + rv.name,
         onclick: (e) => { e.preventDefault(); e.stopPropagation(); UI.openNav(UI.navTarget(rv)); },
-      }, 'Map')
+      }, icon('pin', 20))
       : null;
     const st = gardenOn() ? gstate(it) : null;
     const garden = !!(st && st.form);
@@ -70,7 +70,7 @@
         garden
           ? h('div', { class: 'gstat' }, statusLine(it, st))
           : h('div', { class: 'line3' + (it.att.state === 'overdue' ? ' due' : '') }, UI.lastText(it))),
-      (navBtn || nhBtn) ? h('div', { class: 'row-acts' }, nhBtn, navBtn) : null);
+      (navBtn || nhBtn) ? h('div', { class: 'row-acts r2' }, navBtn, nhBtn) : null);
   }
   // Highlights the first place a search token appears in text: returns a node, or null if none matches.
   function hitLine(text, q) {
@@ -487,20 +487,21 @@
       });
     }
 
-    // No search and no filters: one tile per area, then the few people who have gone longest without a visit.
-    // No search and no filters: the areas, as tiles or as folders (remembered).
+    // No search and no filters (v2.38): Map by default, or Areas (folders); the old Tiles view is gone.
     const VIEW_KEY = 'rvapp.rvsView';
-    let view = (() => { try { const v = localStorage.getItem(VIEW_KEY); return v === 'folders' || v === 'map' ? v : 'tiles'; } catch (e) { return 'tiles'; } })();
+    const mapOk = () => !!(RV.gmap && gardenOn());
+    let view = (() => { try { return localStorage.getItem(VIEW_KEY) === 'folders' ? 'folders' : 'map'; } catch (e) { return 'map'; } })();
     let mapView = null; // the map is kept while it is showing, so edits refresh its pins instead of reloading it
     const dropMap = () => { if (mapView) { mapView.destroy(); mapView = null; } };
     const openFolders = new Set();
-    function paintTiles(all) {
+    function paintAreas(all) {
       const live = all.filter((i) => i.att.state !== 'closed');
       const groups = areaGroups(live);
-      metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, [['tiles', 'Tiles'], ['folders', 'Folders']].concat(RV.gmap && gardenOn() ? [['map', 'Map']] : []).map(([v, label]) =>
-        h('button', { type: 'button', class: v === view ? 'on' : '', 'aria-pressed': String(v === view), onclick: () => { if (v === view) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
+      const showMap = view === 'map' && mapOk();
+      metaEl.replaceChildren(mapOk() ? h('div', { class: 'seg2 vswitch' }, [['map', 'Map'], ['folders', 'Areas']].map(([v, label]) =>
+        h('button', { type: 'button', class: v === (showMap ? 'map' : 'folders') ? 'on' : '', 'aria-pressed': String(v === (showMap ? 'map' : 'folders')), onclick: () => { if (v === view) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))) : null);
       // Map: everyone's plant where they live
-      if (view === 'map' && RV.gmap && gardenOn()) {
+      if (showMap) {
         if (!mapView) { mapView = RV.gmap.view(all); listBox.replaceChildren(mapView.el); } else mapView.refresh();
         return;
       }
@@ -509,29 +510,22 @@
         listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
         return;
       }
-      const dueOf = (g) => g.items.filter((i) => i.att.state === 'overdue').length;
-      if (view === 'folders') {
-        const now = new Date();
-        listBox.replaceChildren(...groups.map((g) => {
-          const due = dueOf(g), open = openFolders.has(g.key);
-          const newest = g.items.reduce((m, i) => (i.last > m ? i.last : m), 0);
-          return h('section', { class: 'acard' + (open ? ' open' : '') },
-            h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => { if (open) openFolders.delete(g.key); else openFolders.add(g.key); refresh(); } },
-              h('span', { class: 't' }, h('span', { class: 'nm' }, g.name),
-                h('span', { class: 'sub' }, due ? h('b', null, due + ' due') : null, due ? ' · ' : null, 'last visit there ' + U.relTime(newest))),
-              h('span', { class: 'n' }, String(g.items.length)), icon(open ? 'up' : 'down', 20)),
-            open ? h('div', { class: 'abody' }, areaSections(g.key, all, now)) : null);
-        }));
-        return;
-      }
-      listBox.replaceChildren(
-        h('div', { class: 'tgrid' }, groups.map((g) => {
-          const due = dueOf(g);
-          return h('a', { class: 'atile', href: '#/rvs/area/' + encodeURIComponent(g.key) },
-            h('span', { class: 'n' }, String(g.items.length)),
-            h('span', { class: 'nm' }, g.name),
-            h('span', { class: 'sub' + (due ? '' : ' calm') }, due ? due + ' due' : 'All recent'));
-        })));
+      const now = new Date();
+      // with the garden on, an area shows its thirsty plants instead of "N due"
+      const thirsty = (g) => gardenOn() ? g.items.map((i) => ({ i, st: gstate(i) })).filter((x) => x.st.form && x.st.care && x.st.care <= G.CARE.DRY) : [];
+      listBox.replaceChildren(...groups.map((g) => {
+        const open = openFolders.has(g.key);
+        const due = gardenOn() ? 0 : g.items.filter((i) => i.att.state === 'overdue').length;
+        const dry = thirsty(g);
+        const newest = g.items.reduce((m, i) => (i.last > m ? i.last : m), 0);
+        return h('section', { class: 'acard' + (open ? ' open' : '') },
+          h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => { if (open) openFolders.delete(g.key); else openFolders.add(g.key); refresh(); } },
+            h('span', { class: 't' }, h('span', { class: 'nm' }, g.name),
+              h('span', { class: 'sub' }, due ? h('b', null, due + ' due') : null, due ? ' · ' : null, g.items.length + (g.items.length === 1 ? ' person' : ' people') + ' · last visit ' + U.relTime(newest))),
+            dry.length ? h('span', { class: 'athirst', 'aria-label': dry.length + ' thirsty' }, dry.slice(0, 3).map((x, k) => plantOf(x.st, 'sm', { still: true, seed: k }))) : null,
+            icon(open ? 'up' : 'down', 20)),
+          open ? h('div', { class: 'abody' }, areaSections(g.key, all, now)) : null);
+      }));
     }
 
     function refresh() {
@@ -548,7 +542,7 @@
         st.bestDay ? ['bestDay', 'Best day: ' + dayLabel(st.bestDay)] : null,
       ].filter(Boolean).map(([k, label]) => h('button', { class: 'achip', type: 'button', 'aria-label': 'Remove ' + label, onclick: () => { st[k] = ''; saveListState(st); shown = 100; refresh(); } }, label, icon('x', 14)))));
       chipsBox.hidden = !chipsBox.firstChild;
-      if (!searching && !n) { paintTiles(all); return; }
+      if (!searching && !n) { paintAreas(all); return; }
       dropMap();
       const filter = searching ? { stages: new Set(S.settings.stages.filter((x) => !x.closed).map((x) => x.id)), q: st.q } : Object.assign(listFilterFor(st), { q: '' });
       const rows = L.filterItems(all, filter, S.settings).sort(L.SORTS[st.sort] || L.SORTS.oldest);
@@ -596,7 +590,7 @@
         chipsBox),
       metaEl, listBox);
     refresh();
-    return { title: lbl('rvs'), el, fab: true, update: refresh, destroy: dropMap };
+    return { title: 'Contacts', el, fab: true, update: refresh, destroy: dropMap };
   }
 
   // ---------- RV detail ----------

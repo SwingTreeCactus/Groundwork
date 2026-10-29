@@ -1677,3 +1677,59 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 .unsure .lbl { font-size: .82rem; color: var(--muted); margin-right: 2px; }
 .unsure .chip { font-size: .85rem; background: var(--accent-soft); border-color: transparent; }
 .drawer-switch { cursor: pointer; } .drawer-switch .grow { flex: 1; }
+/* v2.38: Contacts. Rows: a small map pin beside NH; areas show their thirsty plants */
+.row.rv2 .row-acts.r2 { flex-direction: row; width: auto; gap: 2px; align-items: center; }
+.row.rv2 .row-acts.r2 .nhbtn { width: 52px; min-width: 52px; height: 36px; }
+.rowpin { flex: none; width: 40px; height: 40px; border: 0; border-radius: 20px; background: transparent; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+.rowpin:active { background: var(--surface2); }
+.ahead .athirst { display: flex; align-items: flex-end; flex: none; }
+.ahead .athirst .pl { margin-left: -8px; } .ahead .athirst .pl:first-child { margin-left: 0; }
+.lmeta .vswitch { max-width: 220px; }
+/* v2.38: the game's objects in the scene */
+.gbeds { padding-top: 150px; }
+.ggate { position: absolute; left: 0; right: 0; top: -36px; height: 110px; z-index: 6; pointer-events: none; }
+.gobt { position: absolute; border: 0; background: transparent; padding: 0; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+.gobt svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.gobt:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; border-radius: 8px; }
+.gobt.o-bunt { left: 0; right: 0; top: 0; height: 34px; width: 100%; animation: g-stir 5s ease-in-out infinite; transform-origin: 50% 0; }
+.gobt.o-can { left: calc(44% - 78px); top: 44px; width: 72px; height: 60px; animation: g-glint 5s ease-in-out infinite; transform-origin: 50% 90%; }
+.gobt.o-slate { left: calc(58% + 12px); top: 36px; width: 56px; height: 64px; }
+.gobt.o-sign { right: 5%; top: 40px; width: 42px; height: 62px; }
+.gobt .osh { fill: var(--shade); }
+@keyframes g-stir { 0%, 100% { transform: skewX(0); } 50% { transform: skewX(-1.5deg); } }
+@keyframes g-glint { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-4deg); } 94% { transform: rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .gobt.o-bunt, .gobt.o-can { animation: none; } }
+.gscene[data-t="night"] .ggate .gobt, .gscene[data-t="night"] .gsquare { filter: brightness(.78); }
+.gsquare .gobt.o-guide { position: relative; width: 44px; height: 36px; }
+.gsquare .gobt.o-sketch { position: relative; }
+.gsquare .gobt.o-sketch .gobj { width: 52px; height: 52px; opacity: 1; }
+.gsquare .gobt.o-sketch .gobj svg * { fill: none !important; stroke: #8F9A82 !important; stroke-width: 1.6; stroke-dasharray: 3 2.5; }
+.gscene[data-t="night"] .gsquare .gobt.o-sketch .gobj svg * { stroke: #6E7E70 !important; }
+/* edge shrubs and two-tone stepping stones */
+.gshrubs { position: absolute; inset: 0; pointer-events: none; }
+.gshrub { position: absolute; width: 46px; height: 37px; transform: translate(-50%, -50%); }
+.gshrub .bsh { fill: var(--shade); } .gshrub .b0 { fill: var(--t2, #4F7D4C); } .gshrub .b1 { fill: var(--t1, #5E8E55); }
+.gscene[data-t="night"] .gshrub .bf { fill: #8E8B80; }
+.gpath i { background: radial-gradient(ellipse at 42% 34%, color-mix(in srgb, var(--stone) 70%, #FFFFFF) 0 35%, var(--stone) 62%); }
+/* milestone objects in real materials: wood, stone, iron, water, roses */
+.gsquare .o-rv .o1 { fill: #A9733F; } .gsquare .o-rv .o2 { fill: #7E532D; }
+.gsquare .o-first .o1s { stroke: #F4EFE4; } .gsquare .o-first .o2 { fill: #E3DCCD; } .gsquare .o-first .o2s { stroke: #E3DCCD; } .gsquare .o-first .oa { fill: #E5BF45; }
+.gsquare .o-plan .o2s { stroke: #E9DCC4; } .gsquare .o-plan .oas { stroke: #5E8E55; } .gsquare .o-plan .oa { fill: #D9607A; }
+.gsquare .o-study .o1 { fill: #3C3A36; } .gsquare .o-study .o2 { fill: #3C3A36; } .gsquare .o-study .oa { fill: #F1E6C8; }
+.gscene[data-t="dusk"] .gsquare .o-study .oa, .gscene[data-t="night"] .gsquare .o-study .oa { fill: #FFD87A; }
+.gsquare .o-area .o1 { fill: #CFC6B4; } .gsquare .o-area .o2 { fill: #B3A890; } .gsquare .o-area .o2s { stroke: #B3A890; }
+.gsquare .o-revive .o1 { fill: #CFC6B4; } .gsquare .o-revive .o2 { fill: #B3A890; } .gsquare .o-revive .oa { fill: #6B5446; }
+.gsquare .o-streak .o1 { fill: #CFC6B4; } .gsquare .o-streak .o2 { fill: #B3A890; } .gsquare .o-streak .oa { fill: #A07A3C; }
+.gsquare .o-round .o1 { fill: #7C98A6; } .gsquare .o-round .o2 { fill: #5F7C8A; } .gsquare .o-round .o2s { stroke: #5F7C8A; } .gsquare .o-round .oa { fill: #C8473A; }
+/* v2.38: the scene really is edge to edge (max-width held it 24px short on the right) */
+body.immersive .view > div > .gscene:first-child { max-width: none; width: calc(100% + 24px); }
+.gsquare .gobt.o-guide { order: -1; }
+.osheet.icard, .osheet { background: transparent; box-shadow: none; padding: 4px 0 8px; margin: 0; }
+.osheet .onote { margin: 14px 2px 0; }
+.osheet .wks { margin-top: 14px; }
+/* the bunting spans the fence: only the string and pennants take a tap, so plants under it still can */
+.gobt.o-bunt { pointer-events: none; } .gobt.o-bunt path { pointer-events: visibleStroke; } .gobt.o-bunt path[fill^="#"] { pointer-events: visiblePainted; }
+.gobt.o-bunt .hit { pointer-events: stroke; }
+/* plants stand in front of the gate objects; the empty space above the beds lets taps through to them */
+.gscene .gbeds { z-index: 7; pointer-events: none; } .gscene .gbeds > * { pointer-events: auto; }
+.gshrubs { overflow: hidden; }

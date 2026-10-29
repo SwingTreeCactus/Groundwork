@@ -44,6 +44,8 @@ with sync_playwright() as p:
                         locale='en-US', timezone_id='America/Los_Angeles', service_workers='block')
     ctx.route('https://api.anthropic.com/**', api)
     ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = ""') # own-key mode first; no surprise visitors unless a test asks
+    ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     page = ctx.new_page()
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and 'api.anthropic.com' not in m.text and 'status of' not in m.text else None)
     page.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
@@ -129,8 +131,9 @@ with sync_playwright() as p:
     check(tas.nth(0).input_value() == 'keep me', 'note kept offline')
     ctx.set_offline(False)
     page.click('.sheet button:has-text("Save visit")')
-    page.wait_for_selector('.toast:has-text("Visit saved"), .grow-ov')
-    if page.locator('.grow-ov').count(): page.wait_for_timeout(300); page.click('.grow-ov')  # v2.37: growth moments wait for a tap
+    page.wait_for_selector('.toast:has-text("Visit saved"), .grow-ov, .evo-ov')
+    for ov in ['.grow-ov', '.evo-ov']:
+        if page.locator(ov).count(): page.wait_for_timeout(300); page.click(ov)  # v2.37: growth moments wait for a tap
     page.wait_for_selector('.toast:has-text("Visit saved")')
     check(ev(f'RV.store.S.entries.filter(e=>e.rvId=="{rid}" && e.type=="visit").length') == 1, 'visit still saves normally')
 
@@ -185,6 +188,8 @@ with sync_playwright() as p:
     ctx2.route('https://ai.test/**', helper)
     ctx2.route('https://api.anthropic.com/**', api)
     ctx2.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    ctx2.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
+    ctx2.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     p2 = ctx2.new_page()
     p2.on('pageerror', lambda e: errors.append('pageerror: ' + str(e)))
     p2.goto(URL); p2.wait_for_selector('.tabbar .tab')

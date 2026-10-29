@@ -265,6 +265,33 @@
 .grow-ov .ring{fill:none;stroke:var(--pl-acc);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pl-ring 2.5s ease-out forwards}
 @keyframes pl-chip{0%{transform:translateY(10px) scale(.9);opacity:0}60%{transform:translateY(-2px) scale(1.04);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
 .grow-ov.quick .lay.out,.grow-ov.quick .lay.in,.grow-ov.quick .potl.dip,.grow-ov.quick .bdot,.grow-ov.quick .ring{animation-duration:1.6s}
+.evo-ov{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(18,20,17,0);transition:background .6s ease;cursor:pointer;color:#F4F1EA}
+.evo-ov.in{background:rgba(18,20,17,.93)}
+.evo-ov.named{background:color-mix(in srgb,var(--bg) 97%,transparent);color:var(--fg);transition:background .5s ease}
+.evo-top{position:absolute;top:calc(22% - 40px);left:0;right:0;text-align:center;font-size:17px;font-weight:500;opacity:0;transition:opacity .5s .2s}
+.evo-ov.in .evo-top{opacity:1}
+.evo-stage{position:relative;width:176px;height:270px;transform:scale(1.3);margin:30px 0}
+.evo-lay{position:absolute;inset:0}
+.evo-lay .pl{position:absolute;left:0;top:0;width:100%;height:100%;transition:filter .45s ease}
+.evo-lay.sil .pl{filter:brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,.7))}
+.evo-lay.hide{visibility:hidden}
+.evo-glow{position:absolute;left:50%;top:46%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:radial-gradient(circle,rgba(255,250,225,.95),rgba(255,240,200,0) 70%);opacity:0;transform:scale(.6);transition:transform 2.6s cubic-bezier(.5,0,.8,.4),opacity 1s}
+.evo-ov.gather .evo-glow{opacity:1;transform:scale(7)}
+.evo-ov.named .evo-glow{opacity:0;transition:opacity .6s}
+.evo-sparks{position:absolute;left:50%;top:46%;width:0;height:0}
+.evo-sparks i{position:absolute;left:-2px;top:-2px;width:4px;height:4px;border-radius:50%;background:#FFF6D8;opacity:0}
+.evo-ov.gather .evo-sparks i{animation:evo-spark 1.1s var(--d) ease-in infinite}
+.evo-ov.named .evo-sparks i{animation:none;opacity:0}
+@keyframes evo-spark{0%{opacity:0;transform:rotate(var(--a)) translateY(-120px)}30%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-8px)}}
+.evo-bloom{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 46%,#FFFFFF 0,#FFFDF5 45%,rgba(255,253,245,.9) 100%);opacity:0}
+.evo-ov.flash .evo-bloom{animation:evo-bloom 1s ease-out forwards}
+@keyframes evo-bloom{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.evo-chip{min-height:60px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.evo-chip span{font-size:24px;font-weight:700;animation:pl-chip .5s cubic-bezier(.3,1.4,.5,1) both}
+.evo-chip .gsub{font-size:15px;font-weight:500;color:var(--muted);animation:pl-chip .5s .15s cubic-bezier(.3,1.4,.5,1) both}
+.evo-ov.named .evo-stage .pl{animation:pl-chip .6s cubic-bezier(.3,1.3,.5,1) both}
+.evo-ov .ghint{position:absolute;left:0;right:0;bottom:calc(48px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;color:var(--muted);opacity:0;transition:opacity .6s}
+.evo-ov .ghint.on{opacity:1}
 .grow-ov .ghint{position:absolute;left:0;right:0;bottom:calc(48px + env(safe-area-inset-bottom,0px));text-align:center;font-size:14px;color:var(--muted);opacity:0;transition:opacity .6s}
 .grow-ov .ghint.on{opacity:1}
 .grow-ov .gchip{min-height:36px;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -380,9 +407,57 @@
   // "It's an olive tree!" with the person's name under it.
   function reveal(fromForm, toForm, care, kind, vid, who, fromCare) {
     const lineText = RV.kinds ? RV.kinds.line(kind) : '';
-    return grow(fromForm, toForm, care, lineText, vid, { kind, sub: who || '', fromCare, label: lineText });
+    return evolve(fromForm, toForm, care, { kind, line: lineText, sub: who || '', fromCare, vid });
+  }
+  // v2.38: the evolution-style moment, for the kind reveal and for growing into a study tree. The garden dims,
+  // "Something's happening…", the plant turns to a white silhouette and flickers with the new one, faster and
+  // faster while light gathers, a soft white bloom, then the new plant in colour with its line. About 4 s, held
+  // until tapped. Reduced motion goes straight to the new plant.
+  function evolve(fromForm, toForm, care, o) {
+    o = o || {};
+    ensureStyle();
+    const ev = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text) el.textContent = text; return el; };
+    return new Promise((resolve) => {
+      const ov = ev('div', 'evo-ov');
+      ov.setAttribute('role', 'status'); ov.setAttribute('aria-label', o.line || 'It grew');
+      const top = ev('div', 'evo-top', 'Something\u2019s happening\u2026');
+      const wrap = ev('div', 'evo-stage');
+      const glow = ev('div', 'evo-glow');
+      const mk = (form, kind, c) => { const w = ev('div', 'evo-lay'); w.appendChild(make(form, c, { size: 'xl', potless: true, still: true, seed: 0, vid: o.vid, kind })); return w; };
+      const a = mk(fromForm, o.fromKind, o.fromCare || care), b = mk(toForm, o.kind, care);
+      b.classList.add('hide');
+      let sparks = '';
+      for (let i = 0; i < 12; i++) sparks += '<i style="--a:' + (i * 30) + 'deg;--d:' + (i % 3) * 0.12 + 's"></i>';
+      const sp = ev('div', 'evo-sparks'); sp.innerHTML = sparks;
+      wrap.append(glow, a, b, sp);
+      const chip = ev('div', 'evo-chip');
+      const bloom = ev('div', 'evo-bloom');
+      const hint = ev('div', 'ghint', 'Tap to continue');
+      ov.append(top, wrap, chip, bloom, hint);
+      document.body.appendChild(ov);
+      const timers = [];
+      const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+      let done = false;
+      function name() {
+        a.classList.add('hide'); b.classList.remove('hide', 'sil'); ov.classList.add('named'); top.textContent = '';
+        chip.replaceChildren(ev('span', null, o.line || ''));
+        if (o.sub) chip.appendChild(ev('b', 'gsub', o.sub));
+        try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) { /* ignore */ }
+        at(reduced() ? 300 : 1000, () => hint.classList.add('on'));
+      }
+      function finish() { if (done) return; done = true; timers.forEach(clearTimeout); ov.remove(); resolve(); }
+      ov.addEventListener('click', finish);
+      if (reduced()) { name(); return; }
+      requestAnimationFrame(() => ov.classList.add('in'));
+      at(700, () => { a.classList.add('sil'); b.classList.add('sil'); ov.classList.add('gather'); });
+      // the flicker: each swap a little quicker than the last
+      let t = 1150, gap = 380, show = false;
+      while (t < 3350) { const onA = show; at(t, () => { a.classList.toggle('hide', !onA); b.classList.toggle('hide', onA); }); show = !show; t += gap; gap = Math.max(45, gap * 0.8); }
+      at(3350, () => { a.classList.add('hide'); b.classList.remove('hide'); ov.classList.add('flash'); });
+      at(3750, name);
+    });
   }
 
   ensureStyle(); // tokens (--pl-*) are also used by bars and dots in app.css
-  RV.plant = { make, water, leanOnTouch, grow, revive, reveal, css: CSS, variant, plantSvg, careOf, isDark };
+  RV.plant = { make, water, leanOnTouch, grow, revive, reveal, evolve, css: CSS, variant, plantSvg, careOf, isDark };
 })(window);

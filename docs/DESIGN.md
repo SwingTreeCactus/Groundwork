@@ -594,3 +594,25 @@ Note cleanup meaning check (Mark's Jonathan note: "it came" for "I came", "when 
 - Not tested against the live model from here (no network to the proxy); Fast stays the default.
 - Tests: garden 49, kinds 19, ai_cleanup 40, smoke 287 (taps through held moments), screens 50, logic 48, notes_import 39, drive_folder 37, notes 7. VERSION 2.37.0, cache rvapp-v86.
 - v2.37.1: a Dark mode switch at the top of the menu (Mark). On sets the theme to Dark, off to Light; System stays available in Display. The screen redraws so the plants pick up the new colours. Tests: smoke 289. Cache rvapp-v87.
+
+## 51. v2.38.0 Contacts on the map, the game in the garden, the evolution reveal (built 2026-10-29)
+
+Release 1 of the layout update Mark agreed on 2026-10-29 (mockups: canvas "Groundwork plant kinds", "The game in the garden, and Contacts" and "An evolution-style reveal").
+
+Contacts:
+- Titled "Contacts". It opens on the Map; Areas (the old Folders) is the only other view, and the choice is remembered (`rvapp.rvsView`). Tiles is gone. Without the garden or the map, Areas is all there is (no switch).
+- An area shows "N people · last visit …" and up to three of its thirsty plants instead of "N due" ("N due" comes back only with the garden off).
+- Rows have a map-pin icon (directions) beside NH, in one row, instead of a Map button.
+
+The game in the garden (the cards under it are gone):
+- At the gate: bunting on the fence is the streak (a pennant per good week in the last twelve, pale blue for a freeze, an outlined pennant for this week still to earn); a watering can is this week (its water drops as the plants due this week are watered); a chalk slate is today's tending (a tick per goal done); a "?" signpost is How your garden works.
+- In the square with the milestones: a field guide (opens Milestones and Visitors) and the next milestone as a faint dashed sketch (opens Coming next).
+- No numbers show in the scene; each object opens a sheet with them. Field stats stays folded at the foot.
+- Plants stand in front of the gate objects; the empty space above the beds lets taps through. The bunting takes taps only on its pennants.
+- Richer drawing: two-tone stepping stones, flowering shrubs at the meadow's edges, milestone objects in real materials (wooden bench, stone birdbath and fountain, iron lantern, slate-blue can).
+- Fix: the scene was held 24 px short of the right edge (max-width); it is now edge to edge. A plant's card no longer closes when the page scrolls to reach the plant (the scroll counts from where the card opened).
+
+Evolution reveal (`RV.plant.evolve`): for the kind reveal and for growing into a study tree only; other growth keeps the v2.37 moment and revive stays short.
+- The screen dims, "Something's happening…" (0.7 s), the plant turns to a white silhouette and light gathers with drifting sparks, it flickers between the old and new silhouettes, each swap about 20% quicker (1.15–3.35 s), a soft white bloom (3.35 s), then the new plant in colour with its line ("It's an olive tree!", or the growth name for the tree) and the person's name (3.75 s). Held until tapped, "Tap to continue" a second later. Reduced motion shows the end at once.
+
+Tests: screens 53, kinds 23, smoke 294, ai_cleanup 40, notes_import 39, drive_folder 37, garden 49, logic 48, notes 7, worker 6, ai-proxy 8. Browser tests stub the map tiles and address lookups (Contacts now opens on the map). VERSION 2.38.0, cache rvapp-v88.
