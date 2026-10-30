@@ -40,6 +40,8 @@
     S.settings = D.mergeSettings(saved);
     if (!saved || (saved.version || 1) < S.settings.version) await DB.setMeta('settings', S.settings);
     await migrateLib();
+    // v2.41: the default "Neighborhood" label is now "Area" (a label someone changed themselves is kept)
+    if (S.settings.labels && S.settings.labels.neighborhood === 'Neighborhood') { S.settings.labels.neighborhood = 'Area'; await DB.setMeta('settings', S.settings); }
     await seedTopics();
     await migrateBestDays();
     await migrateNotes();
@@ -268,7 +270,7 @@
     const rv = rvById(rvId);
     if (!rv) return null;
     const snap = clone(rv);
-    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.progress || o.nextStart || o.study ? { study: true, progress: (o.progress || '').trim(), nextStart: (o.nextStart || '').trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
+    const entry = mkEntry(rvId, 'visit', Object.assign({ text: (o.text || '').trim(), scriptures: o.scriptures || [], campaignId: o.campaignId || null }, o.topic ? { topic: o.topic } : {}, o.progress || o.nextStart || o.study ? { study: true, progress: (o.progress || '').trim(), nextStart: (o.nextStart || '').trim(), publication: (o.publication || rv.publication || '').trim() } : {}), o.at);
     // garden: did this visit leave a plan, and did a follow-up date carry the chain past its gap?
     const G = RV.garden;
     const before = S.entries.filter((e) => e.rvId === rvId);
@@ -282,6 +284,7 @@
     rv.nextVisit = o.nextVisit || null;
     rv.snoozedUntil = o.snoozedUntil || null;
     if (typeof o.whatsNext === 'string') rv.whatsNext = o.whatsNext.trim();
+    if (o.topic) rv.lastTopic = o.topic; // v2.41: the topic used, so the next part of its series can be suggested
     if (typeof o.publication === 'string') rv.publication = o.publication.trim();
     if (typeof o.progress === 'string' && o.progress.trim()) rv.progress = o.progress.trim();
     if (typeof o.nextStart === 'string') rv.nextStart = o.nextStart.trim();

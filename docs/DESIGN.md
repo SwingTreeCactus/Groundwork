@@ -666,3 +666,36 @@ Today (Home):
 
 Tests: smoke 309, screens 55, topics 5 (new), kinds 23, ai_cleanup 44, notes_import 39, drive_folder 37, garden 49, logic 53, notes 7, worker 6, ai-proxy 8. VERSION 2.40.0, cache rvapp-v91.
 - v2.40.1: web addresses in a topic's question, next time or notes show as short tappable links ("jw.org/…", opening in a new tab or JW Library) on Today's cards, in the topic view and in the Topics list; a tap on the link opens it, a tap elsewhere opens the topic. The edit sheet keeps the plain text to edit. Tests: smoke 311. Cache rvapp-v92.
+
+## 54. v2.41.0 Today as a carousel, topic series, campaign topics, Contacts list, garden green and a warm dark mode (built 2026-10-30)
+
+Mark approved the Today carousel mockup, the series view, campaign topics, the × on cards and the design pass ("garden green buttons", "keep Discuss next time"), then the warm dark palette, and said "Let's roll it out."
+
+Library (js/library.js):
+- All 60 topics again: the 6 dropped in v2.40 for sharing a scripture are back (seeded for existing users, switched off).
+- 27 series (`RV.library.SERIES`: id, name, first ran YYYY-MM, topic ids in order), from the workbooks' runs of two to three conversations; `seriesOf(id)` gives series, part and of. "Memorial invitation" and "Living forever" are in no series.
+- "Next time" is now "Linking question" everywhere on topics (field `next` unchanged).
+
+Today:
+- A slim campaign banner (clay left edge) when one is running or starts within three weeks; it opens the campaign, which lists its topics. Plan a campaign stays at the foot when nothing is scheduled.
+- Conversations: one horizontal carousel of big cards (native momentum, `scroll-snap-type: x mandatory`), the next card peeking. Each card: a meadow band with the theme (or "Campaign" on a clay band) and "Part n of m", a sprout, an ×; the title, the question large, verse buttons (the first solid green) and Video; the linking question at the foot, which goes to the next part of the series when there is one. A counter "n/m" beside the heading and dots under the carousel; the card in view is remembered for the session.
+- Order: the running campaign's topics first (even if switched off), then the switched-on topics kept together by series, in series order.
+- × removes a topic from Today (switches it off) with Undo; on a campaign topic it hides it until the campaign ends (`settings.campHidden[campaignId]`).
+- View all: a sheet listing the topics in play, By theme or By series (with the part), with the forgiving search; a tap closes it and goes to that card.
+- If you see them: small cards in a row you can swipe. Then "N people to see today".
+- Today always shows Conversations; the Home screen section in Display is gone (Recently added went with it).
+
+Topics page: By theme / By series toggle (remembered on the device). Series folders show "N of M on · first ran Mon YYYY" and a switch for the whole series; rows show "Part n". Adding topics and the theme ⋯ stay in By theme.
+
+Campaigns: the campaign form has "Topics for this campaign": the chosen topics with checkboxes, suggestions found from the campaign's name and topic, and "Choose more topics" (a searchable picker). Stored as `campaign.topics` (lib ids). The running campaign's row on the Campaigns page has a clay edge.
+
+Forms:
+- New contact (title was "New RV") and Record a visit show topic chips in Today's order, campaign topics outlined in clay. Picking one adds "Topic: X" to the note (once), fills Discuss next time with its linking question if that is empty, and stores the topic on the visit (`entry.topic`) and the record (`rv.lastTopic`).
+- A blank note in New contact is filled with the campaign only ("Campaign: X"); topics are no longer added automatically.
+- The record shows "Topic last used: X" with "Next: <next part>". An empty Discuss next time is one line with "+ Add".
+
+Contacts: a third view, List: everyone A to Z under letter headings, a jump strip of letters on the right, rows with the plant, name and address · area. Map · Areas · List; the choice is remembered. "Neighborhood" is "Area" everywhere (default label and export header; a saved default label migrates, a custom one is kept).
+
+Design: main buttons, switches, checkboxes and dates garden green (#3F6B48); progress text ("3 more conversations") green; Clean up meadow with green text; the round + stays ink. Timeline dots small: green for visits, grey for Not home. Dark mode is warm rather than black: paper #151412, surface #211F1C, surface2 #2B2925, ink #ECE7DD, muted #9E998F, line #33302B, button green #4E8A56, green text #9CCB95, meadow band #25332A, clay #E39271, campaign band #3A2820; the + is a light circle with a dark +.
+
+Tests: smoke 325, screens 59, topics 6, kinds 23, ai_cleanup 44, notes_import 39, drive_folder 37, garden 49, logic 53, notes 7, worker 6, ai-proxy 8. VERSION 2.41.0, cache rvapp-v93.

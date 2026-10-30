@@ -1,16 +1,19 @@
-// v2.40: the conversation topic library: the workbook's sample conversations (2018-2023), one per scripture.
+// v2.40: the conversation topic library: the workbook's sample conversations (2018-2023).
+// v2.41: all 60 (same-scripture pairs kept) and the series they ran in (an initial call, then one or two return visits).
 // Only what may ship inside the app: our own question and wording, the scripture reference, and plain links
 // (the original workbook page on wol.jw.org and its demonstration video on jw.org). No jw.org text is copied.
 (function (root) {
   const RV = (root.RV = root.RV || {});
   const THEMES = [{"id": "the-bible", "name": "The Bible"}, {"id": "god", "name": "God"}, {"id": "prayer", "name": "Prayer"}, {"id": "jesus", "name": "Jesus"}, {"id": "god-s-purpose", "name": "God's purpose"}, {"id": "the-future", "name": "The future"}, {"id": "god-s-kingdom", "name": "God's Kingdom"}, {"id": "suffering", "name": "Suffering"}, {"id": "death-and-hope", "name": "Death and hope"}, {"id": "family", "name": "Family"}, {"id": "happiness", "name": "Happiness"}];
   const WOL = (d) => 'https://wol.jw.org/en/wol/d/r1/lp-e/' + d;
-  // [id, theme, title, question, scripture, next time, video (jw.org finder), workbook page docid]
+  // [id, theme, title, question, scripture, linking question, video (jw.org finder), workbook page docid]
   const T = [
+    ["is-the-bible-still-relevant", "the-bible", "Is the Bible still relevant?", "Do you think a book this old still has anything to say about life today?", "2Ti 3:16", "Does the Bible agree with science?", "https://www.jw.org/finder?lank=pub-mwbv_201801_1_VIDEO&wtlocale=E", "202018001"],
     ["the-bible-and-science", "the-bible", "The Bible and science", "Have you ever wondered whether the Bible gets science right?", "Job 26:7", "How practical is the Bible's advice?", "https://www.jw.org/finder?lank=pub-mwbv_201802_2_VIDEO&wtlocale=E", "202018042"],
     ["does-bible-advice-work", "the-bible", "Does Bible advice work?", "What's one piece of advice that has actually helped you in life?", "Pr 14:30", "How accurate is Bible prophecy?", "https://www.jw.org/finder?lank=pub-mwbv_201802_3_VIDEO&wtlocale=E", "202018042"],
     ["practical-guidance-for-everyday-life", "the-bible", "Practical guidance for everyday life", "Where do you usually go when you need good advice?", "2Ti 3:16, 17", "Why can we trust the Bible?", "https://www.jw.org/finder?lank=pub-mwbv_202109_1_VIDEO&wtlocale=E", "202021343"],
     ["how-people-view-the-bible", "the-bible", "How people view the Bible", "What do you think of the Bible: a good book, or more than that?", "Ro 15:4", "A Bible promise that gives hope", "https://www.jw.org/finder?lank=pub-mwbv_202111_4_VIDEO&wtlocale=E", "202021425"],
+    ["the-bible-s-central-message", "the-bible", "The Bible's central message", "If the Bible had one main message, what do you think it would be?", "Mt 6:10", "What will God's Kingdom do?", "https://www.jw.org/finder?lank=pub-mwbv_201801_2_VIDEO&wtlocale=E", "202018001"],
     ["god-s-name", "god", "God's name", "Did you know God has a personal name?", "Ps 83:18", "What is God's main quality?", "https://www.jw.org/finder?lank=pub-mwbv_201901_1_VIDEO&wtlocale=E", "202019001"],
     ["god-s-main-quality", "god", "God's main quality", "If you had to describe God in one word, what would it be?", "1Jo 4:8", "How can we become God's friend?", "https://www.jw.org/finder?lank=pub-mwbv_202001_2_VIDEO&wtlocale=E", "202020001"],
     ["does-god-want-our-friendship", "god", "Does God want our friendship?", "Do you think it's possible to be friends with God?", "Jas 4:8", "How can we become God's friend?", "https://www.jw.org/finder?lank=pub-mwbv_201901_2_VIDEO&wtlocale=E", "202019001"],
@@ -24,6 +27,7 @@
     ["who-jesus-is", "jesus", "Who Jesus is", "People have many opinions about Jesus. Who do you think he was?", "Mt 16:16", "Why did Jesus die?", "https://www.jw.org/finder?lank=pub-mwbv_201904_1_VIDEO&wtlocale=E", "202019131"],
     ["why-jesus-died", "jesus", "Why Jesus died", "Have you ever wondered why Jesus had to die?", "Mt 20:28", "How can we show we appreciate the ransom?", "https://www.jw.org/finder?lank=pub-mwbv_201803_2_VIDEO&wtlocale=E", "202018082"],
     ["what-the-ransom-makes-possible", "jesus", "What the ransom makes possible", "What do you think Jesus' death makes possible for us?", "Ro 6:23", "Showing gratitude for the ransom", "https://www.jw.org/finder?lank=pub-mwbv_201803_3_VIDEO&wtlocale=E", "202018082"],
+    ["showing-appreciation-for-the-ransom", "jesus", "Showing appreciation for the ransom", "If someone gave their life for you, how would you want to thank them?", "Joh 17:3", "What happens at our meetings", "https://www.jw.org/finder?lank=pub-mwbv_201904_3_VIDEO&wtlocale=E", "202019131"],
     ["memorial-invitation", "jesus", "Memorial invitation", "(Invitation) We'd love you to join us for the Memorial of Jesus' death.", "", "Why did Jesus die?", "https://www.jw.org/finder?lank=pub-mwbv_201803_1_VIDEO&wtlocale=E", "202018082"],
     ["the-purpose-of-life", "god-s-purpose", "The purpose of life", "Do you ever wonder what life is really for?", "Ge 1:27, 28", "Will God do what he set out to do?", "https://www.jw.org/finder?lank=pub-mwbv_201812_1_VIDEO&wtlocale=E", "202018442"],
     ["trusting-god-to-keep-his-word", "god-s-purpose", "Trusting God to keep his word", "When someone makes a promise, what makes you trust it?", "Jos 21:45", "God's promises for the future", "https://www.jw.org/finder?lank=pub-mwbv_201812_2_VIDEO&wtlocale=E", "202018442"],
@@ -32,6 +36,7 @@
     ["life-under-god-s-purpose", "god-s-purpose", "Life under God's purpose", "Do you think the world will ever be free of violence?", "Ps 37:10, 11", "What must we do to receive God's promises?", "https://www.jw.org/finder?lank=pub-mwbv_201903_3_VIDEO&wtlocale=E", "202019081"],
     ["knowing-the-future", "the-future", "Knowing the future", "If you could know one thing about the future, what would it be?", "Isa 46:10", "Prophecies being fulfilled today", "https://www.jw.org/finder?lank=pub-mwbv_201805_1_VIDEO&wtlocale=E", "202018161"],
     ["god-s-promise-for-the-earth", "the-future", "God's promise for the earth", "What kind of future do you hope for your family?", "Ps 37:29", "Making that hope personal", "https://www.jw.org/finder?lank=pub-mwbv_201805_2_VIDEO&wtlocale=E", "202018161"],
+    ["living-forever", "the-future", "Living forever", "Would you want to live forever if life were good?", "Ps 37:29", "Can we trust the Bible's promises?", "", "202022344"],
     ["making-that-hope-personal", "the-future", "Making that hope personal", "What would you need to see to believe a better future is coming?", "Ps 37:34", "Living as God invites", "https://www.jw.org/finder?lank=pub-mwbv_201805_3_VIDEO&wtlocale=E", "202018161"],
     ["prophecies-fulfilled-today", "the-future", "Prophecies fulfilled today", "Does the world seem to you to be getting better or worse?", "Mt 24:6, 7, 14", "What comes after the end?", "https://www.jw.org/finder?lank=pub-mwbv_201806_2_VIDEO&wtlocale=E", "202018201"],
     ["are-these-the-last-days", "the-future", "Are these the last days?", "Some say we're living in the last days. What do you think?", "2Ti 3:1-5", "What happens after the last days?", "https://www.jw.org/finder?lank=pub-mwbv_201906_1_VIDEO&wtlocale=E", "202019201"],
@@ -39,6 +44,7 @@
     ["benefiting-from-god-s-promises", "the-future", "Benefiting from God's promises", "What do you think it takes to benefit from a promise God makes?", "Joh 3:16", "What it means to have faith", "https://www.jw.org/finder?lank=pub-mwbv_201906_3_VIDEO&wtlocale=E", "202019201"],
     ["blessings-god-promises", "the-future", "Blessings God promises", "Can you picture a world where everyone has a home and work they enjoy?", "Isa 65:21-23", "The Son's role in those blessings", "https://www.jw.org/finder?lank=pub-mwbv_202002_3_VIDEO&wtlocale=E", "202020041"],
     ["will-sickness-end", "the-future", "Will sickness end?", "Do you think sickness will ever be a thing of the past?", "Isa 33:24", "How will hunger end?", "https://www.jw.org/finder?lank=pub-mwbv_201908_1_VIDEO&wtlocale=E", "202019281"],
+    ["how-hunger-will-end", "the-future", "How hunger will end", "With so much food in the world, why do you think people still go hungry?", "Ps 72:16", "Hope for loved ones who died", "https://www.jw.org/finder?lank=pub-mwbv_201908_2_VIDEO&wtlocale=E", "202019281"],
     ["what-god-s-kingdom-is", "god-s-kingdom", "What God's Kingdom is", "Many people pray for God's Kingdom to come. What do you think it is?", "Mt 6:9, 10 or Isa 9:6, 7", "What will the Kingdom do?", "https://www.jw.org/finder?lank=pub-mwbv_202011_1_VIDEO&wtlocale=E", "202020401"],
     ["what-the-kingdom-will-do", "god-s-kingdom", "What the Kingdom will do", "If a government could fix one problem for good, which would you choose?", "Ps 72:16 or Mt 14:19, 20", "When will the Kingdom rule the earth?", "https://www.jw.org/finder?lank=pub-mwbv_202011_2_VIDEO&wtlocale=E", "202020401"],
     ["the-kingdom-s-effect-on-earth", "god-s-kingdom", "The Kingdom's effect on earth", "Do you think any human government can bring lasting peace?", "Da 2:44", "What will the Kingdom do for the earth?", "https://www.jw.org/finder?lank=pub-mwbv_201801_3_VIDEO&wtlocale=E", "202018001"],
@@ -46,6 +52,7 @@
     ["is-god-to-blame", "suffering", "Is God to blame?", "Why do you think there's so much suffering if God is good?", "Job 34:10", "The real cause of suffering", "https://www.jw.org/finder?lank=pub-mwbv_201907_1_VIDEO&wtlocale=E", "202019242"],
     ["why-people-suffer", "suffering", "Why people suffer", "Where do you think most of the world's suffering comes from?", "1Jo 5:19", "How does God feel about our suffering?", "https://www.jw.org/finder?lank=pub-mwbv_201810_2_VIDEO&wtlocale=E", "202018362"],
     ["how-god-feels-about-our-suffering", "suffering", "How God feels about our suffering", "Do you think God feels anything when we suffer?", "Isa 63:9", "How will God end suffering?", "https://www.jw.org/finder?lank=pub-mwbv_201810_3_VIDEO&wtlocale=E", "202018362"],
+    ["how-god-will-undo-the-damage", "suffering", "How God will undo the damage", "If God allowed suffering for a time, do you think he'll ever undo it?", "Mt 6:9, 10", "What is God's Kingdom?", "https://www.jw.org/finder?lank=pub-mwbv_201907_3_VIDEO&wtlocale=E", "202019242"],
     ["comfort-in-grief", "death-and-hope", "Comfort in grief", "When you've lost someone, what has given you comfort?", "2Co 1:3, 4", "What happens at death?", "https://www.jw.org/finder?lank=pub-mwbv_201811_1_VIDEO&wtlocale=E", "202018402"],
     ["what-happens-when-we-die", "death-and-hope", "What happens when we die", "What do you think happens to us when we die?", "Ec 9:5, 10", "Hope for the dead", "https://www.jw.org/finder?lank=pub-mwbv_201811_2_VIDEO&wtlocale=E", "202018402"],
     ["is-death-the-end", "death-and-hope", "Is death the end?", "Do you think death is the end, or is there hope beyond it?", "Job 14:14, 15", "Life when the dead come back", "https://www.jw.org/finder?lank=pub-mwbv_201905_2_VIDEO&wtlocale=E", "202019161"],
@@ -62,6 +69,39 @@
     ["money-and-happiness", "happiness", "Money and happiness", "Do you think more money makes people happier?", "1Ti 6:9, 10", "Benefits of a positive attitude", "https://www.jw.org/finder?lank=pub-mwbv_201804_2_VIDEO&wtlocale=E", "202018121"],
     ["a-positive-attitude", "happiness", "A positive attitude", "Do you find it hard to stay positive these days?", "Pr 17:22", "Families thriving in hard times", "https://www.jw.org/finder?lank=pub-mwbv_201804_3_VIDEO&wtlocale=E", "202018121"],
   ];
+  // series as they ran: [id, name, when it first ran, topic ids in order]
+  const S = [
+    ["the-bible-s-message", "The Bible's message", "2018-01", ["is-the-bible-still-relevant", "the-bible-s-central-message", "the-kingdom-s-effect-on-earth"]],
+    ["is-the-bible-practical", "Is the Bible practical?", "2018-02", ["is-the-bible-still-relevant", "the-bible-and-science", "does-bible-advice-work"]],
+    ["why-jesus-died", "Why Jesus died", "2018-03", ["why-jesus-died", "what-the-ransom-makes-possible"]],
+    ["a-happier-life", "A happier life", "2018-04", ["advice-for-a-happy-life", "money-and-happiness", "a-positive-attitude"]],
+    ["hope-for-the-future", "Hope for the future", "2018-05", ["knowing-the-future", "god-s-promise-for-the-earth", "making-that-hope-personal"]],
+    ["what-the-future-holds", "What the future holds", "2018-06", ["knowing-the-future", "prophecies-fulfilled-today", "what-comes-after"]],
+    ["family-life", "Family life", "2018-07", ["a-strong-marriage", "raising-children", "help-for-young-people"]],
+    ["help-for-families", "Help for families", "2018-08", ["help-for-married-couples", "help-for-parents", "wisdom-for-young-people"]],
+    ["does-god-care-about-me", "Does God care about me?", "2018-09", ["does-god-notice-sincere-people", "god-s-care-for-each-person", "god-knows-us-well"]],
+    ["why-is-there-suffering", "Why is there suffering?", "2018-10", ["is-suffering-a-punishment-from-god", "why-people-suffer", "how-god-feels-about-our-suffering"]],
+    ["when-someone-dies", "When someone dies", "2018-11", ["comfort-in-grief", "what-happens-when-we-die", "hope-for-the-dead"]],
+    ["life-s-purpose", "Life's purpose", "2018-12", ["the-purpose-of-life", "trusting-god-to-keep-his-word", "what-comes-after"]],
+    ["getting-to-know-god", "Getting to know God", "2019-01", ["god-s-name", "does-god-want-our-friendship", "becoming-god-s-friend"]],
+    ["god-s-purpose-for-the-earth", "God's purpose for the earth", "2019-03", ["god-s-purpose-for-humans", "god-s-purpose-will-come-true", "life-under-god-s-purpose"]],
+    ["who-jesus-is", "Who Jesus is", "2019-04", ["who-jesus-is", "why-jesus-died", "showing-appreciation-for-the-ransom"]],
+    ["is-death-the-end", "Is death the end?", "2019-05", ["what-happens-when-we-die", "is-death-the-end", "peace-on-earth"]],
+    ["the-last-days", "The last days", "2019-06", ["are-these-the-last-days", "what-comes-after", "benefiting-from-god-s-promises"]],
+    ["is-god-to-blame", "Is God to blame?", "2019-07", ["is-god-to-blame", "why-people-suffer", "how-god-will-undo-the-damage"]],
+    ["a-world-without-sickness", "A world without sickness", "2019-08", ["will-sickness-end", "how-hunger-will-end", "hope-for-loved-ones-who-died"]],
+    ["becoming-god-s-friend", "Becoming God's friend", "2020-01", ["god-s-name", "god-s-main-quality", "becoming-god-s-friend"]],
+    ["prophecy-and-promise", "Prophecy and promise", "2020-02", ["knowing-the-future", "are-these-the-last-days", "blessings-god-promises"]],
+    ["god-s-kingdom", "God's Kingdom", "2020-11", ["what-god-s-kingdom-is", "what-the-kingdom-will-do"]],
+    ["prayer", "Prayer", "2021-01", ["does-god-hear-prayers", "what-we-can-pray-about"]],
+    ["guidance-from-the-bible", "Guidance from the Bible", "2021-09", ["practical-guidance-for-everyday-life", "the-bible-and-science"]],
+    ["hope-from-the-bible", "Hope from the Bible", "2021-11", ["how-people-view-the-bible", "what-comes-after"]],
+    ["god-s-help-today", "God's help today", "2022-01", ["god-s-care-for-each-person", "god-s-help-with-problems-now"]],
+    ["will-violence-end", "Will violence end?", "2022-11", ["life-under-god-s-purpose", "what-comes-after"]],
+  ];
   const TOPICS = T.map(([id, theme, title, question, scripture, next, video, doc]) => ({ id, theme, title, question, scripture, next, video, source: WOL(doc) }));
-  RV.library = { THEMES, TOPICS, byId: (id) => TOPICS.find((t) => t.id === id) || null };
+  const SERIES = S.map(([id, name, ran, topics]) => ({ id, name, ran, topics }));
+  // the series a topic belongs to, first one first, with its place in each
+  const seriesOf = (id) => SERIES.filter((s) => s.topics.includes(id)).map((s) => ({ series: s, part: s.topics.indexOf(id) + 1, of: s.topics.length }));
+  RV.library = { THEMES, TOPICS, SERIES, seriesOf, byId: (id) => TOPICS.find((t) => t.id === id) || null };
 })(typeof window !== 'undefined' ? window : globalThis);

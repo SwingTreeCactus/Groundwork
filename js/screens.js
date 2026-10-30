@@ -130,7 +130,7 @@
     const title = h('input', { type: 'text', value: item ? item.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Hope for the future' });
     const question = h('textarea', { value: item ? item.question || '' : '', placeholder: 'How you might open the conversation', style: { minHeight: '64px' } });
     const scripture = h('input', { type: 'text', value: item ? item.scripture || '' : '', autocomplete: 'off', placeholder: 'e.g. Ps 37:29; Re 21:4' });
-    const next = h('input', { type: 'text', value: item ? item.next || '' : '', autocomplete: 'off', placeholder: 'A question to come back with' });
+    const next = h('input', { type: 'text', value: item ? item.next || '' : '', autocomplete: 'off', placeholder: 'A question to come back with next time' });
     const text = h('textarea', { value: item ? item.text || '' : '', placeholder: 'Notes, more scriptures, key points', style: { minHeight: '84px' } });
     const video = h('input', { type: 'url', value: item ? item.video || '' : '', autocomplete: 'off', placeholder: 'A jw.org link (optional)' });
     const theme = h('select', null, ST.themes().map((t) => h('option', { value: t.id }, t.name)).concat(h('option', { value: '' }, 'No theme')));
@@ -147,7 +147,7 @@
           close();
         },
       },
-        field('Topic', title), field('Question', question), field('Scriptures', scripture), field('Next time', next), field('Notes', text),
+        field('Topic', title), field('Question', question), field('Scriptures', scripture), field('Linking question', next), field('Notes', text),
         field('Video or article link', video), field('Theme', theme),
         h('label', { class: 'check' }, on, 'Show on Today and in Record a visit'),
         item && item.builtin ? h('button', { class: 'link-quiet treset', type: 'button', onclick: async () => {
@@ -167,7 +167,10 @@
       h('div', { class: 'tview' },
         x.question ? h('p', { class: 'tq' }, '“', ...linkify(x.question), '”') : null,
         x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture)) : null,
-        x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Next time'), h('div', null, ...linkify(x.next))) : null,
+        x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Linking question'), h('div', null, ...linkify(x.next))) : null,
+        // v2.41: where it sits in its series, and a way on to the next part
+        ...seriesOfItem(x).map((si) => h('div', { class: 'tline tser' }, h('span', { class: 'muted small' }, si.series.name + ' \u00B7 part ' + si.part + ' of ' + si.of),
+          si.part < si.of && libItem(si.series.topics[si.part]) ? h('button', { class: 'link', type: 'button', onclick: () => { close(); topicView(libItem(si.series.topics[si.part])); } }, 'Next: ' + libItem(si.series.topics[si.part]).title) : null)),
         x.text ? h('div', { class: 'readtext' }, ...linkify(x.text)) : null,
         !x.question && !x.scripture && !x.text ? h('div', { class: 'muted' }, 'No details yet.') : null,
         (x.tags || []).length ? h('div', { style: { marginTop: '10px' } }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null,
@@ -187,6 +190,9 @@
         c.topic ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'Topic'), h('div', null, c.topic)) : null,
         c.text ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'About'), h('div', { class: 'readtext' }, c.text)) : null,
         pubs.length ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'Featured publications'), h('ul', { class: 'plainul' }, pubs.map((x) => h('li', null, x)))) : null,
+        (() => { const ts = (c.topics || []).map((id) => S.lib.find((y) => y.id === id && !y.deletedAt)).filter(Boolean);
+          return ts.length ? h('div', { class: 'kvline' }, h('div', { class: 'k' }, 'Topics'), h('div', { class: 'ctopics' }, ts.map((x) => h('button', { class: 'link', type: 'button', onclick: () => { close(); topicView(x); } }, x.title)))) : null; })(),
+        h('a', { class: 'link-quiet', href: '#/settings/campaigns', onclick: () => close(), style: { display: 'inline-block', marginTop: '6px' } }, 'All campaigns'),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => { close(); RV.settingsScreens.campaignForm(c); } }, 'Edit'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
@@ -200,38 +206,22 @@
   }
   // v2.39: the campaign card always shows: the one running (or starting within three weeks) with a Plan link,
   // or Plan a campaign when nothing is scheduled
+  // v2.41: a slim banner while a campaign runs (or starts within three weeks); Plan a campaign when nothing is scheduled
   function campaignBar() {
     const camps = ST.campaigns();
     const now = new Date();
     const c = L.activeCampaign(camps, now);
-    const plan = h('a', { class: 'link-quiet', href: '#/settings/campaigns' }, 'Plan');
     if (c) {
-      return section(lbl('campaign'), h('button', { class: 'campaign-bar', type: 'button', onclick: () => campaignSheet(c) },
-        h('div', { class: 'cb-text' },
-          h('div', { class: 'cb-label' }, lbl('campaign') + ' now'),
-          h('div', { class: 'cb-title' }, c.title),
-          h('div', { class: 'cb-sub' }, [c.topic, 'until ' + U.fmtDate(c.end)].filter(Boolean).join(' · '))),
-        icon('right', 22)), plan);
+      return h('button', { class: 'campbar', type: 'button', onclick: () => campaignSheet(c) },
+        h('span', { class: 'cbt' }, h('b', null, c.title), ' · until ' + U.fmtDate(c.end)), icon('right', 18));
     }
     const nx = L.nextCampaign(camps, now);
     if (nx && U.daysBetween(U.parseDateStr(nx.start), now) <= 21) {
-      return section(lbl('campaign'), h('button', { class: 'campaign-soon', type: 'button', onclick: () => campaignSheet(nx) },
-        icon('calendar', 16), 'Next: ' + nx.title + ' starts ' + U.fmtDate(nx.start)), plan);
+      return h('button', { class: 'campbar soon', type: 'button', onclick: () => campaignSheet(nx) },
+        h('span', { class: 'cbt' }, h('b', null, nx.title), ' · starts ' + U.fmtDate(nx.start)), icon('right', 18));
     }
     return h('button', { class: 'plan-camp', type: 'button', onclick: () => RV.settingsScreens.campaignForm(null) }, icon('calendar', 18), 'Plan a ' + lbl('campaign').toLowerCase());
   }
-  function homeSections(items) {
-    const now = new Date();
-    const builders = {
-      topics() { return conversations(); },
-      recent() {
-        const top = L.recentlyAdded(items, now).slice(0, 5);
-        return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'None'));
-      },
-    };
-    return S.settings.homeCards.filter((c) => c.on && builders[c.id]).map((c) => builders[c.id]());
-  }
-
   // ---------- Getting started (v2.29) ----------
   // A one-time tip, shown inline while Getting started is on, until "Got it".
   function coach(id, text) {
@@ -276,60 +266,159 @@
   // Topics and the campaign are prepared from their cards (Manage, Plan).
   // v2.40: Today is for getting ready. The topics switched on, by theme (a theme with several folds away),
   // then a few people likely home with what you planned to bring, then one line to everyone else.
-  const OPEN_KEY = 'rvapp.todayClosed';
-  const closedThemes = () => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '[]')); } catch (e) { return new Set(); } };
-  const setClosed = (set) => { try { localStorage.setItem(OPEN_KEY, JSON.stringify(Array.from(set))); } catch (e) { /* ignore */ } };
-  function topicCard(x) {
-    return h('div', { class: 'tcard', role: 'button', tabindex: '0', onclick: () => topicView(x), onkeydown: (e) => { if (e.key === 'Enter') topicView(x); } },
-      h('div', { class: 'tt' }, x.title),
-      x.question ? h('div', { class: 'tq' }, '“', ...linkify(x.question), '”') : x.text ? h('div', { class: 'tq plain' }, ...linkify(x.text)) : null,
-      x.scripture || x.video ? h('div', { class: 'tmeta' }, refChips(x.scripture), x.video ? ext(x.video, 'vref vid', [icon('play', 14), 'Video']) : null) : null,
-      x.next ? h('div', { class: 'tnext' }, h('span', null, 'Next time: '), ...linkify(x.next)) : null);
+  // ---------- v2.41: Today's conversations, a carousel ----------
+  // The topics in play today: the running campaign's topics first (less any hidden with ×), then the ones
+  // switched on, kept together by series in their order.
+  const LIB = RV.library;
+  const seriesOfItem = (x) => (x && x.builtin && LIB ? LIB.seriesOf(x.builtin) : []);
+  const libItem = (builtinId) => S.lib.find((y) => y.id === 'lib-' + builtinId && !y.deletedAt) || null;
+  function orderKey(x) {
+    const s = seriesOfItem(x)[0];
+    if (s) return LIB.SERIES.indexOf(s.series) * 10 + s.part;
+    return x.builtin ? 5000 + (x.order || 0) : 9000 + (x.order || 0);
+  }
+  function todayTopics() {
+    const camp = ST.activeCampaign();
+    const hidden = new Set(camp ? ((S.settings.campHidden || {})[camp.id] || []) : []);
+    const campList = camp ? (camp.topics || []).map((id) => S.lib.find((y) => y.id === id && !y.deletedAt)).filter((x) => x && !hidden.has(x.id)) : [];
+    const ids = new Set(campList.map((x) => x.id));
+    const on = ST.featuredTopics().filter((x) => !ids.has(x.id)).sort((a, b) => orderKey(a) - orderKey(b));
+    return campList.map((x) => Object.assign({}, x, { _camp: true })).concat(on);
+  }
+  // the next part of a topic's series (the library item), or null
+  function nextInSeries(x) {
+    const s = seriesOfItem(x)[0];
+    if (!s || s.part >= s.of) return null;
+    return libItem(s.series.topics[s.part]);
+  }
+  function topicCard(x, o) {
+    o = o || {};
+    const s = seriesOfItem(x)[0];
+    const nxt = nextInSeries(x);
+    const remove = (e) => {
+      e.stopPropagation();
+      const camp = ST.activeCampaign();
+      if (x._camp && camp) {
+        ST.saveSettings((st) => { st.campHidden = Object.assign({}, st.campHidden || {}); st.campHidden[camp.id] = (st.campHidden[camp.id] || []).concat(x.id); });
+        toast('Hidden until the campaign ends', { seconds: 5, actions: [{ label: 'Undo', fn: () => ST.saveSettings((st) => { st.campHidden[camp.id] = (st.campHidden[camp.id] || []).filter((i) => i !== x.id); }) }] });
+      } else {
+        ST.updateLib(x.id, { showOnHome: false });
+        toast('Removed from Today', { seconds: 5, actions: [{ label: 'Undo', fn: () => ST.updateLib(x.id, { showOnHome: true }) }] });
+      }
+    };
+    return h('article', { class: 'tcard' + (x._camp ? ' camp' : ''), 'data-id': x.id, role: 'group', 'aria-label': x.title },
+      h('div', { class: 'tband' },
+        h('span', { class: 'tth' }, x._camp ? 'Campaign' : themeName(x.theme)),
+        s ? h('span', { class: 'tpart' }, 'Part ' + s.part + ' of ' + s.of) : null,
+        h('span', { class: 'tsprout', 'aria-hidden': 'true' }),
+        o.noX ? null : h('button', { class: 'tx', type: 'button', 'aria-label': 'Remove ' + x.title + ' from Today', onclick: remove }, icon('x', 16))),
+      h('div', { class: 'tin', role: 'button', tabindex: '0', onclick: () => topicView(x), onkeydown: (e) => { if (e.key === 'Enter') topicView(x); } },
+        h('div', { class: 'tt' }, x.title),
+        x.question ? h('div', { class: 'tq' }, '“', ...linkify(x.question), '”') : x.text ? h('div', { class: 'tq plain' }, ...linkify(x.text)) : h('div', { class: 'tq' }),
+        h('div', { class: 'tbtns' }, ...refButtons(x.scripture), x.video ? ext(x.video, 'tbtn' + (x.scripture ? ' soft' : ''), [icon('play', 16), 'Video']) : null),
+        x.next ? h('button', { class: 'tlinkq', type: 'button', onclick: (e) => { e.stopPropagation(); if (nxt) goToTopic(nxt); else topicView(x); } },
+          h('span', { class: 'k' }, 'Linking question'), h('span', { class: 'v' }, x.next, nxt ? icon('right', 16) : null)) : null));
+  }
+  // verse buttons for a card: the first is solid, the rest soft
+  function refButtons(scripture) {
+    const refs = TP ? TP.parseRefs(scripture) : [];
+    return refs.map((r, i) => ext(TP.linkFor(r), 'tbtn' + (i ? ' soft' : ''), [icon('book', 16), longRef(r)]));
+  }
+  const longRef = (r) => (TP.BOOKS[r.book - 1][2]) + ' ' + r.label.replace(/^\S+\s/, '').replace(/^(\d+\s)?[A-Za-z]+\s/, '');
+  // show a topic: on today's carousel scroll to it, otherwise open it
+  function goToTopic(x) {
+    const card = document.querySelector('.tcar .tcard[data-id="' + x.id + '"]');
+    if (card) { card.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' }); return; }
+    topicView(x);
+  }
+  const SPROUT = '<svg viewBox="0 0 64 64"><path d="M32 64V30" stroke="currentColor" stroke-width="3" fill="none"/><path d="M32 40c-14 0-20-10-20-20 12 0 20 8 20 20z" class="l1"/><path d="M32 34c12 0 18-9 18-18-11 0-18 7-18 18z" class="l2"/></svg>';
+  function conversations() {
+    const list = todayTopics();
+    const view = h('button', { class: 'link-quiet', type: 'button', onclick: () => viewAll(list) }, 'View all');
+    if (!list.length) {
+      return h('section', { class: 'sec conv' }, h('div', { class: 'sec-head' }, h('h2', null, 'Conversations')),
+        h('div', { class: 'tempty' },
+          h('p', { class: 'muted' }, 'Switch on the topics you want to use and they show here: the question, its scriptures and the video.'),
+          h('a', { class: 'btn sm', href: '#/settings/lib/topic' }, icon('note', 16), 'Choose topics')));
+    }
+    const count = h('span', { class: 'tcount' }, '1/' + list.length);
+    const dots = h('div', { class: 'tdots', 'aria-hidden': 'true' }, list.slice(0, 12).map((_, i) => h('i', { class: i ? '' : 'on' })));
+    const car = h('div', { class: 'tcar' }, list.map((x) => topicCard(x)));
+    car.querySelectorAll('.tsprout').forEach((e) => { e.innerHTML = SPROUT; });
+    // the counter and dots follow the card in view
+    let raf = 0;
+    car.addEventListener('scroll', () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const w = car.firstElementChild ? car.firstElementChild.getBoundingClientRect().width + 12 : 1;
+        const i = Math.max(0, Math.min(list.length - 1, Math.round(car.scrollLeft / w)));
+        count.textContent = (i + 1) + '/' + list.length;
+        dots.querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k === Math.min(i, 11)));
+        try { sessionStorage.setItem('rvapp.carousel', String(i)); } catch (e) { /* ignore */ }
+      });
+    }, { passive: true });
+    // come back to the card you were on
+    let start = 0;
+    try { start = +sessionStorage.getItem('rvapp.carousel') || 0; } catch (e) { start = 0; }
+    if (start) requestAnimationFrame(() => { const c = car.children[Math.min(start, list.length - 1)]; if (c) car.scrollLeft = c.offsetLeft - car.firstElementChild.offsetLeft; });
+    return h('section', { class: 'sec conv' },
+      h('div', { class: 'sec-head' }, h('h2', null, 'Conversations', count), view),
+      car, list.length > 1 ? dots : null);
+  }
+  // every topic in play, for a quick scan: by theme or by series, with search; a tap goes to it
+  function viewAll(list) {
+    let mode = 'theme', q = '';
+    const body = h('div', { class: 'valist' });
+    const search = h('input', { type: 'search', class: 'tsearch', placeholder: 'Search topics or scriptures', autocomplete: 'off' });
+    const seg = h('div', { class: 'seg2 vseg' });
+    sheet('Your topics · ' + list.length, (close) => {
+      const row = (x, part) => h('button', { class: 'varow', type: 'button', onclick: () => { close(); setTimeout(() => goToTopic(x), 250); } },
+        h('div', { class: 't' }, h('b', null, x.title), h('span', null, x.question || x.text || '')),
+        part ? h('span', { class: 'tpart' }, part) : null,
+        x.scripture ? h('span', { class: 'chip' }, TP.parseRefs(x.scripture).map((r) => r.label)[0] || x.scripture) : null);
+      const paint = () => {
+        seg.replaceChildren(...[['theme', 'By theme'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; paint(); } }, l)));
+        const items = q.trim() ? TP.search(list, q, themeName) : list;
+        if (q.trim()) { body.replaceChildren(...items.map((x) => row(x))); return; }
+        if (mode === 'theme') {
+          body.replaceChildren(...groupByTheme(items).flatMap((g) => [h('div', { class: 'vag' }, g.name), ...g.items.map((x) => row(x))]));
+        } else {
+          const out = [], used = new Set();
+          for (const s of LIB.SERIES) {
+            const inS = s.topics.map((id) => items.find((x) => x.builtin === id)).filter(Boolean);
+            if (!inS.length) continue;
+            out.push(h('div', { class: 'vag' }, s.name));
+            inS.forEach((x) => { used.add(x.id); out.push(row(x, 'Part ' + (s.topics.indexOf(x.builtin) + 1) + ' of ' + s.topics.length)); });
+          }
+          const rest = items.filter((x) => !used.has(x.id));
+          if (rest.length) out.push(h('div', { class: 'vag' }, 'Not in a series'), ...rest.map((x) => row(x)));
+          body.replaceChildren(...out);
+        }
+      };
+      search.addEventListener('input', () => { q = search.value; paint(); });
+      paint();
+      return h('div', null, seg, search, body);
+    });
   }
   function groupByTheme(list) {
     const ths = ST.themes();
     const groups = ths.map((t) => ({ id: t.id, name: t.name, items: [] }));
+    const camp = { id: '_camp', name: 'Campaign', items: [] };
     const other = { id: '', name: 'Other', items: [] };
-    for (const x of list) (groups.find((g) => g.id === x.theme) || other).items.push(x);
-    return groups.concat(other).filter((g) => g.items.length);
-  }
-  function conversations() {
-    const on = ST.featuredTopics();
-    const head = h('span', { class: 'sec-actions' }, h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, on.length ? 'Choose' : 'Choose topics'));
-    if (!on.length) {
-      return section('Conversations', h('div', { class: 'tempty' },
-        h('p', { class: 'muted' }, 'Switch on the topics you want to use and they show here: the question, its scriptures and the video.'),
-        h('a', { class: 'btn sm', href: '#/settings/lib/topic' }, icon('note', 16), 'Choose topics')), head);
-    }
-    const closed = closedThemes();
-    return section('Conversations', h('div', { class: 'tgroups' }, groupByTheme(on).map((g) => {
-      if (g.items.length === 1) return h('div', { class: 'tgroup' }, h('div', { class: 'tgname' }, g.name), topicCard(g.items[0]));
-      const open = !closed.has(g.id || 'other');
-      const box = h('section', { class: 'acard tfold' + (open ? ' open' : '') });
-      const body = h('div', { class: 'tbody' }, g.items.map(topicCard));
-      body.hidden = !open;
-      const btn = h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => {
-        const c = closedThemes(), k = g.id || 'other', now = !c.has(k);
-        if (now) c.add(k); else c.delete(k);
-        setClosed(c);
-        body.hidden = now; box.classList.toggle('open', !now); btn.setAttribute('aria-expanded', String(!now));
-        btn.replaceChildren(...headKids(!now));
-      } });
-      const headKids = (o) => [h('span', { class: 't' }, h('span', { class: 'nm' }, g.name), h('span', { class: 'sub' }, g.items.length + ' topics')), icon(o ? 'up' : 'down', 20)];
-      btn.replaceChildren(...headKids(open));
-      box.append(btn, body);
-      return box;
-    })), head);
+    for (const x of list) (x._camp ? camp : groups.find((g) => g.id === x.theme) || other).items.push(x);
+    return [camp].concat(groups, other).filter((g) => g.items.length);
   }
   // a few people likely home today, each with what you planned to bring (or the next lesson)
   function ifYouSee(now) {
     const items = ST.items();
     const list = L.likelyHomeNow(items, now).filter((o) => o.item.rv.whatsNext || o.item.rv.nextStart).slice(0, 3);
     if (!list.length) return null;
-    return section('If you see them', h('div', { class: 'plainlist seeit' }, list.map((o) => {
+    // v2.41: small cards in a row you can swipe
+    return section('If you see them', h('div', { class: 'seecar seeit' }, list.map((o) => {
       const rv = o.item.rv;
-      return h('a', { class: 'prow', href: '#/rv/' + rv.id },
-        h('div', { class: 'pt' }, rv.name, h('span', { class: 'muted small' }, ' · ' + o.why.charAt(0).toLowerCase() + o.why.slice(1))),
+      return h('a', { class: 'seec', href: '#/rv/' + rv.id },
+        h('div', { class: 'pt' }, rv.name),
+        h('div', { class: 'pw' }, o.why),
         h('div', { class: 'pd' }, rv.nextStart && !rv.whatsNext ? 'Next lesson: ' + rv.nextStart : 'Bring up: ' + rv.whatsNext));
     })));
   }
@@ -352,7 +441,7 @@
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
       // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Plan a campaign at the foot
       el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
-        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, homeSections(items), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
+        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, conversations(), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
     };
   }
 
@@ -509,7 +598,7 @@
     // No search and no filters (v2.38): Map by default, or Areas (folders); the old Tiles view is gone.
     const VIEW_KEY = 'rvapp.rvsView';
     const mapOk = () => !!(RV.gmap && gardenOn());
-    let view = (() => { try { return localStorage.getItem(VIEW_KEY) === 'folders' ? 'folders' : 'map'; } catch (e) { return 'map'; } })();
+    let view = (() => { try { const v = localStorage.getItem(VIEW_KEY); return v === 'folders' || v === 'list' ? v : 'map'; } catch (e) { return 'map'; } })();
     let mapView = null; // the map is kept while it is showing, so edits refresh its pins instead of reloading it
     const dropMap = () => { if (mapView) { mapView.destroy(); mapView = null; } };
     const openFolders = new Set();
@@ -517,8 +606,10 @@
       const live = all.filter((i) => i.att.state !== 'closed');
       const groups = areaGroups(live);
       const showMap = view === 'map' && mapOk();
-      metaEl.replaceChildren(mapOk() ? h('div', { class: 'seg2 vswitch' }, [['map', 'Map'], ['folders', 'Areas']].map(([v, label]) =>
-        h('button', { type: 'button', class: v === (showMap ? 'map' : 'folders') ? 'on' : '', 'aria-pressed': String(v === (showMap ? 'map' : 'folders')), onclick: () => { if (v === view) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))) : null);
+      const cur = showMap ? 'map' : view === 'list' ? 'list' : 'folders';
+      const opts = (mapOk() ? [['map', 'Map']] : []).concat([['folders', lbl('neighborhood') + 's'], ['list', 'List']]);
+      metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, opts.map(([v, label]) =>
+        h('button', { type: 'button', class: v === cur ? 'on' : '', 'aria-pressed': String(v === cur), onclick: () => { if (v === cur) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
       // Map: everyone's plant where they live
       if (showMap) {
         if (!mapView) { mapView = RV.gmap.view(all); listBox.replaceChildren(mapView.el); } else mapView.refresh();
@@ -529,6 +620,7 @@
         listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
         return;
       }
+      if (cur === 'list') { listBox.replaceChildren(azList(live)); return; }
       const now = new Date();
       // with the garden on, an area shows its thirsty plants instead of "N due"
       const thirsty = (g) => gardenOn() ? g.items.map((i) => ({ i, st: gstate(i) })).filter((x) => x.st.form && x.st.care && x.st.care <= G.CARE.DRY) : [];
@@ -545,6 +637,32 @@
             icon(open ? 'up' : 'down', 20)),
           open ? h('div', { class: 'abody' }, areaSections(g.key, all, now)) : null);
       }));
+    }
+
+    // v2.41: everyone A to Z, with letter headings and a jump strip down the right
+    function azList(live) {
+      const key = (i) => { const c = String(i.rv.name || '').trim().charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : '#'; };
+      const rows = live.slice().sort((a, b) => String(a.rv.name || '').localeCompare(String(b.rv.name || ''), undefined, { sensitivity: 'base' }));
+      const letters = [];
+      const body = h('div', { class: 'azbody' });
+      let curL = null, list = null;
+      for (const it of rows) {
+        const k = key(it);
+        if (k !== curL) {
+          curL = k; letters.push(k);
+          body.append(h('div', { class: 'azhead', 'data-l': k }, k));
+          list = h('div', { class: 'list azlist' }); body.append(list);
+        }
+        const gs = gardenOn() ? gstate(it) : null;
+        list.append(h('a', { class: 'row azrow', href: '#/rv/' + it.rv.id },
+          gs && gs.form ? h('span', { class: 'azplant' }, plantOf(gs, 'sm', { still: true })) : h('span', { class: 'azplant' }),
+          h('div', { class: 'main' }, h('div', { class: 'name' }, it.rv.name || 'Unnamed'),
+            h('div', { class: 'line2' }, [it.rv.address, it.rv.neighborhood].filter(Boolean).join(' \u00B7 ')))));
+      }
+      const strip = h('nav', { class: 'azstrip', 'aria-label': 'Jump to letter' }, letters.map((l) => h('button', { type: 'button', onclick: () => {
+        const el = body.querySelector('.azhead[data-l="' + l + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      } }, l)));
+      return h('div', { class: 'az' }, body, letters.length > 3 ? strip : null);
     }
 
     function refresh() {
@@ -710,6 +828,9 @@
       const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
     };
+    // v2.41: the topic last used with them, and the next part of its series
+    const lastTopic = rv.lastTopic ? S.lib.find((y) => y.id === rv.lastTopic && !y.deletedAt) || null : null;
+    const nextTopic = lastTopic ? nextInSeries(lastTopic) : null;
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
         showStudy
@@ -719,10 +840,15 @@
             h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
           : null,
         (!closed && !study) || rv.whatsNext
-          ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
+          ? h(closed ? 'div' : 'button', { class: 'snap-row next' + (rv.whatsNext ? '' : ' add1'), type: closed ? null : 'button', onclick: closed ? null : editNext },
             h('div', { class: 'snap-k' }, 'Discuss next time'),
-            h('div', { class: 'snap-v' + (rv.whatsNext ? '' : ' empty') }, rv.whatsNext || 'Tap to add'))
+            rv.whatsNext ? h('div', { class: 'snap-v' }, rv.whatsNext) : h('span', { class: 'add1v' }, '+ Add'))
           : null,
+        lastTopic ? h('div', { class: 'snap-row ltopic' },
+          h('div', { class: 'snap-k' }, 'Topic last used'),
+          h('div', { class: 'ltv' },
+            h('button', { class: 'link-quiet', type: 'button', onclick: () => topicView(lastTopic) }, lastTopic.title),
+            nextTopic ? h('button', { class: 'link-quiet ltnext', type: 'button', onclick: () => topicView(nextTopic) }, 'Next: ' + nextTopic.title) : null)) : null,
         lastVisit
           ? h('button', { class: 'snap-row lastv', type: 'button', 'aria-label': 'Edit the last visit', onclick: () => UI.editEntrySheet(lastVisit.id) },
             h('div', { class: 'snap-k' }, (lastVisit.study || lastVisit.progress ? 'Last study · ' : 'Last visit · ') + U.fmtDateTime(lastVisit.at)),
@@ -832,5 +958,5 @@
     };
   }
 
-  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

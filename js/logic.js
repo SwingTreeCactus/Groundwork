@@ -607,7 +607,7 @@
   const isStudyStage = (settings, stageId) => { const st = (settings.stages || []).find((s) => s.id === stageId); return !!(st && !st.closed && (st.study === true || st.id === 'study')); };
   function rvsToCsv(items, settings) {
     const custom = settings.customFields || [];
-    const head = ['Name', 'Address', 'Neighborhood', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Best days', 'Household notes', 'Discuss next time', 'Interests', 'Scriptures', 'Tags', 'Publication', 'Where we are', 'Created']
+    const head = ['Name', 'Address', 'Area', 'Phone', 'How met', 'Stage', 'Archive reason', 'Next visit', 'Last touched', 'Best times', 'Best times note', 'Best days', 'Household notes', 'Discuss next time', 'Interests', 'Scriptures', 'Tags', 'Publication', 'Where we are', 'Created']
       .concat(custom.map((c) => c.name));
     const rows = [head];
     for (const it of items) {

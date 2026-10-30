@@ -90,6 +90,27 @@
       h('span', { class: 'muted small' }, '\u201C' + av.phrase + '\u201D')), go);
     box.parentNode.insertBefore(el, box.nextSibling);
   }
+  // v2.41: topic chips on New contact and Record a visit, in the same order as Today (campaign topics first).
+  // Picking one notes "Topic: X", fills the plan with its linking question if empty, and remembers the topic.
+  function topicChips(text, nextField, onPick) {
+    const list = RV.screens && RV.screens.todayTopics ? RV.screens.todayTopics() : ST.featuredTopics();
+    if (!list.length) return null;
+    const box = h('div', { class: 'chips tchips' });
+    const pick = (t, b) => {
+      const tag = 'Topic: ' + t.title;
+      if (!text.value.includes(tag)) {
+        const cur = text.value.replace(/\s+$/, '');
+        text.value = (cur ? cur + '\n' : '') + tag + '\n';
+        text.dispatchEvent(new CustomEvent('cleaned')); // resize without opening the full-screen writing view
+      }
+      if (nextField && t.next && !nextField.value.trim()) { nextField.value = t.next; nextField.dispatchEvent(new Event('input')); }
+      box.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === b));
+      onPick(t);
+    };
+    list.forEach((t) => { const b = h('button', { type: 'button', class: 'chip' + (t._camp ? ' camp' : ''), onclick: () => pick(t, b) }, t.title); box.append(b); });
+    return h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Topic'), box);
+  }
+
   function cleanupButton(text, nextField, onAvail) {
     if (!RV.ai || !RV.ai.available()) return null;
     const label = h('span', null, 'Clean up');
@@ -207,6 +228,7 @@
     }
     paintGeo();
     const camp = isNew ? ST.activeCampaign() : null;
+    let newTopic = null;
     const campOn = h('input', { type: 'checkbox', checked: true });
     const tagList = h('datalist', { id: 'tag-list' }, ST.allTags().map((t) => h('option', { value: t })));
     const pubList = h('datalist', { id: 'pub-list' }, ST.publications().map((n) => h('option', { value: n })));
@@ -230,7 +252,7 @@
     const fillVisits = h('div');
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
-    return sheet(draft ? 'Edit details' : isNew ? 'New ' + lbl('rv') : 'Edit ' + lbl('rv'), (close) => {
+    return sheet(draft ? 'Edit details' : isNew ? 'New contact' : 'Edit ' + lbl('rv'), (close) => {
       const more = h('div', { class: 'more-fields' },
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
@@ -299,7 +321,8 @@
           } else if (isNew) {
             const tagged = camp && campOn.checked ? camp : null;
             let text = f.visit.value.trim();
-            if (!text) text = L.quickAddFallback(tagged, ST.featuredTopics());
+            if (!text) text = L.quickAddFallback(tagged, []); // v2.41: campaign only (topics are picked with the chips)
+            if (newTopic) data.lastTopic = newTopic;
             const isFirstStage = S.settings.stages[0].id === f.stage.value;
             data.stage = f.stage.value;
             data.campaignId = tagged ? tagged.id : null;
@@ -311,7 +334,7 @@
             if (!isFirstStage && RV.garden && RV.garden.kindFor(S.settings, data.stage) !== 'first') data.garden = { since: plantedAt };
             saved = ST.addRv(data);
             if (!isFirstStage) {
-              const first = ST.addEntry(saved.id, 'visit', { text, campaignId: tagged ? tagged.id : null, plan: !!data.whatsNext });
+              const first = ST.addEntry(saved.id, 'visit', Object.assign({ text, campaignId: tagged ? tagged.id : null, plan: !!data.whatsNext }, newTopic ? { topic: newTopic } : {}));
               const initialId = (S.settings.stages.filter((x) => !x.closed)[1] || {}).id;
               if (data.stage !== initialId) ST.updateRv(saved.id, { garden: { since: first.at } });
             }
@@ -332,6 +355,7 @@
         geoRow,
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
+        isNew ? topicChips(f.visit, f.whatsNext, (t) => { newTopic = t.id; }) : null,
         fillVisits,
         isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext, (av) => { if (av.days.length) bestDays.set(av.days); }); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
         moreBtn,
@@ -497,15 +521,7 @@
     const follow = h('input', { type: 'date', 'aria-label': 'Follow up on', min: U.toDateStr(U.addDays(new Date(), 1)) });
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
-    const topics = ST.featuredTopics();
-    const addTopic = (t) => {
-      const tag = 'Topic: ' + t.title;
-      if (text.value.includes(tag)) { text.focus(); return; }
-      const cur = text.value.replace(/\s+$/, '');
-      text.value = (cur ? cur + '\n' : '') + tag + '\n';
-      text.focus();
-      try { text.setSelectionRange(text.value.length, text.value.length); } catch (e) { /* ignore */ }
-    };
+    let pickedTopic = null;
     const stageNote = h('div', { class: 'progress-note' });
     const updateNote = () => {
       const cur = L.shownName(S.settings, rv.stage), to = L.shownName(S.settings, stage.value);
@@ -527,8 +543,7 @@
           ST.updateRv(rvId, patch);
         }),
         h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
-    const topicBox = topics.length ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Tap to add a topic to the note'),
-      h('div', { class: 'chips' }, topics.map((t) => h('button', { type: 'button', class: 'chip', onclick: () => addTopic(t) }, '+ ' + t.title)))) : null;
+    const topicBox = topicChips(text, whatsNext, (t) => { pickedTopic = t.id; });
     // plan nudge (v2.22): a plan left on each visit is what makes a plant lush; say where this one stands
     const nudge = h('div', { class: 'plannudge', 'aria-live': 'polite' });
     const G = RV.garden, gOn = S.settings.garden !== false && G;
@@ -584,6 +599,7 @@
           const res = ST.logVisit(rvId, {
             text: text.value,
             whatsNext: study ? undefined : whatsNext.value,
+            topic: !study && pickedTopic ? pickedTopic : undefined,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
             study: study || undefined,
             publication: study ? pub.value : undefined,

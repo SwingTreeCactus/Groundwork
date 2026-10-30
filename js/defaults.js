@@ -25,7 +25,7 @@
         campaign: 'Campaign',
         scriptures: 'Scriptures',
         topics: 'Topics',
-        neighborhood: 'Neighborhood',
+        neighborhood: 'Area',
         archive: 'Archive',
         today: 'Today',
         bibleStudy: 'Bible study',

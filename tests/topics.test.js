@@ -6,14 +6,24 @@ let ok = 0, bad = 0;
 const test = (name, fn) => { try { fn(); ok++; console.log('  ok  ' + name); } catch (e) { bad++; console.log('FAIL  ' + name + '\n' + e.message); } };
 const th = (id) => (LIB.THEMES.find((x) => x.id === id) || {}).name;
 
-test('the library: 54 topics in 11 themes, one per scripture, every theme used', () => {
-  assert.equal(LIB.TOPICS.length, 54);
+test('the library: 60 topics in 11 themes, every theme used, videos for all but one', () => {
+  assert.equal(LIB.TOPICS.length, 60);
   assert.equal(LIB.THEMES.length, 11);
-  const firstRefs = LIB.TOPICS.map((t) => t.scripture.split(' or ')[0]).filter(Boolean);
-  assert.equal(new Set(firstRefs).size, firstRefs.length);
+  assert.equal(new Set(LIB.TOPICS.map((t) => t.id)).size, 60);
   for (const t of LIB.THEMES) assert.ok(LIB.TOPICS.some((x) => x.theme === t.id), t.name);
   assert.ok(LIB.TOPICS.every((t) => t.question && t.source.startsWith('https://wol.jw.org/')));
-  assert.equal(LIB.TOPICS.filter((t) => t.video).length, 54);
+  assert.equal(LIB.TOPICS.filter((t) => t.video).length, 59);
+});
+test('series: 27, every part a real topic, seriesOf gives the part', () => {
+  assert.equal(LIB.SERIES.length, 27);
+  for (const s of LIB.SERIES) {
+    assert.ok(s.topics.length >= 2, s.name);
+    for (const id of s.topics) assert.ok(LIB.byId(id), s.name + ': ' + id);
+    assert.match(s.ran, /^\d{4}-\d{2}$/);
+  }
+  const s = LIB.SERIES[0];
+  assert.deepEqual(LIB.seriesOf(s.topics[1]).find((x) => x.series === s), { series: s, part: 2, of: s.topics.length });
+  assert.ok(LIB.TOPICS.filter((t) => !LIB.seriesOf(t.id).length).length <= 4);
 });
 test('references parse: verse lists, ranges, two refs, full and short book names', () => {
   const p = (s) => T.parseRefs(s).map((r) => [r.book, r.ch, r.from, r.to]);
@@ -33,12 +43,12 @@ test('search forgives: loose verse references, typos, partial words', () => {
   const top = (q, n) => T.search(LIB.TOPICS, q, th).slice(0, n || 3).map((t) => t.title);
   for (const q of ['psalms 37', 'ps37', 'Psalm 37']) assert.ok(top(q).includes("God's promise for the earth"), q);
   assert.deepEqual(top('37 29', 1), ["God's promise for the earth"]);
-  assert.ok(top('sufering', 4).includes('Why people suffer'));
+  assert.ok(top('sufering', 5).includes('Why people suffer') && /suffer/i.test(top('sufering', 1)[0]));
   assert.ok(top('prayr', 2).includes('Does God hear prayers?'));
   assert.deepEqual(top('marrage', 1), ['A strong marriage']);
   assert.ok(top('1 jn 5 19', 1)[0] === 'Why people suffer');
   assert.equal(T.search(LIB.TOPICS, 'zzzqqq', th).length, 0);
-  assert.equal(T.search(LIB.TOPICS, '', th).length, 54);
+  assert.equal(T.search(LIB.TOPICS, '', th).length, 60);
 });
 test('the index runs in Bible order and names the topics using each verse', () => {
   const idx = T.index(LIB.TOPICS);

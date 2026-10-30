@@ -73,9 +73,6 @@
         UI.toggle(S.settings.nhRowButton, (v) => save((s) => { s.nhRowButton = v; }), 'Show Not Home button on list rows')),
       h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Garden'), h('div', { class: 'muted small' }, 'Plants show each ' + lbl('rv') + "'s stage and care. Off: plain rows.")),
         UI.toggle(S.settings.garden !== false, (v) => save((s) => { s.garden = v; }), 'Garden')),
-      // v2.28: the Home screen cards live here now
-      h('h2', { class: 'sethead', style: { margin: '22px 0 6px' } }, 'Home screen'),
-      homeCardsBox(),
     ], { noRerender: true });
   }
 
@@ -122,38 +119,56 @@
   function lib() {
     const SC = RV.screens, TP = RV.topics;
     let q = '';
+    // v2.41: By theme or By series (remembered on this device)
+    let mode = 'theme';
+    try { mode = localStorage.getItem('rvapp.topicsMode') === 'series' ? 'series' : 'theme'; } catch (e) { /* ignore */ }
+    const seg = h('div', { class: 'seg2 vseg' });
     const search = h('input', { type: 'search', class: 'tsearch', placeholder: 'Search topics or scriptures', 'aria-label': 'Search topics or scriptures', autocomplete: 'off' });
     const listBox = h('div', { class: 'tlib' });
     const indexBox = h('section', { class: 'tindex' });
     search.addEventListener('input', () => { q = search.value; paint(); });
-    const row = (x, showTheme) => h('div', { class: 'row plain trow' },
+    const row = (x, showTheme, part) => h('div', { class: 'row plain trow' },
       h('div', { class: 'main', role: 'button', tabindex: '0', onclick: () => SC.libSheet('topic', x) },
-        h('div', { class: 'name' }, x.title),
+        h('div', { class: 'name' }, part ? h('span', { class: 'tpart' }, part) : null, x.title),
         x.question || x.text ? h('div', { class: 'line2' }, ...SC.linkify(x.question || x.text)) : null,
         h('div', { class: 'line3' }, [showTheme ? SC.themeName(x.theme) : null, x.scripture || null].filter(Boolean).join(' · '))),
       UI.toggle(!!x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Show on Today: ' + x.title));
     function paint() {
       const all = ST.libItems('topic');
+      seg.replaceChildren(...[['theme', 'By theme'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; try { localStorage.setItem('rvapp.topicsMode', v); } catch (e) { /* ignore */ } paint(); } }, l)));
       if (q.trim()) {
         const hits = TP.search(all, q, SC.themeName);
         listBox.replaceChildren(hits.length ? h('div', { class: 'list' }, hits.map((x) => row(x, true))) : UI.emptyState('search', 'No topic matches that.'));
       } else {
         const open = openSet();
-        const groups = ST.themes().map((t) => ({ t, items: all.filter((x) => x.theme === t.id) }));
-        const other = all.filter((x) => !ST.themes().some((t) => t.id === x.theme));
-        if (other.length) groups.push({ t: { id: '', name: 'Other' }, items: other });
-        listBox.replaceChildren(...groups.map(({ t, items }) => {
+        let groups;
+        if (mode === 'series') {
+          const LIB = RV.library, used = new Set();
+          groups = LIB.SERIES.map((sr) => {
+            const items = sr.topics.map((id) => all.find((x) => x.builtin === id)).filter(Boolean);
+            items.forEach((x) => used.add(x.id));
+            const [y, m] = sr.ran.split('-');
+            return { t: { id: 's:' + sr.id, name: sr.name, series: true, ran: U.MONTHS[+m - 1] + ' ' + y }, items, parts: (x) => 'Part ' + (sr.topics.indexOf(x.builtin) + 1) };
+          }).filter((g) => g.items.length);
+          const rest = all.filter((x) => !used.has(x.id));
+          if (rest.length) groups.push({ t: { id: 's:', name: 'Not in a series', series: true }, items: rest });
+        } else {
+          groups = ST.themes().map((t) => ({ t, items: all.filter((x) => x.theme === t.id) }));
+          const other = all.filter((x) => !ST.themes().some((t) => t.id === x.theme));
+          if (other.length) groups.push({ t: { id: '', name: 'Other' }, items: other });
+        }
+        listBox.replaceChildren(...groups.map(({ t, items, parts }) => {
           const k = t.id || 'other', isOpen = open.has(k), nOn = items.filter((x) => x.showOnHome).length;
           const allOn = items.length && nOn === items.length;
           return h('section', { class: 'acard tfold' + (isOpen ? ' open' : '') },
             h('div', { class: 'ahead' },
               h('button', { class: 't', type: 'button', 'aria-expanded': String(isOpen), onclick: () => { const o = openSet(); if (isOpen) o.delete(k); else o.add(k); saveOpen(o); paint(); } },
-                h('span', { class: 'nm' }, t.name), h('span', { class: 'sub' }, items.length ? nOn + ' of ' + items.length + ' on' : 'Empty')),
-              t.id ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Edit theme ' + t.name, onclick: () => themeSheet(t) }, icon('more', 18)) : null,
+                h('span', { class: 'nm' }, t.name), h('span', { class: 'sub' }, (items.length ? nOn + ' of ' + items.length + ' on' : 'Empty') + (t.ran ? ' \u00B7 first ran ' + t.ran : ''))),
+              t.id && !t.series ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Edit theme ' + t.name, onclick: () => themeSheet(t) }, icon('more', 18)) : null,
               items.length ? UI.toggle(allOn, (v) => { for (const x of items) if (!!x.showOnHome !== v) ST.updateLib(x.id, { showOnHome: v }); }, 'Show all of ' + t.name + ' on Today') : null),
             isOpen ? h('div', { class: 'abody' },
-              items.length ? h('div', { class: 'list' }, items.map((x) => row(x, false))) : null,
-              h('button', { class: 'link-quiet tadd', type: 'button', onclick: () => SC.libSheet('topic', null, { theme: t.id }) }, icon('plus', 16), 'Add a topic here')) : null);
+              items.length ? h('div', { class: 'list' }, items.map((x) => row(x, false, parts ? parts(x) : ''))) : null,
+              t.series ? null : h('button', { class: 'link-quiet tadd', type: 'button', onclick: () => SC.libSheet('topic', null, { theme: t.id }) }, icon('plus', 16), 'Add a topic here')) : null);
         }));
       }
       // every verse in the topics, Genesis to Revelation
@@ -165,7 +180,7 @@
     }
     paint();
     return page(lbl('topics'), [
-      search, listBox,
+      seg, search, listBox,
       h('div', { class: 'two', style: { marginTop: '14px' } },
         saveBtn('Add topic', () => RV.screens.libSheet('topic'), 'primary'),
         saveBtn('Add theme', async () => { const n = await UI.textPrompt({ title: 'New theme', placeholder: 'e.g. Science and creation' }); if (n && n.trim()) ST.addTheme(n.trim()); })),
@@ -183,6 +198,22 @@
     const text = h('textarea', { value: c ? c.text || '' : '', placeholder: 'Details', style: { minHeight: '84px' } });
     const pubs = h('textarea', { value: c ? c.publications || '' : '', placeholder: 'One per line', style: { minHeight: '70px' } });
     const err = h('div', { class: 'small', role: 'alert', style: { color: 'var(--danger)', minHeight: '1.3em', marginBottom: '6px' } });
+    // v2.41: the topics for this campaign (they lead Today's carousel while it runs); suggestions follow its name and topic
+    let sel = ((c && c.topics) || []).slice();
+    const pickBox = h('div', { class: 'pick' });
+    const paintPick = () => {
+      const all = ST.libItems('topic');
+      const q = [title.value, topic.value].join(' ').trim();
+      const sugg = q ? RV.topics.search(all, q, RV.screens.themeName).slice(0, 4) : [];
+      const show = sel.map((id) => all.find((x) => x.id === id)).filter(Boolean);
+      for (const x of sugg) if (!show.includes(x)) show.push(x);
+      pickBox.replaceChildren(...show.map((x) => {
+        const cb = h('input', { type: 'checkbox', checked: sel.includes(x.id), onchange: () => { sel = cb.checked ? sel.concat(x.id) : sel.filter((i) => i !== x.id); } });
+        return h('label', { class: 'pk' }, cb, h('span', { class: 't' }, x.title), h('span', { class: 'th' }, RV.screens.themeName(x.theme)));
+      }), h('button', { class: 'link pkmore', type: 'button', onclick: () => topicPicker(sel, (ids) => { sel = ids; paintPick(); }) }, icon('plus', 16), show.length ? 'Choose more topics' : 'Choose topics'));
+    };
+    title.addEventListener('input', paintPick); topic.addEventListener('input', paintPick);
+    paintPick();
     sheet(c ? 'Edit ' + lbl('campaign').toLowerCase() : 'New ' + lbl('campaign').toLowerCase(), (close) =>
       h('form', {
         onsubmit: (e) => {
@@ -193,7 +224,7 @@
           if (end.value < start.value) { err.textContent = 'The end date comes before the start date.'; return; }
           const clash = L.campaignOverlap(ST.campaigns(), { start: start.value, end: end.value }, c && c.id);
           if (clash) { err.textContent = 'These dates overlap "' + clash.title + '" (' + campRange(clash) + '). Only one campaign can run at a time.'; return; }
-          const data = { title: t, topic: topic.value.trim(), text: text.value.trim(), publications: pubs.value.trim(), start: start.value, end: end.value };
+          const data = { title: t, topic: topic.value.trim(), text: text.value.trim(), publications: pubs.value.trim(), start: start.value, end: end.value, topics: sel };
           if (c) ST.updateLib(c.id, data); else ST.addLib('campaign', data);
           close();
         },
@@ -201,6 +232,7 @@
         field('Name', title),
         field('Topic', topic),
         h('div', { class: 'two' }, field('Starts', start), field('Ends', end)),
+        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Topics for this ' + lbl('campaign').toLowerCase()), pickBox),
         field('Details', text),
         field('Featured publications', pubs),
         err,
@@ -211,6 +243,24 @@
           }, 'Delete') : null,
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+  }
+  // every topic with a checkbox and a search; Done hands back the chosen ids
+  function topicPicker(selected, done) {
+    let sel = selected.slice(), q = '';
+    const list = h('div', { class: 'pick tall' });
+    const search = h('input', { type: 'search', class: 'tsearch', placeholder: 'Search topics or scriptures', autocomplete: 'off' });
+    const paint = () => {
+      const all = ST.libItems('topic');
+      const items = q.trim() ? RV.topics.search(all, q, RV.screens.themeName) : all;
+      list.replaceChildren(...items.map((x) => {
+        const cb = h('input', { type: 'checkbox', checked: sel.includes(x.id), onchange: () => { sel = cb.checked ? sel.concat(x.id) : sel.filter((i) => i !== x.id); } });
+        return h('label', { class: 'pk' }, cb, h('span', { class: 't' }, x.title), h('span', { class: 'th' }, RV.screens.themeName(x.theme)));
+      }));
+    };
+    search.addEventListener('input', () => { q = search.value; paint(); });
+    paint();
+    sheet('Choose topics', (close) => h('div', null, search, list,
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => { done(sel); close(); } }, 'Done'))));
   }
   function campaigns() {
     const now = new Date();
@@ -223,7 +273,7 @@
       if (!rows.length) return;
       box.appendChild(h('div', { class: 'group-head' }, label));
       box.appendChild(h('div', { class: 'list' }, rows.map((c) =>
-        h('button', { class: 'row', type: 'button', style: { textAlign: 'left', width: '100%' }, onclick: () => campaignForm(c) },
+        h('button', { class: 'row' + (key === 'active' ? ' camprow' : ''), type: 'button', style: { textAlign: 'left', width: '100%' }, onclick: () => campaignForm(c) },
           h('div', { class: 'main' }, h('div', { class: 'name' }, c.title), h('div', { class: 'line2' }, campRange(c)),
             c.topic ? h('div', { class: 'line2' }, c.topic) : null),
           icon('right', 18)))));
@@ -382,7 +432,7 @@
   // ---------- labels ----------
   function labels() {
     const def = RV.defaults.defaultSettings().labels;
-    const names = { rv: 'Record (singular)', rvs: 'Record (plural)', notHome: 'Not home button', notHomeShort: 'Not home short form', recordVisit: 'Record visit button', campaign: 'Campaign', scriptures: 'Scriptures', topics: 'Topics', neighborhood: 'Neighborhood', archive: 'Archive', today: 'Today screen', bibleStudy: 'Bible study' };
+    const names = { rv: 'Record (singular)', rvs: 'Record (plural)', notHome: 'Not home button', notHomeShort: 'Not home short form', recordVisit: 'Record visit button', campaign: 'Campaign', scriptures: 'Scriptures', topics: 'Topics', neighborhood: 'Area', archive: 'Archive', today: 'Today screen', bibleStudy: 'Bible study' };
     const box = h('div');
     Object.keys(def).forEach((k) => {
       const inp = h('input', { type: 'text', value: S.settings.labels[k] || '' });
