@@ -1,4 +1,4 @@
-# Groundwork handover (2026-10-30, after v2.42.0)
+# Groundwork handover (2026-10-30, after v2.43.0)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
@@ -60,7 +60,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.42.0)
+## Tests (all passing at v2.43.0)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (326; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (44)
@@ -93,6 +93,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.43.0: dot-matrix font (Doto) retired; titles and big numbers in Space Grotesk bold.
 - v2.42.0: new app icon, the happy pot (terracotta pot, sprout, content face) on garden green; brand guide section 3 rewritten.
 - v2.41.1: View all doesn't pop the keyboard; "Schedule a campaign" (campaigns come from the organization).
 - v2.41.0: Today carousel (big topic cards, ×, View all, linking question jumps to the next part), all 60 topics in 27 series (Topics page By theme / By series), campaign topics, topic chips on New contact and Record a visit (topic last used + next part on the record), Contacts List view A–Z, Neighborhood → Area, garden-green buttons, warm dark mode.
@@ -107,7 +108,6 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.
 - Garden scene redesign built in v2.36.0 (design-doc 49). The draft generator claude/garden-scene-draft.js is now history; the live scene is in js/insights.js (`skySvg`, `stonePath`, `fireflies`, `gardenScene`) and the v2.36 block of css/app.css.
 - New icon shipped in v2.42.0. To check on Mark's phone: remove and re-add Groundwork on iPhone to see it; Android updates on its own.
-- Open question (2026-10-30): whether the Doto dot-matrix font for titles still fits the warmer look.
 - v2.37.0 shipped the study track, held growth/reveal moments and the cleanup meaning check. To watch: whether Fast catches dictation swaps well enough on real notes (Careful is the fallback default); Mario's plant should grow at his next study if he has three study sessions logged.
 - Big layout update: release 1 built as v2.38.0 (design-doc 51), release 2 as v2.39.0 (design-doc 52). Next: the 15-second text tutorial, four cards (Home/Today, Contacts, My garden, record screen), drafted with Mark before building. To watch: whether the likely-home estimate feels right on real data (thresholds LIKELY_P 0.6, LIKELY_N 0.3 in js/logic.js) and whether cleanup's availability suggestion fires sensibly on real notes (untested against the live model).
 - Today redesign built as v2.40.0 (design-doc 53), carousel and series in v2.41.0 (design-doc 54). To check on Mark's phone: verse links (jw.org finder `bible=` codes) open JW Library at the right verse; workbook video links (`pub-mwbv_...`) open the right video (59 of 60 found; patterns verified on 31 weekly pages, not every link opened). Library data: js/library.js, source list in claude/sample-conversations-library.json.

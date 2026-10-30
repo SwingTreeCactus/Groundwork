@@ -94,7 +94,9 @@ conversations); the app does.
 ## 5. Type
 
 - Space Grotesk for everything in the UI.
-- Doto (dot-matrix) only for the tab titles and large numbers.
+- Titles and big numbers: Space Grotesk bold, tightened slightly (v2.43.0). The Doto dot-matrix face used there
+  before was retired on 2026-10-30: it belonged to the earlier black-white-red look, read faint and cold beside the
+  warm palette and the happy-pot icon, and was hard to read at a glance.
 - Fonts are bundled in /fonts (SIL Open Font License), so the app works offline.
 
 ## 6. Lessons from the icon search (so they are not repeated)

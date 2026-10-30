@@ -706,3 +706,9 @@ Tests: smoke 325, screens 59, topics 6, kinds 23, ai_cleanup 44, notes_import 39
 Mark asked for a new logo. After several rounds (recorded in docs/BRAND.md section 3) he chose the happy pot: a terracotta pot with a first sprout and a content face (closed smiling eyes, a gentle closed smile, a little blush) on garden green #3F6B48. It replaces the purple house-bubble everywhere: icon.svg, the PNGs (192, 512, 180 apple-touch), the maskable versions (mark scaled to the safe circle) and the favicons (pot and sprout without the face). No code changes. iPhone keeps the old icon until the app is removed from the home screen and added again; Android picks it up from the manifest.
 
 Tests unchanged and passing (smoke 326, screens 60). VERSION 2.42.0, cache rvapp-v95.
+
+## 56. v2.43.0 Titles and big numbers in Space Grotesk; the dot-matrix font is retired (built 2026-10-30)
+
+Reviewed with a before/after mockup (Today, Contacts, the garden's This week card). The Doto dot-matrix face belonged to the earlier black-white-red look; beside the warm palette and the happy-pot icon it read faint and cold, and it was hard to read at a glance (the garden title nearly vanished against the night sky). Now `--font-dot` points at Space Grotesk, and titles and big numbers are Space Grotesk bold, tightened slightly (title 1.8rem, -0.02em; numbers -0.03em). The Doto font file is removed from fonts/ and from the service worker's precache; LICENSE-OFL.txt now credits Space Grotesk and Space Mono. Brand guide section 5 updated.
+
+Tests unchanged and passing (smoke 326, screens 60). VERSION 2.43.0, cache rvapp-v96.

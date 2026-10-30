@@ -330,7 +330,6 @@ button.snap-row { cursor: pointer; }
 .line3.hint-line { color: var(--accent); }
 
 /* ---------- version 2.1: Nothing-style (monochrome, dot-matrix, one red accent) ---------- */
-@font-face { font-family: "Doto"; font-weight: 700; font-display: swap; src: url("../fonts/doto-latin-700-normal.woff2") format("woff2"); }
 @font-face { font-family: "Space Grotesk"; font-weight: 400; font-display: swap; src: url("../fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); }
 @font-face { font-family: "Space Grotesk"; font-weight: 500; font-display: swap; src: url("../fonts/space-grotesk-latin-500-normal.woff2") format("woff2"); }
 @font-face { font-family: "Space Grotesk"; font-weight: 700; font-display: swap; src: url("../fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); }
@@ -338,7 +337,7 @@ button.snap-row { cursor: pointer; }
 :root {
   --font-ui: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --font-dot: "Doto", "Space Mono", ui-monospace, monospace;
+  --font-dot: var(--font-ui); /* v2.43: the dot-matrix face (Doto) is retired; titles and big numbers use Space Grotesk bold */
   --red: #d71921;
   --bg: #f2f2ef; --surface: #ffffff; --surface2: #e9e9e5; --fg: #0b0b0b; --muted: #6a6a66; --line: #d6d6d1;
   --accent: #0b0b0b; --accent-fg: #ffffff; --accent-soft: #e3e3de;
@@ -1918,3 +1917,8 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .azrow .line2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .azstrip { position: sticky; top: 76px; margin-right: -8px; display: flex; flex-direction: column; gap: 1px; z-index: 2; }
 .azstrip button { border: 0; background: none; color: var(--green-t); font: inherit; font-size: .68rem; font-weight: 700; padding: 1px 4px; cursor: pointer; line-height: 1.2; }
+
+/* v2.43: titles and big numbers in Space Grotesk bold (Doto retired) */
+.topbar h1 { font-weight: 700; letter-spacing: -.02em; font-size: 1.8rem; }
+.circ .num, .atile .n, .ahead .n, .gtile .num, .ring .rw .n, .streak .big, .rates .n, .recap .n, .exrow .n, .effort .big .num, .tile .tn, .fcount, .exh b, .keypad button { letter-spacing: -.03em; }
+.conv .tcount { font-weight: 500; letter-spacing: 0; }
