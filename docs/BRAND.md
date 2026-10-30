@@ -21,35 +21,40 @@ main action per screen, a single accent color, generous tap targets.
 
 ## 3. App icon
 
-**Mark:** a house shaped like a speech bubble, with three dots inside (a conversation at
-someone's home). The dots tie to the app's dot language (stage pips, Doto numerals).
+**Current (v2.42.0, chosen 2026-10-30): the happy pot.** One of the garden's own terracotta pots with a first
+sprout and a content face (closed smiling eyes, a gentle closed smile, a little blush), on garden green. It is the
+app's character: every plant in the garden has this face. The icon does not try to tell the whole story (visits,
+conversations); the app does.
 
-**Primary version (shipped in v2.9.1):** accent background (#5B3E96, the app's purple),
-off-white house, three ink dots.
+- Colours: background garden green #3F6B48; rim #9C4A30; pot clay #B4583A; leaves #A9D08E and #CFE6B4 (stem
+  #A9D08E); face ink #1F1D1A; blush #D9775B.
+- Geometry (100 x 100 viewBox, before the per-file scale): stem `M50 39 V22` (stroke 5, round); leaves
+  `M50 30 C39 30 32 24 31 14 C42 14 50 20 50 30 Z` and `M50 25 C61 25 68 19 69 9 C58 9 50 15 50 25 Z`; rim
+  rect x 20 y 37 w 60 h 13 rx 5.5; body `M24.5 48 H75.5 L69.8 85 Q69 89.5 64.5 89.5 H35.5 Q31 89.5 30.2 85 Z`;
+  eyes `M35 64 Q38.5 59 42 64` and `M58 64 Q61.5 59 65 64` (stroke 3.6, round); smile `M43.5 72 Q50 78 56.5 72`
+  (stroke 3.6, round); blush circles r 3.4 at (32, 71) and (68, 71).
+- Files (icons/): icon.svg (mark scaled 0.92), icon-192/512.png, icon-180.png (apple-touch-icon, square and
+  opaque), icon-maskable.svg and -192/512.png (mark scaled 0.74 to sit inside Android's safe circle), favicon.svg
+  and favicon-32/16.png (pot and sprout without the face, which blurs at that size).
+- Rules: no text, outlines, gradients or shadows; no transparency; keep the face calm (the brand is calm, private,
+  practical; a laughing face with tongue was tried and judged too loud).
+- iPhone keeps the old icon until the app is removed from the home screen and added again (iOS caches it);
+  Android updates it from the manifest on its own, sometimes after a day.
 
-**Alternate versions (not shipped, for dark or light contexts):**
-- Ink: ink background, off-white house, dots ink, ink, accent (the accent dot = the next visit).
-- Paper: off-white background, ink house, dots off-white, off-white, accent.
+**Retired: the house-bubble (v2.9.1 to v2.41.1).** A house shaped like a speech bubble with three dots, on purple
+#5B3E96. Replaced because the app moved off purple and the garden became its character.
 
-**Geometry (100 x 100 viewBox):**
-- House path: `M50 21 L78 44 L78 72 L44 72 L29 85 L31.5 72 L22 72 L22 44 Z`, filled and
-  stroked in the same color, stroke-width 7, round joins (this rounds the corners).
-- Dots: r = 5 at (37, 55), (50, 55), (63, 55).
-- Maskable version: the mark scaled to 0.86 around (50, 53), so it stays inside Android's
-  80% safe circle.
-- Favicon at 16 px: house only, no dots (the dots blur into a bar at that size).
-
-**Files:** in the app's `icons/` folder since v2.9.1: icon.svg, icon-192/512.png,
-icon-maskable.svg and icon-maskable-192/512.png, icon-180.png (apple-touch-icon), favicon.svg,
-favicon-32/16.png. They were rebuilt from the geometry above, so the earlier `RV-app-icons.zip`
-(made with #7B61FF) is superseded. To recolor, change the fill of the background rect in each
-SVG and re-render the PNGs.
-
-**Rules:**
-- Do not add text, outlines, gradients or shadows to the icon.
-- Do not recolor the house; only the accent changes.
-- Do not place the mark on a busy photo. Use one of the three versions.
-- iPhone: apple-touch-icon stays square and opaque (iOS rounds it).
+**The search that led to the pot (2026-10-30), so it is not repeated:**
+- Recoloured house-bubble, sprout in a speech bubble, sprout on three dots, plain pot: Mark didn't love any; he
+  liked the pot but it "didn't tell a story".
+- Pot with a story: leaf as a speech bubble, falling drops, pot in a doorway (fails in one colour), tree with a
+  speech-bubble crown.
+- Watering can pouring on a happy pot: the can's silhouette kept going wrong (a long thin spout with a rose read
+  as phallic; a yellow can with a stream had an unwanted reading; dots as "…" read as weird dots). Audited
+  against logo principles: three subjects (not simple), the standard plant-care picture (not distinctive), and a
+  fragile silhouette. Dropped for the pot alone.
+- Principles used: one subject; a meaning you can say in a sentence; reads in one colour; legible at 20 px;
+  no trend effects; nothing that can be misread.
 
 ## 4. Color
 

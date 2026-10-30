@@ -700,3 +700,9 @@ Design: main buttons, switches, checkboxes and dates garden green (#3F6B48); pro
 
 Tests: smoke 325, screens 59, topics 6, kinds 23, ai_cleanup 44, notes_import 39, drive_folder 37, garden 49, logic 53, notes 7, worker 6, ai-proxy 8. VERSION 2.41.0, cache rvapp-v93.
 - v2.41.1: View all opens without focusing its search, so no keyboard comes up until you tap the search. "Plan a campaign" is now "Schedule a campaign" (campaigns come from the organization; you schedule them, you don't plan them). Tests: smoke 326, screens 60. Cache rvapp-v94.
+
+## 55. v2.42.0 New app icon: the happy pot (built 2026-10-30)
+
+Mark asked for a new logo. After several rounds (recorded in docs/BRAND.md section 3) he chose the happy pot: a terracotta pot with a first sprout and a content face (closed smiling eyes, a gentle closed smile, a little blush) on garden green #3F6B48. It replaces the purple house-bubble everywhere: icon.svg, the PNGs (192, 512, 180 apple-touch), the maskable versions (mark scaled to the safe circle) and the favicons (pot and sprout without the face). No code changes. iPhone keeps the old icon until the app is removed from the home screen and added again; Android picks it up from the manifest.
+
+Tests unchanged and passing (smoke 326, screens 60). VERSION 2.42.0, cache rvapp-v95.
