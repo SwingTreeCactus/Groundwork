@@ -143,6 +143,12 @@
     return btn;
   }
 
+  // v2.44: Clean up under every field that records a visit or something about the person (not on short fields)
+  function cleanupRow(text, nextField, onAvail) {
+    const b = cleanupButton(text, nextField, onAvail);
+    return b ? h('div', { class: 'note-tools' }, b) : null;
+  }
+
   // ---------- add / edit RV ----------
   // One form. New: Name, Address, Area and "What did you discuss?", with More details expanding the rest in place.
   // Filled in for a new contact: Initial Call, House to house, today as a best day, the running campaign.
@@ -258,9 +264,11 @@
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         studyBox,
         field('Household notes', f.notes),
+        cleanupRow(f.notes, null),
         draft ? visitsBox(draft.visits, draft.nextVisit, 'From the note, added on import') : null,
         h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
         nextField,
+        isNew ? null : (() => { const r = cleanupRow(f.whatsNext, null); if (r) r.classList.add('nexttools'); return r; })(),
         field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
@@ -725,5 +733,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { importStageOptions, addressSheet, afterVisit, cleanupButton, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { importStageOptions, addressSheet, afterVisit, cleanupButton, cleanupRow, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

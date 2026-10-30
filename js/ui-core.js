@@ -91,6 +91,7 @@
           onsubmit: (e) => { e.preventDefault(); answered = true; resolve(input.value); close(); },
         },
           o.label ? h('div', { class: 'field' }, h('label', null, o.label), input) : h('div', { class: 'field' }, input),
+          o.cleanup && RV.forms && RV.forms.cleanupRow ? RV.forms.cleanupRow(input, null) : null, // v2.44
           h('div', { class: 'actions' },
             h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
             h('button', { class: 'btn primary', type: 'submit' }, o.okText || 'Save'))),
@@ -224,6 +225,7 @@
         studySw,
         studyBox,
         field('Notes', text),
+        !isStage && RV.forms && RV.forms.cleanupRow ? RV.forms.cleanupRow(text, null) : null, // v2.44
         isStage ? null : field('When', when),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         h('div', { class: 'actions' },

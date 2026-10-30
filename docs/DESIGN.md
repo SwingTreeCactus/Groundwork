@@ -712,3 +712,15 @@ Tests unchanged and passing (smoke 326, screens 60). VERSION 2.42.0, cache rvapp
 Reviewed with a before/after mockup (Today, Contacts, the garden's This week card). The Doto dot-matrix face belonged to the earlier black-white-red look; beside the warm palette and the happy-pot icon it read faint and cold, and it was hard to read at a glance (the garden title nearly vanished against the night sky). Now `--font-dot` points at Space Grotesk, and titles and big numbers are Space Grotesk bold, tightened slightly (title 1.8rem, -0.02em; numbers -0.03em). The Doto font file is removed from fonts/ and from the service worker's precache; LICENSE-OFL.txt now credits Space Grotesk and Space Mono. Brand guide section 5 updated.
 
 Tests unchanged and passing (smoke 326, screens 60). VERSION 2.43.0, cache rvapp-v96.
+
+## 57. v2.44.0 Clean up everywhere a visit or the person is written about (built 2026-10-30)
+
+Mark: Clean up wasn't everywhere he expected; it should be on every field that records a visit or details about the person (not on short fields), visible in every view.
+
+Before, it was only under the note in New contact and in Record a visit / Log a study. Now also:
+- Edit contact (and Edit details on an imported draft): under Household notes and under Discuss next time.
+- Editing a timeline entry (visit, note, Not home): under its notes.
+- Discuss next time opened from the record: under the text.
+A shared `RV.forms.cleanupRow(text, next)` puts the button in a `.note-tools` row under the field; `UI.textPrompt({ cleanup: true })` adds it to a prompt. Where there is no separate Discuss next time field it proofreads the text only (next-time items are copied, never moved, so nothing is lost). Short fields (name, address, phone, publication, lesson, tags) have none. It shows whenever cleanup is available, which is always with the shared helper.
+
+Tests: ai_cleanup 48 (new: Edit contact has two, household notes clean in place, entry edit, Discuss next time on the record); others unchanged. VERSION 2.44.0, cache rvapp-v97.

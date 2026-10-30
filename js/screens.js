@@ -825,7 +825,7 @@
     // v2.36.2: the newest note, a visit's or a study's, shows at the top for everyone (studies used to hide it)
     const lastVisit = it.entries.find((e) => e.type === 'visit' && e.text);
     const editNext = async () => {
-      const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
+      const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, cleanup: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
     };
     // v2.41: the topic last used with them, and the next part of its series
