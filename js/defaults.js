@@ -59,6 +59,8 @@
         { id: 'topics', on: true },
         { id: 'recent', on: false },
       ],
+      // v2.40: conversation topic themes (folders in Topics); the seeded library uses the first eleven
+      themes: (typeof RV !== 'undefined' && RV.library ? RV.library.THEMES : []).map((t) => Object.assign({}, t)),
       theme: 'system',
       accent: 'purple',
       textScale: 1,

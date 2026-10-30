@@ -90,25 +90,46 @@
   }
 
   // ---------- topics and campaigns (shared sheets) ----------
-  function libSheet(kind, item) {
-    // kind is always 'topic' now; scriptures and conversation starters live inside topics
+  // v2.40: a topic is a conversation: a question, its scriptures, what to raise next time, notes and a link.
+  // Built-in ones come from the workbook library (RV.library) and keep the original for Reset to original.
+  const TP = RV.topics;
+  const themeName = (id) => { const t = ST.themes().find((x) => x.id === id); return t ? t.name : 'Other'; };
+  const ext = (href, cls, kids) => h('a', { class: cls, href, target: '_blank', rel: 'noopener', onclick: (e) => e.stopPropagation() }, kids);
+  // each verse a tap that opens it in JW Library (or jw.org); nothing of the Bible text is copied
+  function refChips(scripture) {
+    const refs = TP ? TP.parseRefs(scripture) : [];
+    if (!refs.length) return scripture ? h('span', { class: 'vrefs' }, h('span', { class: 'vref plain' }, scripture)) : null;
+    return h('span', { class: 'vrefs' }, refs.map((r) => ext(TP.linkFor(r), 'vref', [icon('book', 14), r.label])));
+  }
+  function libSheet(kind, item, opts) {
+    // kind is always 'topic'; scriptures and conversation starters live inside topics
+    opts = opts || {};
     const title = h('input', { type: 'text', value: item ? item.title : '', 'data-autofocus': true, autocomplete: 'off', placeholder: 'e.g. Hope for the future' });
-    const text = h('textarea', { value: item ? item.text : '', placeholder: 'Scriptures, questions, key points', style: { minHeight: '120px' } });
-    const tags = h('input', { type: 'text', value: item ? (item.tags || []).join(', ') : '', placeholder: 'Optional, separated by commas' });
-    const on = h('input', { type: 'checkbox', checked: item ? item.showOnHome : true });
+    const question = h('textarea', { value: item ? item.question || '' : '', placeholder: 'How you might open the conversation', style: { minHeight: '64px' } });
+    const scripture = h('input', { type: 'text', value: item ? item.scripture || '' : '', autocomplete: 'off', placeholder: 'e.g. Ps 37:29; Re 21:4' });
+    const next = h('input', { type: 'text', value: item ? item.next || '' : '', autocomplete: 'off', placeholder: 'A question to come back with' });
+    const text = h('textarea', { value: item ? item.text || '' : '', placeholder: 'Notes, more scriptures, key points', style: { minHeight: '84px' } });
+    const video = h('input', { type: 'url', value: item ? item.video || '' : '', autocomplete: 'off', placeholder: 'A jw.org link (optional)' });
+    const theme = h('select', null, ST.themes().map((t) => h('option', { value: t.id }, t.name)).concat(h('option', { value: '' }, 'No theme')));
+    theme.value = item ? (ST.themes().some((t) => t.id === item.theme) ? item.theme : '') : (opts.theme != null ? opts.theme : (ST.themes()[0] || { id: '' }).id);
+    const on = h('input', { type: 'checkbox', checked: item ? !!item.showOnHome : true });
     sheet(item ? 'Edit topic' : 'New topic', (close) =>
       h('form', {
         onsubmit: (e) => {
           e.preventDefault();
           const t = title.value.trim();
           if (!t) { title.focus(); return; }
-          const data = { title: t, text: text.value.trim(), tags: U.splitList(tags.value), showOnHome: on.checked };
+          const data = { title: t, question: question.value.trim(), scripture: scripture.value.trim(), next: next.value.trim(), text: text.value.trim(), video: video.value.trim(), theme: theme.value, showOnHome: on.checked };
           if (item) ST.updateLib(item.id, data); else ST.addLib('topic', data);
           close();
         },
       },
-        field('Topic', title), field('Details', text), field('Tags', tags),
-        h('label', { class: 'check' }, on, 'Feature on Home and in Record visit'),
+        field('Topic', title), field('Question', question), field('Scriptures', scripture), field('Next time', next), field('Notes', text),
+        field('Video or article link', video), field('Theme', theme),
+        h('label', { class: 'check' }, on, 'Show on Today and in Record a visit'),
+        item && item.builtin ? h('button', { class: 'link-quiet treset', type: 'button', onclick: async () => {
+          if (await confirmDialog({ title: 'Reset to original?', message: 'Your changes to "' + item.title + '" will be replaced with the library version.', confirmText: 'Reset' })) { ST.resetTopic(item.id); close(); }
+        } }, 'Reset to original') : null,
         h('div', { class: 'actions' },
           item ? h('button', {
             class: 'btn danger', type: 'button',
@@ -120,9 +141,16 @@
   // read-only view for use at the door
   function topicView(x) {
     sheet(x.title, (close) =>
-      h('div', null,
-        x.text ? h('div', { class: 'readtext' }, x.text) : h('div', { class: 'muted' }, 'No details yet.'),
+      h('div', { class: 'tview' },
+        x.question ? h('p', { class: 'tq' }, '“' + x.question + '”') : null,
+        x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture)) : null,
+        x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Next time'), h('div', null, x.next)) : null,
+        x.text ? h('div', { class: 'readtext' }, x.text) : null,
+        !x.question && !x.scripture && !x.text ? h('div', { class: 'muted' }, 'No details yet.') : null,
         (x.tags || []).length ? h('div', { style: { marginTop: '10px' } }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null,
+        x.video || x.source ? h('div', { class: 'tlinks' },
+          x.video ? ext(x.video, 'btn sm', [icon('play', 16), 'Watch the video']) : null,
+          x.source ? ext(x.source, 'link-quiet', 'Workbook page') : null) : null,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => { close(); libSheet('topic', x); } }, 'Edit'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
@@ -172,19 +200,7 @@
   function homeSections(items) {
     const now = new Date();
     const builders = {
-      topics() {
-        const all = ST.featuredTopics();
-        const shown = all.slice(0, 6);
-        const body = all.length
-          ? h('div', { class: 'plainlist' }, shown.map((x) =>
-            h('button', { class: 'prow', type: 'button', onclick: () => topicView(x) },
-              h('div', { class: 'pt' }, x.title),
-              x.text ? h('div', { class: 'pd' }, x.text) : null)))
-          : h('div', { class: 'muted small' }, 'No featured topics yet.');
-        return section(lbl('topics'), body, h('span', { class: 'sec-actions' },
-          h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Add topic', onclick: () => libSheet('topic') }, icon('plus', 18)),
-          h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, all.length > shown.length ? 'All ' + all.length : 'Manage')));
-      },
+      topics() { return conversations(); },
       recent() {
         const top = L.recentlyAdded(items, now).slice(0, 5);
         return section('Recently added', top.length ? listOf(top) : h('div', { class: 'muted small' }, 'None'));
@@ -235,27 +251,69 @@
   // v2.39: Home is Today: who to see, one list grouped by area. Areas with thirsty plants come first; in each,
   // the people likely home lead, then the thirstiest, then whoever has gone longest without a visit.
   // Topics and the campaign are prepared from their cards (Manage, Plan).
-  const AREA_CAP = 6;
-  function todayList(now) {
+  // v2.40: Today is for getting ready. The topics switched on, by theme (a theme with several folds away),
+  // then a few people likely home with what you planned to bring, then one line to everyone else.
+  const OPEN_KEY = 'rvapp.todayClosed';
+  const closedThemes = () => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '[]')); } catch (e) { return new Set(); } };
+  const setClosed = (set) => { try { localStorage.setItem(OPEN_KEY, JSON.stringify(Array.from(set))); } catch (e) { /* ignore */ } };
+  function topicCard(x) {
+    return h('div', { class: 'tcard', role: 'button', tabindex: '0', onclick: () => topicView(x), onkeydown: (e) => { if (e.key === 'Enter') topicView(x); } },
+      h('div', { class: 'tt' }, x.title),
+      x.question ? h('div', { class: 'tq' }, '“' + x.question + '”') : x.text ? h('div', { class: 'tq plain' }, x.text) : null,
+      x.scripture || x.video ? h('div', { class: 'tmeta' }, refChips(x.scripture), x.video ? ext(x.video, 'vref vid', [icon('play', 14), 'Video']) : null) : null,
+      x.next ? h('div', { class: 'tnext' }, h('span', null, 'Next time: '), x.next) : null);
+  }
+  function groupByTheme(list) {
+    const ths = ST.themes();
+    const groups = ths.map((t) => ({ id: t.id, name: t.name, items: [] }));
+    const other = { id: '', name: 'Other', items: [] };
+    for (const x of list) (groups.find((g) => g.id === x.theme) || other).items.push(x);
+    return groups.concat(other).filter((g) => g.items.length);
+  }
+  function conversations() {
+    const on = ST.featuredTopics();
+    const head = h('span', { class: 'sec-actions' }, h('a', { class: 'link-quiet', href: '#/settings/lib/topic' }, on.length ? 'Choose' : 'Choose topics'));
+    if (!on.length) {
+      return section('Conversations', h('div', { class: 'tempty' },
+        h('p', { class: 'muted' }, 'Switch on the topics you want to use and they show here: the question, its scriptures and the video.'),
+        h('a', { class: 'btn sm', href: '#/settings/lib/topic' }, icon('note', 16), 'Choose topics')), head);
+    }
+    const closed = closedThemes();
+    return section('Conversations', h('div', { class: 'tgroups' }, groupByTheme(on).map((g) => {
+      if (g.items.length === 1) return h('div', { class: 'tgroup' }, h('div', { class: 'tgname' }, g.name), topicCard(g.items[0]));
+      const open = !closed.has(g.id || 'other');
+      const box = h('section', { class: 'acard tfold' + (open ? ' open' : '') });
+      const body = h('div', { class: 'tbody' }, g.items.map(topicCard));
+      body.hidden = !open;
+      const btn = h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => {
+        const c = closedThemes(), k = g.id || 'other', now = !c.has(k);
+        if (now) c.add(k); else c.delete(k);
+        setClosed(c);
+        body.hidden = now; box.classList.toggle('open', !now); btn.setAttribute('aria-expanded', String(!now));
+        btn.replaceChildren(...headKids(!now));
+      } });
+      const headKids = (o) => [h('span', { class: 't' }, h('span', { class: 'nm' }, g.name), h('span', { class: 'sub' }, g.items.length + ' topics')), icon(o ? 'up' : 'down', 20)];
+      btn.replaceChildren(...headKids(open));
+      box.append(btn, body);
+      return box;
+    })), head);
+  }
+  // a few people likely home today, each with what you planned to bring (or the next lesson)
+  function ifYouSee(now) {
     const items = ST.items();
-    const pool = L.todaySet(items, now);
-    const likely = new Map(L.likelyHomeNow(items, now).map((x) => [x.item.rv.id, x]));
-    const head = h('div', { class: 'sec-head' }, h('h2', null, 'Who to see'), h('span', { class: 'muted small tcount' }, pool.length ? pool.length + (pool.length === 1 ? ' person' : ' people') : ''));
-    if (!pool.length) return h('section', { class: 'sec today' }, head, UI.emptyState('check', 'Nobody to see today.'));
-    const careOf = (it) => (gardenOn() ? gstate(it).care || 9 : it.att.state === 'overdue' ? 1 : 9);
-    const thirsty = (it) => careOf(it) <= (G ? G.CARE.DRY : 2);
-    const groups = areaGroups(pool).map((g) => {
-      const rows = g.items.slice().sort((a, b) => {
-        const la = likely.get(a.rv.id), lb = likely.get(b.rv.id);
-        return (lb ? lb.score : 0) - (la ? la.score : 0) || careOf(a) - careOf(b) || L.SORTS.oldest(a, b);
-      });
-      return Object.assign(g, { rows, dry: rows.filter(thirsty).length, home: rows.filter((r) => likely.has(r.rv.id)).length });
-    }).sort((a, b) => (a.key === NO_AREA) - (b.key === NO_AREA) || b.dry - a.dry || b.home - a.home || U.cmp(a.name, b.name));
-    return h('section', { class: 'sec today' }, head,
-      groups.map((g) => h('div', { class: 'tarea' },
-        h('div', { class: 'ghead' }, h('span', null, g.name), h('span', null, String(g.rows.length))),
-        h('div', { class: 'list' }, g.rows.slice(0, AREA_CAP).map((it) => rvRow(it, { hideArea: true, why: likely.has(it.rv.id) ? likely.get(it.rv.id).why : null }))),
-        g.rows.length > AREA_CAP ? h('a', { class: 'link-quiet tmore', href: '#/rvs/area/' + encodeURIComponent(g.key) }, (g.rows.length - AREA_CAP) + ' more in ' + g.name) : null)));
+    const list = L.likelyHomeNow(items, now).filter((o) => o.item.rv.whatsNext || o.item.rv.nextStart).slice(0, 3);
+    if (!list.length) return null;
+    return section('If you see them', h('div', { class: 'plainlist seeit' }, list.map((o) => {
+      const rv = o.item.rv;
+      return h('a', { class: 'prow', href: '#/rv/' + rv.id },
+        h('div', { class: 'pt' }, rv.name, h('span', { class: 'muted small' }, ' · ' + o.why.charAt(0).toLowerCase() + o.why.slice(1))),
+        h('div', { class: 'pd' }, rv.nextStart && !rv.whatsNext ? 'Next lesson: ' + rv.nextStart : 'Bring up: ' + rv.whatsNext));
+    })));
+  }
+  function seeLine(now) {
+    const n = L.todaySet(ST.items(), now).length;
+    if (!n) return null;
+    return h('a', { class: 'seeline', href: '#/rvs' }, icon('users', 18), h('span', null, n + (n === 1 ? ' person' : ' people') + ' to see today'), icon('right', 18));
   }
   function home() {
     const items = ST.items();
@@ -269,9 +327,9 @@
     const hasPeople = S.rvs.some((r) => !r.deletedAt);
     return {
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      // v2.39.1: a running campaign and the topics stay at the top; Plan a campaign (nothing scheduled) sits under the list
+      // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Plan a campaign at the foot
       el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
-        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, homeSections(items), hasPeople ? todayList(d) : null, planOnly ? camp : null); })(),
+        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, homeSections(items), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
     };
   }
 
@@ -751,5 +809,5 @@
     };
   }
 
-  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

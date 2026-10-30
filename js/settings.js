@@ -98,19 +98,79 @@
   function homeSettings() { return page('Home screen', [homeCardsBox()], { noRerender: true }); }
 
   // ---------- topics ----------
+  // v2.40: Topics: the workbook library and your own, in theme folders, each switched on or off (on = shown on
+  // Today). A forgiving search over titles, questions and scriptures; a scripture index at the foot.
+  const TOPICS_OPEN = 'rvapp.topicsOpen';
+  const openSet = () => { try { return new Set(JSON.parse(localStorage.getItem(TOPICS_OPEN) || '[]')); } catch (e) { return new Set(); } };
+  const saveOpen = (set) => { try { localStorage.setItem(TOPICS_OPEN, JSON.stringify(Array.from(set))); } catch (e) { /* ignore */ } };
+  function themeSheet(t) {
+    const name = h('input', { type: 'text', value: t.name, 'data-autofocus': true, autocomplete: 'off' });
+    const list = ST.themes(), i = list.findIndex((x) => x.id === t.id);
+    const to = list[i + 1] || list[i - 1];
+    sheet('Theme', (close) => h('form', { onsubmit: (e) => { e.preventDefault(); const n = name.value.trim(); if (n) ST.renameTheme(t.id, n); close(); } },
+      field('Name', name),
+      h('div', { class: 'two' },
+        h('button', { class: 'btn', type: 'button', disabled: i <= 0, onclick: () => { ST.moveTheme(t.id, -1); close(); } }, icon('up', 18), 'Move up'),
+        h('button', { class: 'btn', type: 'button', disabled: i >= list.length - 1, onclick: () => { ST.moveTheme(t.id, 1); close(); } }, icon('down', 18), 'Move down')),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+          if (await confirmDialog({ title: 'Delete "' + t.name + '"?', message: to ? 'Its topics move to "' + to.name + '".' : 'Its topics stay, with no theme.', confirmText: 'Delete', danger: true })) { ST.deleteTheme(t.id); close(); }
+        } }, 'Delete'),
+        h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+        h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+  }
   function lib() {
-    const items = ST.libItems('topic');
-    const box = h('div', { class: 'list' }, items.map((x) =>
-      h('div', { class: 'row plain' },
-        h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => RV.screens.libSheet('topic', x) },
-          h('div', { class: 'name' }, x.title), x.text ? h('div', { class: 'line2' }, x.text) : null,
-          (x.tags || []).length ? h('div', { class: 'line3' }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null),
-        UI.toggle(x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Feature: ' + x.title))));
+    const SC = RV.screens, TP = RV.topics;
+    let q = '';
+    const search = h('input', { type: 'search', class: 'tsearch', placeholder: 'Search topics or scriptures', 'aria-label': 'Search topics or scriptures', autocomplete: 'off' });
+    const listBox = h('div', { class: 'tlib' });
+    const indexBox = h('section', { class: 'tindex' });
+    search.addEventListener('input', () => { q = search.value; paint(); });
+    const row = (x, showTheme) => h('div', { class: 'row plain trow' },
+      h('div', { class: 'main', role: 'button', tabindex: '0', onclick: () => SC.libSheet('topic', x) },
+        h('div', { class: 'name' }, x.title),
+        x.question || x.text ? h('div', { class: 'line2' }, x.question || x.text) : null,
+        h('div', { class: 'line3' }, [showTheme ? SC.themeName(x.theme) : null, x.scripture || null].filter(Boolean).join(' · '))),
+      UI.toggle(!!x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Show on Today: ' + x.title));
+    function paint() {
+      const all = ST.libItems('topic');
+      if (q.trim()) {
+        const hits = TP.search(all, q, SC.themeName);
+        listBox.replaceChildren(hits.length ? h('div', { class: 'list' }, hits.map((x) => row(x, true))) : UI.emptyState('search', 'No topic matches that.'));
+      } else {
+        const open = openSet();
+        const groups = ST.themes().map((t) => ({ t, items: all.filter((x) => x.theme === t.id) }));
+        const other = all.filter((x) => !ST.themes().some((t) => t.id === x.theme));
+        if (other.length) groups.push({ t: { id: '', name: 'Other' }, items: other });
+        listBox.replaceChildren(...groups.map(({ t, items }) => {
+          const k = t.id || 'other', isOpen = open.has(k), nOn = items.filter((x) => x.showOnHome).length;
+          const allOn = items.length && nOn === items.length;
+          return h('section', { class: 'acard tfold' + (isOpen ? ' open' : '') },
+            h('div', { class: 'ahead' },
+              h('button', { class: 't', type: 'button', 'aria-expanded': String(isOpen), onclick: () => { const o = openSet(); if (isOpen) o.delete(k); else o.add(k); saveOpen(o); paint(); } },
+                h('span', { class: 'nm' }, t.name), h('span', { class: 'sub' }, items.length ? nOn + ' of ' + items.length + ' on' : 'Empty')),
+              t.id ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Edit theme ' + t.name, onclick: () => themeSheet(t) }, icon('more', 18)) : null,
+              items.length ? UI.toggle(allOn, (v) => { for (const x of items) if (!!x.showOnHome !== v) ST.updateLib(x.id, { showOnHome: v }); }, 'Show all of ' + t.name + ' on Today') : null),
+            isOpen ? h('div', { class: 'abody' },
+              items.length ? h('div', { class: 'list' }, items.map((x) => row(x, false))) : null,
+              h('button', { class: 'link-quiet tadd', type: 'button', onclick: () => SC.libSheet('topic', null, { theme: t.id }) }, icon('plus', 16), 'Add a topic here')) : null);
+        }));
+      }
+      // every verse in the topics, Genesis to Revelation
+      const idx = TP.index(all);
+      indexBox.replaceChildren(h('h2', { class: 'sethead' }, 'Scriptures'),
+        idx.length ? h('div', { class: 'list' }, idx.map(({ ref, topics }) => h('div', { class: 'row plain irow' },
+          h('a', { class: 'vref', href: TP.linkFor(ref), target: '_blank', rel: 'noopener' }, icon('book', 14), ref.label),
+          h('div', { class: 'itopics' }, topics.map((x) => h('button', { class: 'link-quiet', type: 'button', onclick: () => RV.screens.topicView(x) }, x.title)))))) : h('p', { class: 'muted small' }, 'Scriptures you add to topics are listed here.'));
+    }
+    paint();
     return page(lbl('topics'), [
-      hint('Put scriptures, conversation openers and talking points here. The switch features a topic: it shows on Home and as a tap-to-add chip when you record a visit. Tap a topic to edit it.'),
-      items.length ? box : UI.emptyState('note', 'Nothing saved yet.'),
-      h('div', { style: { marginTop: '14px' } }, saveBtn('Add topic', () => RV.screens.libSheet('topic'), 'primary block')),
-    ]);
+      search, listBox,
+      h('div', { class: 'two', style: { marginTop: '14px' } },
+        saveBtn('Add topic', () => RV.screens.libSheet('topic'), 'primary'),
+        saveBtn('Add theme', async () => { const n = await UI.textPrompt({ title: 'New theme', placeholder: 'e.g. Science and creation' }); if (n && n.trim()) ST.addTheme(n.trim()); })),
+      indexBox,
+    ], { update: paint });
   }
 
   // ---------- campaigns ----------

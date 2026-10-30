@@ -40,6 +40,7 @@
     S.settings = D.mergeSettings(saved);
     if (!saved || (saved.version || 1) < S.settings.version) await DB.setMeta('settings', S.settings);
     await migrateLib();
+    await seedTopics();
     await migrateBestDays();
     await migrateNotes();
     // 2.16: the garden starts today. Care and chains are read from the timeline silently; streaks and
@@ -104,6 +105,49 @@
       }
     }
     if (changed.length) await DB.putMany('lib', changed);
+  }
+
+  // v2.40: the conversation topic library (RV.library) seeded as ordinary topics, switched off. Ids are fixed
+  // ("lib-<id>") so backups merge without duplicates; a deleted one stays deleted; edits keep the original in
+  // RV.library for Reset to original.
+  async function seedTopics() {
+    if (!RV.library) return;
+    const have = new Set(S.lib.map((x) => x.id));
+    const add = [];
+    RV.library.TOPICS.forEach((t, i) => {
+      const id = 'lib-' + t.id;
+      if (have.has(id)) return;
+      add.push({ id, kind: 'topic', builtin: t.id, title: t.title, question: t.question, scripture: t.scripture, next: t.next, video: t.video, source: t.source,
+        theme: t.theme, text: '', tags: [], showOnHome: false, active: false, order: i + 1, updatedAt: U.nowISO(), deletedAt: null });
+    });
+    if (!add.length) return;
+    S.lib.push(...add);
+    await DB.putMany('lib', add);
+  }
+  function resetTopic(id) {
+    const o = S.lib.find((x) => x.id === id);
+    const t = o && o.builtin && RV.library ? RV.library.byId(o.builtin) : null;
+    if (!t) return null;
+    return updateLib(id, { title: t.title, question: t.question, scripture: t.scripture, next: t.next, video: t.video, source: t.source, text: '' });
+  }
+  // themes: an ordered list in settings; deleting one moves its topics to the next (or the one before)
+  const themes = () => (S.settings.themes || []).slice();
+  function saveThemes(list) { saveSettings((s) => { s.themes = list; }); }
+  function addTheme(name) { const t = { id: 't' + Date.now().toString(36), name }; saveThemes(themes().concat(t)); return t; }
+  function renameTheme(id, name) { saveThemes(themes().map((t) => (t.id === id ? Object.assign({}, t, { name }) : t))); }
+  function moveTheme(id, dir) {
+    const list = themes(), i = list.findIndex((t) => t.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    saveThemes(list);
+  }
+  function deleteTheme(id) {
+    const list = themes(), i = list.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const to = (list[i + 1] || list[i - 1] || { id: '' }).id;
+    for (const x of S.lib) if (x.kind === 'topic' && x.theme === id) { x.theme = to; touch(x); persist('lib', x); }
+    list.splice(i, 1);
+    saveThemes(list);
   }
 
   function saveSettings(mutator) {
@@ -355,6 +399,7 @@
       S.lib = await mergeInto('lib', S.lib, data.lib || []);
     }
     await migrateLib();
+    await seedTopics();
     emit();
   }
   function importRvs(rvs, entries) {
@@ -370,6 +415,7 @@
     for (const st of ['rvs', 'entries', 'lib', 'meta']) await DB.clear(st);
     S.rvs = []; S.entries = []; S.lib = []; S.settings = D.defaultSettings();
     await DB.setMeta('settings', S.settings);
+    await seedTopics();
     emit();
   }
 
@@ -383,7 +429,7 @@
     S, subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
     load, items, itemFor, rvById, saveSettings, persistRv: (rv) => { touch(rv); persist('rvs', rv); }, blankRv, addRv, updateRv, deleteRv, restoreRvSnapshot,
     addEntry, updateEntry, deleteEntry, purgeEntry, logNH, setStage, logVisit, snooze, growNow,
-    libItems, addLib, updateLib, deleteLib, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags, publications,
+    libItems, addLib, updateLib, deleteLib, resetTopic, themes, addTheme, renameTheme, moveTheme, deleteTheme, campaigns, activeCampaign, featuredTopics, exportAll, restore, importRvs, eraseAll, neighborhoods, allTags, publications,
     flush: () => pending, clearError: () => { S.error = ''; emit(); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

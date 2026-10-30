@@ -642,3 +642,26 @@ Likely-home estimate (`L.homeOdds`, `L.likelyHomeNow`, `L.bestHomeSlot`):
 
 Tests: logic 53, screens 55, smoke 294, ai_cleanup 44, kinds 23, notes_import 39, drive_folder 37, garden 49, notes 7, worker 6, ai-proxy 8. VERSION 2.39.0, cache rvapp-v89.
 - v2.39.1: the running campaign (or one starting within three weeks) and the topics card are back at the top of Today, above Who to see (Mark: they had dropped below the list). Plan a campaign, shown when nothing is scheduled, stays under the list. Cache rvapp-v90.
+
+## 53. v2.40.0 Today for getting ready: the conversation topic library (built 2026-10-29)
+
+Mark: the v2.39 Today list was overwhelming and repeated what the garden and Contacts show; Today should prepare you for the day, including door to door. Reviewed in the Docs artifact "Sample conversations library (draft)".
+
+The library (js/library.js, `RV.library`):
+- The workbook's sample conversations, January 2018 to November 2023 (147 entries; the series ended with the 2023 workbooks), merged to 60 and then to 54 by dropping near-duplicates that share a scripture. 11 themes: The Bible, God, Prayer, Jesus, God's purpose, The future, God's Kingdom, Suffering, Death and hope, Family, Happiness.
+- Each topic: our own title and opening question (written fresh, not paraphrased), the scripture reference, a next-time topic in our words, the workbook's demonstration video (jw.org finder `pub-mwbv_YYYYMM_<track>_VIDEO`, from the weekly schedules; campaign months checked one by one) and the original workbook page on wol.jw.org. No jw.org text is copied and nothing is read from the site at run time (jw.org terms: no reproducing content in an app, no scraping; links are allowed).
+- Seeded as ordinary topics (lib items, kind 'topic') with fixed ids `lib-<id>` and `builtin`, all switched off; backups merge by id, so no duplicates; a deleted one stays deleted; erasing data seeds them again. Edits are stored on the item; Reset to original restores from RV.library.
+
+Topics page (Prepare › Topics):
+- A search box, then the themes as folders (like Areas): name, "N of M on", a switch for the whole theme, ⋯ for the theme (rename, move up or down, delete; its topics move to the next theme). Open folders are remembered on the device. Topics with no theme sit in Other.
+- Each topic: title, question, scriptures; its switch puts it on Today (and in Record a visit's topic chips). Tap to edit: Topic, Question, Scriptures, Next time, Notes, Video or article link, Theme, Show on Today; Reset to original for library topics. Add topic, Add theme.
+- Search is forgiving (js/topics.js): typos (edit distance 1, or 2 for long words), partial words and loose verse references ("ps37", "psalms 37", "37 29", "1 jn 5 19"); title matches rank higher; with three or more words one may miss.
+- Scriptures index at the foot: every verse used in the topics, Genesis to Revelation, each with the topics that use it.
+- Verses are links (`https://www.jw.org/finder?wtlocale=E&pub=nwtsty&bible=BBCCCVVV[-BBCCCVVV]`) that open JW Library when installed, else jw.org.
+
+Today (Home):
+- The campaign (when one is running or starts within three weeks), then Conversations: the switched-on topics by theme; a theme with several topics is a folder (fold state remembered), a single topic stands alone. Each card: title, question, scripture chips, Video, Next time; tap for the full topic with Watch the video, Workbook page and Edit. With nothing switched on: a short note and Choose topics.
+- If you see them: up to three people likely home now with what you planned to bring (Discuss next time) or their next lesson.
+- One line, "N people to see today", to Contacts. Plan a campaign at the foot when nothing is scheduled. The v2.39 Who to see list is gone.
+
+Tests: smoke 309, screens 55, topics 5 (new), kinds 23, ai_cleanup 44, notes_import 39, drive_folder 37, garden 49, logic 53, notes 7, worker 6, ai-proxy 8. VERSION 2.40.0, cache rvapp-v91.
