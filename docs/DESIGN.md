@@ -665,3 +665,4 @@ Today (Home):
 - One line, "N people to see today", to Contacts. Plan a campaign at the foot when nothing is scheduled. The v2.39 Who to see list is gone.
 
 Tests: smoke 309, screens 55, topics 5 (new), kinds 23, ai_cleanup 44, notes_import 39, drive_folder 37, garden 49, logic 53, notes 7, worker 6, ai-proxy 8. VERSION 2.40.0, cache rvapp-v91.
+- v2.40.1: web addresses in a topic's question, next time or notes show as short tappable links ("jw.org/…", opening in a new tab or JW Library) on Today's cards, in the topic view and in the Topics list; a tap on the link opens it, a tap elsewhere opens the topic. The edit sheet keeps the plain text to edit. Tests: smoke 311. Cache rvapp-v92.

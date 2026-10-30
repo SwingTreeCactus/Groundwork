@@ -129,7 +129,7 @@
     const row = (x, showTheme) => h('div', { class: 'row plain trow' },
       h('div', { class: 'main', role: 'button', tabindex: '0', onclick: () => SC.libSheet('topic', x) },
         h('div', { class: 'name' }, x.title),
-        x.question || x.text ? h('div', { class: 'line2' }, x.question || x.text) : null,
+        x.question || x.text ? h('div', { class: 'line2' }, ...SC.linkify(x.question || x.text)) : null,
         h('div', { class: 'line3' }, [showTheme ? SC.themeName(x.theme) : null, x.scripture || null].filter(Boolean).join(' · '))),
       UI.toggle(!!x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Show on Today: ' + x.title));
     function paint() {

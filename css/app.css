@@ -1790,3 +1790,5 @@ body.immersive .view > div > .gscene:first-child { max-width: none; width: calc(
 .irow .itopics { flex: 1; min-width: 140px; padding-left: 0; }
 .tgroups .ahead { padding: 12px 14px 12px 16px; }
 .tgroups .ahead .nm { font-size: 1.02rem; }
+/* v2.40.1: links in topic text */
+.tlink { color: var(--red); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }

@@ -95,6 +95,29 @@
   const TP = RV.topics;
   const themeName = (id) => { const t = ST.themes().find((x) => x.id === id); return t ? t.name : 'Other'; };
   const ext = (href, cls, kids) => h('a', { class: cls, href, target: '_blank', rel: 'noopener', onclick: (e) => e.stopPropagation() }, kids);
+  // v2.40.1: web addresses in a topic's text become short tappable links ("jw.org/…"); the edit sheet keeps the plain text
+  const URL_RE = /\b((?:https?:\/\/|www\.)[^\s<>"]+|(?:wol\.)?jw\.org\/[^\s<>"]*)/gi;
+  const shortUrl = (u) => {
+    const m = /^(?:https?:\/\/)?(?:www\.)?([^/?#]+)(.*)$/i.exec(u);
+    if (!m) return u;
+    return m[2] && m[2] !== '/' ? m[1] + '/…' : m[1];
+  };
+  function linkify(text) {
+    const str = String(text || ''), out = [];
+    let last = 0, m;
+    URL_RE.lastIndex = 0;
+    while ((m = URL_RE.exec(str))) {
+      let u = m[1];
+      const trail = /[.,;:!?)\]'"]+$/.exec(u);
+      if (trail) u = u.slice(0, -trail[0].length);
+      if (m.index > last) out.push(str.slice(last, m.index));
+      out.push(ext(/^https?:/i.test(u) ? u : 'https://' + u, 'tlink', shortUrl(u)));
+      last = m.index + u.length;
+      URL_RE.lastIndex = last;
+    }
+    if (last < str.length) out.push(str.slice(last));
+    return out;
+  }
   // each verse a tap that opens it in JW Library (or jw.org); nothing of the Bible text is copied
   function refChips(scripture) {
     const refs = TP ? TP.parseRefs(scripture) : [];
@@ -142,10 +165,10 @@
   function topicView(x) {
     sheet(x.title, (close) =>
       h('div', { class: 'tview' },
-        x.question ? h('p', { class: 'tq' }, '“' + x.question + '”') : null,
+        x.question ? h('p', { class: 'tq' }, '“', ...linkify(x.question), '”') : null,
         x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture)) : null,
-        x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Next time'), h('div', null, x.next)) : null,
-        x.text ? h('div', { class: 'readtext' }, x.text) : null,
+        x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Next time'), h('div', null, ...linkify(x.next))) : null,
+        x.text ? h('div', { class: 'readtext' }, ...linkify(x.text)) : null,
         !x.question && !x.scripture && !x.text ? h('div', { class: 'muted' }, 'No details yet.') : null,
         (x.tags || []).length ? h('div', { style: { marginTop: '10px' } }, x.tags.map((t) => h('span', { class: 'tag' }, t))) : null,
         x.video || x.source ? h('div', { class: 'tlinks' },
@@ -259,9 +282,9 @@
   function topicCard(x) {
     return h('div', { class: 'tcard', role: 'button', tabindex: '0', onclick: () => topicView(x), onkeydown: (e) => { if (e.key === 'Enter') topicView(x); } },
       h('div', { class: 'tt' }, x.title),
-      x.question ? h('div', { class: 'tq' }, '“' + x.question + '”') : x.text ? h('div', { class: 'tq plain' }, x.text) : null,
+      x.question ? h('div', { class: 'tq' }, '“', ...linkify(x.question), '”') : x.text ? h('div', { class: 'tq plain' }, ...linkify(x.text)) : null,
       x.scripture || x.video ? h('div', { class: 'tmeta' }, refChips(x.scripture), x.video ? ext(x.video, 'vref vid', [icon('play', 14), 'Video']) : null) : null,
-      x.next ? h('div', { class: 'tnext' }, h('span', null, 'Next time: '), x.next) : null);
+      x.next ? h('div', { class: 'tnext' }, h('span', null, 'Next time: '), ...linkify(x.next)) : null);
   }
   function groupByTheme(list) {
     const ths = ST.themes();
@@ -809,5 +832,5 @@
     };
   }
 
-  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

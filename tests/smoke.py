@@ -1142,6 +1142,16 @@ with sync_playwright() as p:
     check(ev("RV.store.themes().find(t => t.id === 'prayer').name") == 'Prayer and worship', 'a theme can be renamed')
     ev("RV.store.deleteTheme('prayer')")
     check(ev("RV.store.themes().length") == 10 and ev("RV.store.S.lib.find(x => x.id === '%s').theme" % tid) == 'jesus', 'deleting a theme moves its topics to the next one')
+    # v2.40.1: web addresses in a topic's text are short tappable links; the edit sheet keeps the address
+    lid = ev("RV.store.addLib('topic', { title: 'Link test', text: 'See https://www.jw.org/en/library/videos/ for more.', theme: 'jesus', showOnHome: true }).id")
+    page.goto(URL + '#/settings/lib/topic'); page.wait_for_selector('.tlib')
+    page.fill('.tsearch', 'link test'); time.sleep(0.2)
+    a = page.locator('.trow:has-text("Link test") a.tlink')
+    check(a.count() == 1 and a.inner_text() == 'jw.org/\u2026' and a.get_attribute('href') == 'https://www.jw.org/en/library/videos/' and a.get_attribute('target') == '_blank', 'a web address in a topic shows as a short tappable link (%s)' % (a.inner_text() if a.count() else ''))
+    page.locator('.trow:has-text("Link test") .name').click(); page.wait_for_selector('.sheet textarea')
+    check('https://www.jw.org/en/library/videos/' in page.locator('.sheet textarea').nth(1).input_value(), 'the edit sheet keeps the full address to edit')
+    page.keyboard.press('Escape'); time.sleep(0.2)
+    page.fill('.tsearch', '')
     shot('40-topics')
 
     print('console errors')

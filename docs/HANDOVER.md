@@ -61,7 +61,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
 ## Tests (all passing at v2.40.0)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (309; needs /tmp/out to exist)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (311; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (55)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (44)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
@@ -91,6 +91,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.40.1: links in topic text are tappable (short "jw.org/…"), plain in the edit sheet.
 - v2.40.0: Today for getting ready: Conversations from the 54-topic library (themes as folders, switched on per topic or theme), If you see them, one line to Contacts; Topics page with forgiving search, editing with Reset to original, theme editing and a scripture index.
 - v2.39.1: campaign banner and topics back on top of Today.
 - v2.39.0: layout release 2: Home is Today (one list by area, likely home first), Prepare leads the menu, Plan a campaign, two record buttons, no "due" in the garden, the likely-home estimate and availability from note cleanup.
