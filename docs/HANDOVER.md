@@ -1,4 +1,4 @@
-# Groundwork handover (2026-10-30, after v2.41.0)
+# Groundwork handover (2026-10-30, after v2.41.1)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
@@ -60,9 +60,9 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.41.0)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (325; needs /tmp/out to exist)
-- `python3 -I tests/screens.py . /tmp/out/scr` (59)
+## Tests (all passing at v2.41.1)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (326; needs /tmp/out to exist)
+- `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (44)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
 - `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (6), `python3 -I tests/notes_import.py` (39)
@@ -93,6 +93,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.41.1: View all doesn't pop the keyboard; "Schedule a campaign" (campaigns come from the organization).
 - v2.41.0: Today carousel (big topic cards, ×, View all, linking question jumps to the next part), all 60 topics in 27 series (Topics page By theme / By series), campaign topics, topic chips on New contact and Record a visit (topic last used + next part on the record), Contacts List view A–Z, Neighborhood → Area, garden-green buttons, warm dark mode.
 - v2.40.1: links in topic text are tappable (short "jw.org/…"), plain in the edit sheet.
 - v2.40.0: Today for getting ready: Conversations from the 54-topic library (themes as folders, switched on per topic or theme), If you see them, one line to Contacts; Topics page with forgiving search, editing with Reset to original, theme editing and a scripture index.

@@ -205,8 +205,8 @@
     return h('section', { class: 'sec' }, h('div', { class: 'sec-head' }, h('h2', null, title), extra || null), body);
   }
   // v2.39: the campaign card always shows: the one running (or starting within three weeks) with a Plan link,
-  // or Plan a campaign when nothing is scheduled
-  // v2.41: a slim banner while a campaign runs (or starts within three weeks); Plan a campaign when nothing is scheduled
+  // or Schedule a campaign when nothing is scheduled
+  // v2.41: a slim banner while a campaign runs (or starts within three weeks); Schedule a campaign when nothing is scheduled
   function campaignBar() {
     const camps = ST.campaigns();
     const now = new Date();
@@ -220,7 +220,7 @@
       return h('button', { class: 'campbar soon', type: 'button', onclick: () => campaignSheet(nx) },
         h('span', { class: 'cbt' }, h('b', null, nx.title), ' · starts ' + U.fmtDate(nx.start)), icon('right', 18));
     }
-    return h('button', { class: 'plan-camp', type: 'button', onclick: () => RV.settingsScreens.campaignForm(null) }, icon('calendar', 18), 'Plan a ' + lbl('campaign').toLowerCase());
+    return h('button', { class: 'plan-camp', type: 'button', onclick: () => RV.settingsScreens.campaignForm(null) }, icon('calendar', 18), 'Schedule a ' + lbl('campaign').toLowerCase());
   }
   // ---------- Getting started (v2.29) ----------
   // A one-time tip, shown inline while Getting started is on, until "Got it".
@@ -398,7 +398,7 @@
       search.addEventListener('input', () => { q = search.value; paint(); });
       paint();
       return h('div', null, seg, search, body);
-    });
+    }, { noFocus: true }); // v2.41.1: a list to scan; no keyboard until the search is tapped
   }
   function groupByTheme(list) {
     const ths = ST.themes();
@@ -439,7 +439,7 @@
     const hasPeople = S.rvs.some((r) => !r.deletedAt);
     return {
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
-      // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Plan a campaign at the foot
+      // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Schedule a campaign at the foot
       el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
         return h('div', { class: 'home' }, planOnly ? null : camp, welcome, conversations(), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
     };

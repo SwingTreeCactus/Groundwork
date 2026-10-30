@@ -1135,6 +1135,7 @@ with sync_playwright() as p:
     page.click('.toast button:has-text("Undo")'); time.sleep(0.3)
     check(ev("RV.store.S.lib.find(x => x.id === 'lib-what-we-can-pray-about').showOnHome") is True, 'and Undo puts it back')
     page.click('.conv button:has-text("View all")'); page.wait_for_selector('.sheet .varow')
+    check(ev("document.activeElement && document.activeElement.classList.contains('tsearch')") is False, 'View all opens without focusing the search (no keyboard)')
     page.click('.sheet .vseg button:has-text("By series")'); time.sleep(0.2)
     check(page.locator('.sheet .vag:text-is("Prayer")').count() == 1 and page.locator('.sheet .varow:has-text("What we can pray about") .tpart').inner_text() == 'Part 2 of 2', 'View all: by series, with the part')
     page.locator('.sheet .varow:has-text("Does God hear prayers?")').click(); time.sleep(0.9)
