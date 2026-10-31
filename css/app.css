@@ -1952,3 +1952,7 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .idea { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 0; border-radius: 14px; background: var(--surface2); color: var(--fg); font: inherit; padding: 10px 12px; cursor: pointer; }
 .idea b { font-weight: 600; }
 .idea span { font-size: .84rem; color: var(--muted); }
+/* v2.47: a contact handed to you */
+.hocard { padding: 14px 16px; margin-bottom: 12px; background: var(--surface2); box-shadow: none; }
+.hocard b { font-size: 1.1rem; }
+.homsg { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); white-space: pre-wrap; }

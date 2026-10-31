@@ -1,4 +1,4 @@
-# Groundwork handover (2026-10-31, after v2.46.1)
+# Groundwork handover (2026-10-31, after v2.47.0)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
@@ -60,12 +60,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.46.1)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (343; needs /tmp/out to exist)
+## Tests (all passing at v2.47.0)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (352; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (54)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
-- `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (6), `node tests/ww.test.js` (7), `python3 -I tests/notes_import.py` (39)
+- `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (6), `node tests/handoff.test.js` (4), `node tests/ww.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - Growth and reveal moments wait for a tap (v2.37); browser tests use `through_moment` (smoke) or click `.grow-ov` / `.evo-ov` (the evolution reveal, v2.38).
   - Contacts opens on the map (v2.38): every browser test stubs openfreemap tiles and nominatim at context level, or the run logs network errors.
@@ -94,6 +94,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.47.0: Hand over a contact as a file (⋯ › Hand over…; receiver: Import contacts › From another publisher); the sender's copy archives as Handed over.
 - v2.46.1: growth path stages drawn the same for everyone (not this person's health or kind).
 - v2.46.0: growth path fixed (class clash with the garden's stones) with silhouettes that fill in after growth; Archive as a stage choice in Edit; Ideas for next time (AI topic suggestions, only when tapped).
 - v2.45.0: import from Witness Work, so its users can migrate to Groundwork (its witness-work-backup.json; built from one sample file a user gave Mark as a reference, not Mark's data, and not kept in the repo): Import contacts › Witness Work, Home's import choices, and Restore › A backup file hands such a file to the import. Contacts with addresses and map coordinates, conversations as visits (studies flagged, not-at-homes as NH), the newest follow-up topic as Discuss next time; studies to Bible Study, nobody talked with to Potential, deleted contacts optional as archived. Service time, plans and settings are not brought in. Design-doc 58.
@@ -118,7 +119,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Big layout update: release 1 built as v2.38.0 (design-doc 51), release 2 as v2.39.0 (design-doc 52). Next: the 15-second text tutorial, four cards (Home/Today, Contacts, My garden, record screen), drafted with Mark before building. To watch: whether the likely-home estimate feels right on real data (thresholds LIKELY_P 0.6, LIKELY_N 0.3 in js/logic.js) and whether cleanup's availability suggestion fires sensibly on real notes (untested against the live model).
 - Today redesign built as v2.40.0 (design-doc 53), carousel and series in v2.41.0 (design-doc 54). To check on Mark's phone: verse links (jw.org finder `bible=` codes) open JW Library at the right verse; workbook video links (`pub-mwbv_...`) open the right video (59 of 60 found; patterns verified on 31 weekly pages, not every link opened). Library data: js/library.js, source list in claude/sample-conversations-library.json.
 - Known, not fixing (Mark, 2026-10-30): an app update reloads the page when the app comes back to the foreground, which can wipe an in-progress notes import (held in memory). Rare; the fixes (hold the reload during an import, save import progress, lighter screenshot memory) are on file if it comes up again.
-- Handing a call to someone (2026-10-30): Mark agreed to start with a handoff package (one contact as a file or a link, encrypted, no accounts; friends/accounts maybe later). Do NOT build yet: Mark has "something cooking" first.
+- Handing a call to someone: built in v2.47.0 as a file (design-doc 59). Later, if wanted: a link version (needs a small relay), Android share-to-Groundwork for handoff files, and friends/accounts.
 - Pinned future concept (Mark, 2026-10-31): XP, a gardener avatar, items board, shop and a companion pet are scrapped for now. Keep them as an idea if we look for ways to improve the game later (mockups and the XP table are in the 2026-10-30 chat). Naming visitors (name a visitor on its first visit; later announcements use the name) is the one piece Mark wants in a future rollout, since it doesn't complicate the game.
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).

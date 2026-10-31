@@ -553,7 +553,7 @@ with sync_playwright() as p:
     page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
     check(page.locator('.setrow').count() == 3 and page.locator('.bkcard').count() == 1, 'Backup and import: a backup card and three rows')
     page.click('.setrow:has-text("Import contacts")'); page.wait_for_selector('text=Where are your contacts now?')
-    check(page.locator('.isrc').count() == 4, 'Import contacts offers four sources')
+    check(page.locator('.isrc').count() == 5, 'Import contacts offers five sources (v2.47: from another publisher)')
     with page.expect_file_chooser() as fc:
         page.click('.setrow:has-text("A spreadsheet")')
     fc.value.set_files(csv_path)
@@ -1146,7 +1146,7 @@ with sync_playwright() as p:
     for d in '1234': page.click(f'.keypad button:text-is("{d}")')
     page.wait_for_selector('.lock', state='detached', timeout=3000)
     check(True, 'correct PIN unlocks')
-    ev('RV.store.saveSettings(s => { s.lock.on = false; })')
+    ev('RV.store.saveSettings(s => { s.lock.on = false; })'); ev('RV.store.flush()')
 
     # Drive backup: covered by tests/drive_folder.py (v2.10 folder and daily copies)
 
@@ -1269,6 +1269,38 @@ with sync_playwright() as p:
     check(ev("(id) => RV.logic.isClosed(RV.store.S.settings, RV.store.rvById(id))", arid), 'and archives the contact')
     page.goto(URL + '#/rv/' + ev("RV.store.S.rvs.find(r => !r.deletedAt && r.name === 'Maria Lopez').id")); page.wait_for_selector('.ghero')
     check(page.locator('.ghero .gname .icon').count() == 1, 'the stage under the name shows it can be tapped')
+
+    print('v2.47: hand a contact over')
+    hid = ev("RV.store.addRv({ name: 'Handy Person', address: '7 Gift Ln', neighborhood: 'Oak Park', stage: 'return', notes: 'Speaks Spanish', whatsNext: 'Bring the brochure', phone: '209-555-0101' }).id")
+    ev("(id) => { RV.store.addEntry(id, 'visit', { text: 'Talked about prayer' }); RV.store.addEntry(id, 'nh', {}); }", hid)
+    page.goto(URL + '#/rv/' + hid); page.wait_for_selector('.ghero')
+    page.click('button[aria-label="More actions"]'); page.wait_for_selector('.sheet .opt:has-text("Hand over")')
+    page.click('.sheet .opt:has-text("Hand over")'); page.wait_for_selector('.sheet h2:has-text("Hand over Handy Person")')
+    check(page.locator('.sheet .check').count() == 4, 'the sender picks what goes: notes, visits, plan, phone')
+    page.fill('.sheet input[autocomplete="name"]', 'Mark'); page.fill('.sheet textarea', 'Lives near you')
+    page.locator('.sheet .check:has-text("Phone number") input').uncheck()
+    with page.expect_download() as dl:
+        page.click('.sheet button:has-text("Share file")')
+    path = dl.value.path(); name = dl.value.suggested_filename
+    data = json.load(open(path))
+    check(name == 'Groundwork handoff - Handy Person.json' and data['app'] == 'groundwork-handoff' and data['from'] == 'Mark' and data['contact']['phone'] == '' and len(data['visits']) == 2 and data['contact']['stage'] == 'rv', 'without a share sheet the file downloads, with what was chosen (%s)' % name)
+    page.wait_for_selector('.overlay h2:has-text("Archive Handy Person?")')
+    page.locator('button.btn.primary:text-is("Archive")').last.click(); time.sleep(0.4)
+    hr = ev("(id) => RV.store.rvById(id)", hid)
+    check(ev("RV.logic.isClosed(RV.store.S.settings, RV.store.S.rvs.find(r => r.name === 'Handy Person'))") and hr['archiveReason'] == 'handed', 'then it is archived here as Handed over')
+    check(any(r['id'] == 'handed' and r['name'] == 'Handed over' for r in ev("RV.store.S.settings.archiveReasons")), 'Handed over is an archive reason')
+    # the other publisher opens it
+    data['contact']['name'] = 'Handy Received'
+    ev("(d) => RV.importers.handoffSheet(d)", data); page.wait_for_selector('.sheet h2:has-text("Handed to you")')
+    check('Lives near you' in page.locator('.sheet .hocard').inner_text() and 'from Mark' in page.locator('.sheet .hocard').inner_text(), 'the receiver sees who sent it and their note')
+    check(page.locator('.sheet .banner.warn').count() == 1, 'and a warning when the address is already here')
+    page.click('.sheet button:has-text("Add contact")'); page.wait_for_selector('.ghero')
+    rr = ev("RV.store.S.rvs.find(r => r.name === 'Handy Received')")
+    ents = ev("(id) => RV.store.itemFor(id).entries.map(e => [e.type, !!e.imported])", rr['id'])
+    check(rr['notes'].startswith('Handed over by Mark on ') and 'Speaks Spanish' in rr['notes'] and rr['whatsNext'] == 'Bring the brochure' and rr['neighborhood'] == 'Oak Park', 'added with a handed-over line, notes, plan and area')
+    check(sorted(ents) == [['nh', True], ['visit', True]] and ev("location.hash").startswith('#/rv/'), 'its visits come in as imported, and it opens')
+    page.goto(URL + '#/settings/import'); page.wait_for_selector('.isrc')
+    check(page.locator('.isrc:has-text("From another publisher")').count() == 1, 'Import contacts has From another publisher')
 
     print('console errors')
     check(not errors, 'no console errors: %s' % errors[:3])

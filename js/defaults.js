@@ -43,6 +43,7 @@
         { id: 'notint', name: 'Not interested', restorable: true, hidden: true, dnc: false },
         { id: 'dnc', name: 'Do not call', restorable: false, hidden: true, dnc: true },
         { id: 'dup', name: 'Duplicate record', restorable: false, hidden: true, dnc: false },
+        { id: 'handed', name: 'Handed over', restorable: true, hidden: true, dnc: false },
         { id: 'other', name: 'Other', restorable: true, hidden: true, dnc: false },
       ],
       defaultStaleDays: 30,
@@ -110,6 +111,8 @@
       out.overdue30 = true;
     }
     if (!Array.isArray(out.archiveReasons) || !out.archiveReasons.length) out.archiveReasons = d.archiveReasons;
+    // v2.47: Handed over (a contact given to another publisher), added for everyone, before Other
+    if (!out.archiveReasons.some((r) => r.id === 'handed')) { const i = out.archiveReasons.findIndex((r) => r.id === 'other'); out.archiveReasons.splice(i < 0 ? out.archiveReasons.length : i, 0, { id: 'handed', name: 'Handed over', restorable: true, hidden: true, dnc: false }); }
     return out;
   }
 

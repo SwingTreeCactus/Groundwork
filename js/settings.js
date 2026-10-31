@@ -805,12 +805,51 @@
     });
   }
 
+  // v2.47: a contact handed over by another publisher (RV.handoff). Shown for review; added as an import (its visits
+  // never grow the plant), at the matching stage, with a note at the top of household notes saying who sent it.
+  function handoffSheet(data) {
+    const c = data.contact || {};
+    const shown = L.shownStages(S.settings);
+    const want = c.stage === 'study' ? shown.find((x) => x.study) : c.stage === 'first' ? shown[0] : shown.find((x) => x.key === 'rv');
+    const stageSel = F.select(F.importStageOptions(), (want || shown[0]).ids[0]);
+    const dups = L.duplicateMatches({ name: c.name, address: c.address, phone: c.phone }, S.rvs.filter((r) => !r.deletedAt));
+    const nv = (data.visits || []).length;
+    sheet('Handed to you', (close) => h('div', null,
+      h('div', { class: 'card hocard' },
+        h('b', null, c.name || 'Unnamed'),
+        h('div', { class: 'muted small' }, [c.address, c.area].filter(Boolean).join(' \u00B7 ') || 'No address'),
+        h('div', { class: 'small', style: { marginTop: '6px' } }, (nv ? nv + (nv === 1 ? ' visit' : ' visits') : 'No visits') + (data.from ? ' \u00B7 from ' + data.from : '')),
+        data.message ? h('div', { class: 'homsg' }, data.message) : null),
+      dups.length ? h('div', { class: 'banner warn' }, icon('alert'), h('div', { class: 'body' }, 'You may already have them: ' + dups.slice(0, 2).map((r) => r.name).join(', ') + '.')) : null,
+      field('Stage', stageSel),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+        h('button', { class: 'btn primary', type: 'button', onclick: () => {
+          const howMet = S.settings.lists.howMet.includes('Handed over') ? 'Handed over' : '';
+          const { rv, entries } = RV.handoff.unpack(data, { uuid: U.uuid, stageId: stageSel.value, howMet });
+          const rec = ST.blankRv(rv);
+          ST.importRvs([rec], entries);
+          close();
+          toast('Added ' + rec.name);
+          location.hash = '#/rv/' + rec.id;
+        } }, 'Add contact'))));
+  }
+  async function handoffImport() {
+    const file = await pickFile('.json,application/json');
+    if (!file) return;
+    let data = null;
+    try { data = JSON.parse(file.text); } catch (e) { /* not JSON */ }
+    if (!RV.handoff.isHandoff(data)) { toast('That isn\u2019t a Groundwork handoff file.'); return; }
+    handoffSheet(data);
+  }
+
   async function restoreFlow() {
     const file = await pickFile('.json,application/json');
     if (!file) return;
     let data;
     try { data = JSON.parse(file.text); } catch (e) { toast('Could not read that file.'); return; }
     if (RV.ww.isBackup(data)) { wwSheet(data); return; }
+    if (RV.handoff && RV.handoff.isHandoff(data)) { handoffSheet(data); return; }
     await restoreData(data);
   }
   async function restoreData(data) {
@@ -924,6 +963,7 @@
       src('download', 'Witness Work', 'Its backup file, with conversations', wwImport),
       src('note', 'A notes app', 'Paste notes or upload screenshots', () => { location.hash = '#/settings/notes'; }),
       src('chart', 'A spreadsheet', 'A CSV from Excel or Google Sheets', importWizard),
+      src('users', 'From another publisher', 'A contact they handed over to you', handoffImport),
       h('div', { class: 'muted small', style: { textAlign: 'center', marginTop: '8px' } }, 'Moving to a new phone? Use Restore instead.'),
     ], { back: '#/settings/data' });
   }
@@ -1208,7 +1248,7 @@
       await restoreData(await D.fetchBackup(list[0].id));
     } catch (e) { toast(e.message || 'Could not read Drive.'); }
   }
-  RV.importers = { ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
+  RV.importers = { handoff: handoffImport, handoffSheet, ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
 
   function about() {
     return page('About', [

@@ -748,3 +748,13 @@ From Mark's screenshot and the audit (claude/app-audit.md):
 
 Tests: smoke 342, ai_cleanup 54 (Ideas: nothing sent until tapped, name not sent, fast model, unknown ids dropped, kept after reopening, fills Discuss next time), others unchanged. VERSION 2.46.0, cache rvapp-v99.
 - v2.46.1: the growth path draws each stage the same for everyone (healthy, no kind, no per-person variant, still); the big plant above it still shows this person's health and kind (Mark). Tests: smoke 343. Cache rvapp-v100.
+
+## 59. v2.47.0 Hand over a contact (built 2026-10-31)
+
+Agreed 2026-10-30 (file, no accounts) and 2026-10-31 (Mark: the file version; the sender's copy archives as Handed over).
+- **Send.** A person's ⋯ menu has "Hand over…". The sheet asks for your name (remembered on the device, `rvapp.handoffFrom`) and an optional note, and lets you untick household notes, visit notes, Discuss next time and phone (name, address and area always go). Share file opens the phone's share sheet with `Groundwork handoff - <Name>.json`; once shared the contact is archived here with the new reason Handed over (Undo). Without a share sheet (most computers) the file downloads and the app asks before archiving.
+- **File** (`js/handoff.js`, `RV.handoff`): `{app: "groundwork-handoff", version: 1, sentAt, from, message, contact: {name, address, area, phone, notes, discussNext, bestDays, bestNote, publication, progress, nextStart, geo, stage: first|rv|study}, visits: [{type, at, text, study fields}]}`. Nothing private to the sender goes (record ids, plant kind, last topic, ideas, tags). Not encrypted; the sheet and the privacy page say to send it only to the person it is for.
+- **Receive.** Backup and import › Import contacts › From another publisher (and Restore recognises a handoff file too). "Handed to you" shows the name, address and area, how many visits, who sent it and their note, warns if the address or phone is already here, and offers the stage (mapped from first/RV/study onto the receiver's stages). Add contact imports it like any import: visits marked imported (no growth, plant stops before the reveal unless a study), a first line in household notes "Handed over by Mark on 2026-10-31: <note>.", then opens the record.
+- **Archive reason** Handed over (restorable) is added for everyone, before Other.
+
+Tests: handoff 4 (new unit suite), smoke 352 (send with choices, download fallback, archive as Handed over, receive with note and duplicate warning, imported visits, Import page source), others unchanged. VERSION 2.47.0, cache rvapp-v101.

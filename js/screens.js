@@ -1015,6 +1015,7 @@
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
           !closed ? act('Follow up on…', () => F.snoozeSheet(rv.id), rv.snoozedUntil ? U.fmtDate(rv.snoozedUntil) : 'Pick a date') : null,
+          !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
           act('Delete this ' + lbl('rv') + ' permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
