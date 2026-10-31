@@ -123,6 +123,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
+- claude/app-audit.md (docs/AUDIT-2026-10-31.md): full app audit at v2.45.0, issues ranked, nothing built yet.
 - claude/design-doc.md: full design log (every release).
 - claude/gamification-review.md: the game review and the comparison with model games.
 - claude/garden-plan.md: garden spec (section 12: plant kinds and palette, built in v2.34.0).
