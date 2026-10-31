@@ -774,12 +774,13 @@
         h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need },
           Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' }))))
       : null;
-    // v2.46: forms still ahead are solid silhouettes (the generic shape until the kind is revealed); a growth
+    // v2.46: forms still ahead are solid silhouettes; a growth
     // fills the next one in (playFill)
     const path = h('div', { class: 'gpath', 'data-rv': rv.id },
       h('div', { class: 'gl' }, 'Growth path'),
       h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) => {
-        const pl = P.make(f, f === st.form ? st.care : 4, { size: 'sm', still: f !== st.form, seed: f, vid: st.vid, kind: st.pkind });
+        // v2.46.1: each stage is drawn the same for everyone (healthy, no kind, no per-person variant); the plant above shows this person's
+        const pl = P.make(f, 4, { size: 'sm', still: true, seed: f });
         if (f > st.form) pl.classList.add('sil');
         return h('span', { class: f === st.form ? 'cur' : '' }, pl);
       })));

@@ -1,4 +1,4 @@
-# Groundwork handover (2026-10-31, after v2.46.0)
+# Groundwork handover (2026-10-31, after v2.46.1)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
@@ -60,8 +60,8 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.46.0)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (342; needs /tmp/out to exist)
+## Tests (all passing at v2.46.1)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (343; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (54)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
@@ -94,6 +94,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.46.1: growth path stages drawn the same for everyone (not this person's health or kind).
 - v2.46.0: growth path fixed (class clash with the garden's stones) with silhouettes that fill in after growth; Archive as a stage choice in Edit; Ideas for next time (AI topic suggestions, only when tapped).
 - v2.45.0: import from Witness Work, so its users can migrate to Groundwork (its witness-work-backup.json; built from one sample file a user gave Mark as a reference, not Mark's data, and not kept in the repo): Import contacts › Witness Work, Home's import choices, and Restore › A backup file hands such a file to the import. Contacts with addresses and map coordinates, conversations as visits (studies flagged, not-at-homes as NH), the newest follow-up topic as Discuss next time; studies to Bible Study, nobody talked with to Potential, deleted contacts optional as archived. Service time, plans and settings are not brought in. Design-doc 58.
 - v2.44.0: Clean up on every field that records a visit or the person: Edit contact (household notes, Discuss next time), timeline entry edits, Discuss next time on the record.

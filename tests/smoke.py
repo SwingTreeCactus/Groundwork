@@ -831,6 +831,7 @@ with sync_playwright() as p:
     check(page.locator('.ghero .pl.xl.s1').count() == 1, 'record screen: a big seed for Potential')
     check('Becomes an RV' in page.locator('.gbar').inner_text() and '1 more conversation' in page.locator('.gbar').inner_text(), 'bar: Becomes an RV, 1 more conversation')
     check(page.locator('.gpath .pl').count() == 5 and page.locator('.gpath .pl.sil').count() == 4 and ev("getComputedStyle(document.querySelector('.gpath')).position") == 'static', 'growth path: five forms, future ones as silhouettes, in the flow under the plant (v2.46)')
+    check(ev("[...document.querySelectorAll('.gpath .pl')].every(e => e.classList.contains('h4') && ![...e.classList].some(c => c.startsWith('k-')))"), 'v2.46.1: the path shows each stage the same for everyone (healthy, no kind)')
     shot('30-garden-record')
     page.click('button.btn.big:has-text("Record a visit")'); page.wait_for_selector('.sheet')
     check(page.locator('.sheet .switchrow:has-text("Study session")').count() == 0, 'Potential: no Study session switch in the visit sheet')
