@@ -724,3 +724,15 @@ Before, it was only under the note in New contact and in Record a visit / Log a 
 A shared `RV.forms.cleanupRow(text, next)` puts the button in a `.note-tools` row under the field; `UI.textPrompt({ cleanup: true })` adds it to a prompt. Where there is no separate Discuss next time field it proofreads the text only (next-time items are copied, never moved, so nothing is lost). Short fields (name, address, phone, publication, lesson, tags) have none. It shows whenever cleanup is available, which is always with the shared helper.
 
 Tests: ai_cleanup 48 (new: Edit contact has two, household notes clean in place, entry edit, Discuss next time on the record); others unchanged. VERSION 2.44.0, cache rvapp-v97.
+
+## 58. v2.45.0 Import from Witness Work (built 2026-10-30)
+
+Mark asked for a restore option from a Witness Work backup (witness-work-backup.json, the app his records were in before). It is another app's file, so it goes through Import rather than Restore (which reads Groundwork backups), and Restore › A backup file recognises such a file and opens the import instead of refusing it.
+- Where: Import contacts › Witness Work ("Its backup file, with conversations"), and From Witness Work in Home's and Getting started's import choices (`RV.importers.witnessWork`).
+- Converter (js/ww.js, `RV.ww.convert`, pure): `contactStore.contacts` become contacts. Address from line1, line2, city, state, zip (state names shortened to CA etc., country dropped; a city typed in the state box, as in one real record, is used as the city). Coordinates become the geotag (`rv.geo`, no accuracy). Phone kept; email and custom fields go to household notes (email isn't a Groundwork field). How we met: House to house.
+- `conversationStore.conversations` (minus `deletedConversations`) become timeline entries, marked imported: `notAtHome` → Not home (its note kept), otherwise a visit; `isBibleStudy` → a study session (`entry.study`). A follow-up topic is added to that entry as "Next time: …", and the newest one becomes Discuss next time.
+- Stage: anyone with a Bible study conversation goes to the study stage; anyone with no conversation where they were home goes to Potential; the rest to the stage chosen in the sheet (default RV). Imports still stop below the reveal (`ST.importRvs`), and imported studies never count toward the study track.
+- Sheet (same shape as Ministry Assistant): stage, a note on where studies and Potential go, Skip people who match an existing address, Set best day from their last visit, and "Also bring in N deleted, as archived" (off; `contactStore.deletedContacts`). The summary counts contacts and conversations. Import lands on Just imported.
+- Not brought in: service time reports (not planned for Groundwork), day plans, preferences, badges, mileage.
+- The duplicate check shared by both backup imports is now `dedupe()` in js/settings.js.
+- Tests: ww 7 (new, node), smoke 336 (Witness Work import; Import contacts now offers four sources, Getting started five import choices). Others unchanged. VERSION 2.45.0, cache rvapp-v98.

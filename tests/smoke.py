@@ -553,7 +553,7 @@ with sync_playwright() as p:
     page.goto(URL + '#/settings/data'); page.wait_for_selector('.setrow')
     check(page.locator('.setrow').count() == 3 and page.locator('.bkcard').count() == 1, 'Backup and import: a backup card and three rows')
     page.click('.setrow:has-text("Import contacts")'); page.wait_for_selector('text=Where are your contacts now?')
-    check(page.locator('.isrc').count() == 3, 'Import contacts offers three sources')
+    check(page.locator('.isrc').count() == 4, 'Import contacts offers four sources')
     with page.expect_file_chooser() as fc:
         page.click('.setrow:has-text("A spreadsheet")')
     fc.value.set_files(csv_path)
@@ -605,6 +605,60 @@ with sync_playwright() as p:
     page.wait_for_selector('text=Could not read that file')
     check(True, 'MA rejects a file that is not a backup')
 
+
+    print('Witness Work import')
+    def wwc(id, name, a=None, coord=None):
+        c = {'id': id, 'createdAt': '2025-05-12T06:19:34.946Z', 'name': name, 'address': a or {'line1': '', 'city': '', 'state': '', 'zip': ''},
+             'email': '', 'phone': '', 'customFields': {}, 'updatedAt': 1}
+        if coord: c['coordinate'] = {'latitude': coord[0], 'longitude': coord[1]}
+        return c
+    def wwv(id, cid, date, note, study=False, nh=False, topic=None):
+        v = {'id': id, 'contact': {'id': cid}, 'date': date, 'note': note, 'isBibleStudy': study, 'notAtHome': nh, 'updatedAt': 1}
+        if topic: v['followUp'] = {'date': date, 'topic': topic, 'notifyMe': False}
+        return v
+    ww = {'version': 1, 'serviceReportStore': {'serviceReports': {}},
+          'contactStore': {'contacts': [
+              wwc('c1', 'Test Wendy', {'line1': '40 Oak St', 'city': 'Stockton', 'state': 'California', 'zip': '95204', 'country': 'United States'}, (37.96, -121.32)),
+              wwc('c2', 'Test Victor', {'line1': '41 Oak St', 'city': '', 'state': 'Stockton', 'zip': ''}),
+              wwc('c3', 'Test Dupe', {'line1': '31 Maple Dr', 'city': '', 'state': '', 'zip': ''})],
+            'deletedContacts': [wwc('c4', 'Test Zed', {'line1': '42 Oak St', 'city': 'Stockton', 'state': 'CA', 'zip': ''})]},
+          'conversationStore': {'conversations': [
+              wwv('v1', 'c1', '2025-05-11T19:45:00.000Z', 'Lesson 1, enjoyed the video', study=True),
+              wwv('v2', 'c1', '2025-06-01T22:58:00.000Z', 'Finished lesson 1', study=True, topic='Start lesson 2'),
+              wwv('v3', 'c1', '2025-06-08T14:01:00.000Z', 'Met his mom', nh=True),
+              wwv('v4', 'c2', '2025-06-08T14:30:00.000Z', '', nh=True),
+              wwv('v5', 'c4', '2025-06-09T14:30:00.000Z', 'Shared Isaiah 11:6'),
+              wwv('gone', 'c1', '2025-06-10T14:30:00.000Z', 'deleted one')],
+            'deletedConversations': [{'id': 'gone', 'deletedAt': 1}]},
+          'preferencesStore': {}}
+    ww_path = '/tmp/out/witness-work-backup.json'
+    open(ww_path, 'w').write(json.dumps(ww))
+    page.goto(URL + '#/settings/import'); page.wait_for_selector('.setrow')
+    with page.expect_file_chooser() as fc:
+        page.click('.setrow:has-text("Witness Work")')
+    fc.value.set_files(ww_path)
+    page.wait_for_selector('.sheet:has-text("will be added")')
+    sm = page.locator('.sheet .banner').inner_text().replace('\n', ' ')
+    check('2 RVs and 4 conversations' in sm and '1 skipped as possible duplicates' in sm, 'WW summary: ' + sm)
+    page.click('.sheet label:has-text("Also bring in 1 deleted")')
+    sm = page.locator('.sheet .banner').inner_text().replace('\n', ' ')
+    check('3 RVs and 5 conversations' in sm, 'WW deleted contacts can come too: ' + sm)
+    page.click('.sheet button:has-text("Import")')
+    page.wait_for_function('location.hash == "#/rvs/imported"')
+    check(True, 'WW import lands on Just imported')
+    w = ev('RV.store.S.rvs.find(x=>x.name=="Test Wendy")')
+    check(w['address'] == '40 Oak St, Stockton, CA 95204' and w['geo'] and abs(w['geo']['lat'] - 37.96) < 1e-6, 'WW address and coordinates')
+    check(w['stage'] == 'study' and w['whatsNext'] == 'Start lesson 2', 'WW study goes to Bible Study with Discuss next time')
+    we = ev('RV.store.S.entries.filter(x=>x.rvId==RV.store.S.rvs.find(y=>y.name=="Test Wendy").id).map(x=>[x.type,!!x.study,x.text,!!x.imported])')
+    check(sorted(t for t, *_ in we) == ['nh', 'visit', 'visit'] and sum(1 for _, s, *_ in we if s) == 2 and all(i for *_, i in we), 'WW conversations become visits, studies and not-homes')
+    check(any('Next time: Start lesson 2' in t for _, _, t, _ in we) and not any('deleted one' in t for _, _, t, _ in we), 'WW next-time topic kept, deleted conversation left out')
+    v = ev('RV.store.S.rvs.find(x=>x.name=="Test Victor")')
+    check(v['address'] == '41 Oak St, Stockton' and v['stage'] == 'yet', 'WW city in the state box; no conversation is Potential')
+    check(ev('RV.store.S.rvs.find(x=>x.name=="Test Zed").stage') == 'archived', 'WW deleted contact is archived')
+    check(ev('RV.store.S.rvs.filter(x=>x.name=="Test Dupe").length') == 0, 'WW duplicate address skipped')
+    # leave the later garden checks as they were (a study here would bring the owl at night)
+    ev('RV.store.S.rvs.filter(x=>["Test Wendy","Test Victor","Test Zed"].includes(x.name)).forEach(x=>RV.store.deleteRv(x.id))')
+    ev('RV.store.S.rvs.forEach(x=>{ if (x.approx) { delete x.approx; RV.store.persistRv(x); } })')  # forget lookups made with the map stubbed empty
 
     print('re-import fills best day on existing people')
     ev('RV.store.S.rvs.find(x=>x.name=="Test Rita").bestDays = []')
@@ -736,7 +790,7 @@ with sync_playwright() as p:
     sctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     sp = sctx.new_page(); sp.goto(URL + '#/home'); sp.wait_for_selector('.starter')
     check(sp.locator('.starter .st').count() == 5 and sp.locator('.starter .st.cur:has-text("Add your first contact")').count() == 1, 'Getting started: five steps, the first one current')
-    check(sp.locator('.starter .imports .setrow').count() == 4 and sp.locator('.starter .imports .setrow:has-text("From a notes app")').count() == 1, 'Getting started: the import choices sit under the first step')
+    check(sp.locator('.starter .imports .setrow').count() == 5 and sp.locator('.starter .imports .setrow:has-text("From a notes app")').count() == 1, 'Getting started: the import choices sit under the first step')
     sp.screenshot(path=SHOTS + '/36-starter.png')
     sid = sp.evaluate("RV.store.addRv({ name: 'Nia Brooks', stage: 'yet' }).id"); time.sleep(0.3)
     sp.click('.starter .st.cur button:has-text("Show me")'); sp.wait_for_selector('.coach')

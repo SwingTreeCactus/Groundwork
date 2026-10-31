@@ -1,15 +1,15 @@
-# Groundwork handover (2026-10-30, after v2.44.0)
+# Groundwork handover (2026-10-30, after v2.45.0)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.37.1 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v87` (sw.js).
+- Current release: v2.45.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v98` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.37.2 / rvapp-v88), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.45.1 / rvapp-v99), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
@@ -60,12 +60,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.44.0)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (326; needs /tmp/out to exist)
+## Tests (all passing at v2.45.0)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (336; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (48)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
-- `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (6), `python3 -I tests/notes_import.py` (39)
+- `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (6), `node tests/ww.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - Growth and reveal moments wait for a tap (v2.37); browser tests use `through_moment` (smoke) or click `.grow-ov` / `.evo-ov` (the evolution reveal, v2.38).
   - Contacts opens on the map (v2.38): every browser test stubs openfreemap tiles and nominatim at context level, or the run logs network errors.
@@ -74,7 +74,8 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - A shell pipe can hide a failing `&&` chain, so check every suite's output.
   - The map test hook is `document.querySelector('.gmap').gmapMap()`.
   - `RV.gmap._view()` and `RV.gmap._forget()` are there for tests.
-  - smoke's "map shows plants as pins" can fail once on timing; rerun before digging in.
+  - smoke's "map shows plants as pins" can fail once on timing; rerun before digging in. It also fails every time if an earlier step opened the Contacts map while nominatim was stubbed empty (every address gets remembered as not found); the Witness Work step clears `rv.approx` for that reason.
+  - Contacts in the study stage bring the owl at night, whose arrival redraws the garden and can close a sheet a later step opened; test-added contacts are deleted again after their checks.
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
@@ -93,6 +94,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.36.2: study notes get Clean up and the full-screen writing view; the newest note ("Last study") shows at the top of a study record.
 - v2.37.0: study track (three studies in all grow any RV straight into the tree), growth and reveal moments slower and held until tapped, cleanup meaning check with "Worth a look" phrases.
 - v2.37.1: Dark mode switch at the top of the menu.
+- v2.45.0: import from Witness Work (its witness-work-backup.json): Import contacts › Witness Work, Home's import choices, and Restore › A backup file hands such a file to the import. Contacts with addresses and map coordinates, conversations as visits (studies flagged, not-at-homes as NH), the newest follow-up topic as Discuss next time; studies to Bible Study, nobody talked with to Potential, deleted contacts optional as archived. Service time, plans and settings are not brought in. Design-doc 58.
 - v2.44.0: Clean up on every field that records a visit or the person: Edit contact (household notes, Discuss next time), timeline entry edits, Discuss next time on the record.
 - v2.43.0: dot-matrix font (Doto) retired; titles and big numbers in Space Grotesk bold.
 - v2.42.0: new app icon, the happy pot (terracotta pot, sprout, content face) on garden green; brand guide section 3 rewritten.

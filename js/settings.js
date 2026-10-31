@@ -580,6 +580,34 @@
   }
   const stamp = () => U.toDateStr(new Date());
 
+  // Possible duplicates in an import: same address or phone as someone already here (or earlier in the file).
+  // With skipDup they are left out; existing people with no best day can get one from the import.
+  function dedupe(rvs, skipDup, bestFromLast) {
+    let dups = 0;
+    const seen = [];
+    // imported addresses carry city and zip, so also match on the bare street of records saved without one
+    const streetKey = (a) => U.normAddress(String(a || '').split(',')[0]);
+    const matchesOf = (r, pool) => {
+      const hit = L.duplicateMatches(r, pool);
+      if (hit.length) return hit;
+      const k = streetKey(r.address);
+      return k ? pool.filter((x) => !x.deletedAt && x.address && x.address.indexOf(',') < 0 && U.normAddress(x.address) === k) : [];
+    };
+    const updates = []; // existing people who have no best day yet get one from the backup
+    const keep = rvs.filter((r) => {
+      const hit = matchesOf(r, S.rvs.concat(seen));
+      if (hit.length) dups++;
+      const drop = skipDup && hit.length;
+      if (drop && bestFromLast && r.bestDays.length) {
+        const ex = hit.find((x) => S.rvs.includes(x) && !L.dayTagsOf(x).length);
+        if (ex && !updates.some((u) => u.id === ex.id)) updates.push({ id: ex.id, bestDays: r.bestDays });
+      }
+      if (!drop) seen.push(r);
+      return !drop;
+    });
+    return { keep, dups, updates };
+  }
+
   async function maImport() {
     const file = await pickFile('', true);
     if (!file) return;
@@ -591,29 +619,7 @@
       parsed = (stageId, skipDup, bestFromLast) => {
         const res = RV.ma.convert(pairs, { uuid: U.uuid, stageId, closedStageId: closed && closed.id, closedReason: 'other', bestFromLast, howMet: S.settings.lists.howMet.includes('House to house') ? 'House to house' : '' });
         res.rvs = res.rvs.map((r) => ST.blankRv(r));
-        let dups = 0;
-        const seen = [];
-        // imported addresses carry city and zip, so also match on the bare street of records saved without one
-        const streetKey = (a) => U.normAddress(String(a || '').split(',')[0]);
-        const matchesOf = (r, pool) => {
-          const hit = L.duplicateMatches(r, pool);
-          if (hit.length) return hit;
-          const k = streetKey(r.address);
-          return k ? pool.filter((x) => !x.deletedAt && x.address && x.address.indexOf(',') < 0 && U.normAddress(x.address) === k) : [];
-        };
-        const updates = []; // existing people who have no best day yet get one from the backup
-        const keep = res.rvs.filter((r) => {
-          const hit = matchesOf(r, S.rvs.concat(seen));
-          if (hit.length) dups++;
-          const drop = skipDup && hit.length;
-          if (drop && bestFromLast && r.bestDays.length) {
-            const ex = hit.find((x) => S.rvs.includes(x) && !L.dayTagsOf(x).length);
-            if (ex && !updates.some((u) => u.id === ex.id)) updates.push({ id: ex.id, bestDays: r.bestDays });
-          }
-          if (!drop) seen.push(r);
-          return !drop;
-        });
-        return { res, keep, dups, updates };
+        return Object.assign({ res }, dedupe(res.rvs, skipDup, bestFromLast));
       };
       parsed(S.settings.stages[0].id, false, false);
     } catch (e) {
@@ -653,6 +659,77 @@
               close();
               toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl('rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
               location.hash = '#/rvs';
+            },
+          }, 'Import')));
+      refresh();
+      return form;
+    });
+  }
+
+  // v2.45: Witness Work. Its backup file (witness-work-backup.json) holds contacts and their conversations.
+  async function wwImport() {
+    const file = await pickFile('.json,application/json');
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(file.text); } catch (e) { data = null; }
+    if (!RV.ww.isBackup(data)) { toast('Could not read that file as a Witness Work backup.'); return; }
+    wwSheet(data);
+  }
+  function wwSheet(data) {
+    const st = S.settings.stages;
+    const closed = st.find((s) => s.closed);
+    const study = st.find((s) => s.study && !s.closed);
+    const potential = L.shownStages(S.settings)[0];
+    const parsed = (stageId, skipDup, bestFromLast, includeDeleted) => {
+      const res = RV.ww.convert(data, {
+        uuid: U.uuid, stageId, potentialStageId: potential && potential.ids[0], studyStageId: study && study.id,
+        closedStageId: closed && closed.id, closedReason: 'other', includeDeleted, bestFromLast,
+        howMet: S.settings.lists.howMet.includes('House to house') ? 'House to house' : '',
+      });
+      res.rvs = res.rvs.map((r) => ST.blankRv(r));
+      return Object.assign({ res }, dedupe(res.rvs, skipDup, bestFromLast));
+    };
+    let first;
+    try { first = parsed(st[0].id, false, false, false); } catch (e) { toast('Could not read that file as a Witness Work backup.'); return; }
+    const defStage = F.select(F.importStageOptions(), (st.find((s) => s.id === 'initial') || st[0]).id);
+    const skipDup = h('input', { type: 'checkbox', checked: true });
+    const bestDay = h('input', { type: 'checkbox', checked: true });
+    const withDeleted = h('input', { type: 'checkbox' });
+    const summary = h('div', { class: 'banner info' });
+    const visitsOf = (res, keep) => { const ids = new Set(keep.map((r) => r.id)); return res.entries.filter((e) => ids.has(e.rvId)); };
+    const args = () => [defStage.value, skipDup.checked, bestDay.checked, withDeleted.checked];
+    const refresh = () => {
+      const { res, keep, dups, updates } = parsed(...args());
+      const n = visitsOf(res, keep).length;
+      summary.replaceChildren(icon('note'), h('div', { class: 'body' },
+        keep.length + ' ' + lbl(keep.length === 1 ? 'rv' : 'rvs') + ' and ' + n + (n === 1 ? ' conversation' : ' conversations') + ' will be added.' +
+        (updates.length ? ' ' + updates.length + ' already here will get a best day.' : '') +
+        (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
+        (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
+    };
+    sheet('Import from Witness Work', (close) => {
+      [defStage, skipDup, bestDay, withDeleted].forEach((x) => x.addEventListener('change', refresh));
+      const form = h('div', null,
+        field('Stage for people you’ve talked with', defStage),
+        h('div', { class: 'muted small', style: { margin: '-4px 2px 10px' } }, 'Bible studies go to ' + (study ? study.name : 'Bible Study') + '. No conversation yet: ' + (potential ? potential.name : 'Potential') + '.'),
+        h('label', { class: 'check' }, skipDup, 'Skip people who match an existing address'),
+        h('label', { class: 'check' }, bestDay, 'Set best day from their last visit'),
+        first.res.deletedCount ? h('label', { class: 'check' }, withDeleted, 'Also bring in ' + first.res.deletedCount + ' deleted, as archived') : null,
+        summary,
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
+          h('button', {
+            class: 'btn primary', type: 'button',
+            onclick: () => {
+              const { res, keep, updates } = parsed(...args());
+              ST.importRvs(keep, visitsOf(res, keep));
+              updates.forEach((u) => ST.updateRv(u.id, { bestDays: u.bestDays, dayPrimary: null, daySecondary: null }));
+              close();
+              toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl(keep.length === 1 ? 'rv' : 'rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
+              if (keep.length) {
+                try { sessionStorage.setItem('rvapp.lastImport', JSON.stringify(keep.map((r) => r.id))); } catch (e) { /* ignore */ }
+                location.hash = '#/rvs/imported';
+              } else location.hash = '#/rvs';
             },
           }, 'Import')));
       refresh();
@@ -733,6 +810,7 @@
     if (!file) return;
     let data;
     try { data = JSON.parse(file.text); } catch (e) { toast('Could not read that file.'); return; }
+    if (RV.ww.isBackup(data)) { wwSheet(data); return; }
     await restoreData(data);
   }
   async function restoreData(data) {
@@ -825,7 +903,7 @@
       S.persistent ? null : h('div', { class: 'banner danger' }, icon('alert'), h('div', { class: 'body' }, 'This browser is blocking storage. Nothing will be kept.')),
       backupCard(),
       h('div', { class: 'bkcount' }, live + ' ' + lbl(live === 1 ? 'rv' : 'rvs') + ' and ' + visits + (visits === 1 ? ' visit' : ' visits') + ' on this phone.'),
-      h('section', { class: 'setgroup' }, row('upload', 'Import contacts', 'Ministry Assistant, a notes app, or a spreadsheet', () => { location.hash = '#/settings/import'; })),
+      h('section', { class: 'setgroup' }, row('upload', 'Import contacts', 'Ministry Assistant, Witness Work, a notes app, or a spreadsheet', () => { location.hash = '#/settings/import'; })),
       h('section', { class: 'setgroup' }, row('download', 'Export', 'Contacts, visit log, or a backup file', exportSheet)),
       h('section', { class: 'setgroup bkerase' }, row('trash', 'Erase all data', null, async () => {
         if (!(await confirmDialog({ title: 'Erase everything?', message: 'All ' + lbl('rvs') + ', visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
@@ -843,6 +921,7 @@
     return page('Import contacts', [
       h('div', { class: 'muted', style: { margin: '2px 4px 14px' } }, 'Where are your contacts now?'),
       src('download', 'Ministry Assistant', 'Its backup file, with visits', maImport),
+      src('download', 'Witness Work', 'Its backup file, with conversations', wwImport),
       src('note', 'A notes app', 'Paste notes or upload screenshots', () => { location.hash = '#/settings/notes'; }),
       src('chart', 'A spreadsheet', 'A CSV from Excel or Google Sheets', importWizard),
       h('div', { class: 'muted small', style: { textAlign: 'center', marginTop: '8px' } }, 'Moving to a new phone? Use Restore instead.'),
@@ -1129,7 +1208,7 @@
       await restoreData(await D.fetchBackup(list[0].id));
     } catch (e) { toast(e.message || 'Could not read Drive.'); }
   }
-  RV.importers = { ministryAssistant: maImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
+  RV.importers = { ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
 
   function about() {
     return page('About', [
