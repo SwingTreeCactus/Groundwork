@@ -147,7 +147,7 @@
   }
   // v2.36: a stepping-stone path winding down from the gate (stones placed in %, so it fits any height)
   function stonePath() {
-    const box = h('div', { class: 'gpath', 'aria-hidden': 'true' });
+    const box = h('div', { class: 'gstones', 'aria-hidden': 'true' }); // v2.46: was .gpath, which clashed with the record's growth path
     for (let k = 0; k < 46; k++) {
       const t = k / 45, x = 50 + Math.sin(t * 7.2) * 30 * (0.4 + t * 0.6) + (k % 2 ? 2.4 : -2.4), y = t * 100;
       box.appendChild(h('i', { style: { left: x.toFixed(1) + '%', top: y.toFixed(1) + '%', width: (24 + t * 8).toFixed(0) + 'px', height: (11 + t * 3).toFixed(0) + 'px' } }));

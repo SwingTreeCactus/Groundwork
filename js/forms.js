@@ -184,7 +184,12 @@
       phone: h('input', { type: 'tel', value: rv.phone || '', autocomplete: 'off' }),
       howMet: select([{ value: '', label: '(not set)' }].concat(
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), howMetDefault),
-      stage: (() => { const sc = stageChoices(rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id); return select(sc.options, sc.value); })(),
+      stage: (() => {
+        const sc = stageChoices(rv.stage || (S.settings.stages.find((s) => s.id === 'initial') || activeStages()[0]).id);
+        // v2.46: Archive is one of the stage choices when editing (saving with it asks for the reason)
+        const opts = existing && !isClosed && S.settings.stages.some((s) => s.closed) ? sc.options.concat([{ value: '__archive', label: lbl('archive') + '…' }]) : sc.options;
+        return select(opts, sc.value);
+      })(),
       publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
       progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' }),
       nextStart: h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' }),
@@ -350,10 +355,11 @@
             toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
           } else {
             saved = ST.updateRv(rv.id, data);
-            if (!isClosed && f.stage.value !== rv.stage) ST.setStage(rv.id, f.stage.value);
+            if (!isClosed && f.stage.value !== rv.stage && f.stage.value !== '__archive') ST.setStage(rv.id, f.stage.value);
           }
           close();
           if (opts.onSaved) opts.onSaved(saved);
+          if (existing && f.stage.value === '__archive') archiveFlow(rv.id);
         },
       },
         tagList, pubList,
@@ -477,6 +483,7 @@
       const rv = ST.rvById(rvId);
       await P.reveal(res.revealed.fromForm || res.revealed.toForm, res.revealed.toForm, care || 4, res.revealed.kind, rvId, rv ? rv.name : '',
         res.revived ? res.revived.from : 0);
+      if (RV.screens.playFill && res.revealed.fromForm) RV.screens.playFill(rvId, res.revealed.fromForm, res.revealed.toForm);
     } else if (on && res.grew) {
       const name = G.growthName(S.settings, res.grew.from, res.grew.to);
       const it = ST.itemFor(rvId);
@@ -486,6 +493,7 @@
       // v2.38: growing into a study tree gets the evolution-style moment; other growth stays the short one
       if (toF === 5 && P.evolve) await P.evolve(fromF, toF, care || 4, { kind, fromKind: kind, line: name, sub: rv ? rv.name : '', vid: rvId });
       else await P.grow(fromF, toF, care || 4, name, rvId);
+      if (RV.screens.playFill) RV.screens.playFill(rvId, fromF, toF); // v2.46: the next pot on the path fills in
     } else if (on && res.revived) {
       const it = ST.itemFor(rvId);
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;

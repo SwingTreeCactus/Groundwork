@@ -774,19 +774,46 @@
         h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need },
           Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' }))))
       : null;
-    const path = h('div', { class: 'gpath' },
+    // v2.46: forms still ahead are solid silhouettes (the generic shape until the kind is revealed); a growth
+    // fills the next one in (playFill)
+    const path = h('div', { class: 'gpath', 'data-rv': rv.id },
       h('div', { class: 'gl' }, 'Growth path'),
-      h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) =>
-        h('span', { class: f === st.form ? 'cur' : '' },
-          P.make(f, f === st.form ? st.care : 4, { size: 'sm', ghost: f > st.form, still: f !== st.form, seed: f, vid: st.vid, kind: st.pkind })))));
+      h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) => {
+        const pl = P.make(f, f === st.form ? st.care : 4, { size: 'sm', still: f !== st.form, seed: f, vid: st.vid, kind: st.pkind });
+        if (f > st.form) pl.classList.add('sil');
+        return h('span', { class: f === st.form ? 'cur' : '' }, pl);
+      })));
     path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
     return h('div', null,
       // v2.24.1: the person's name leads, beside their plant; the stage sits under it (tap to change)
       h('div', { class: 'ghero' }, big,
         h('div', { class: 'gwho' },
           h('h2', { class: 'gperson' }, rv.name),
-          h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName))),
+          h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName, icon('down', 16)))),
       bar, path);
+  }
+
+  // v2.46: after a growth moment, on the record: a quiet burst on the next pot, the highlight moves to it and its
+  // silhouette fills in with colour from the soil up (about a second; skipped when reduced motion is on)
+  function playFill(rvId, from, to) {
+    const path = document.querySelector('.gpath[data-rv="' + rvId + '"]');
+    if (!path || !(to > from)) return;
+    if (root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const spans = path.querySelectorAll('.gs > span');
+    const a = spans[from - 1], b = spans[to - 1];
+    if (!a || !b || !b.firstChild) return;
+    const sil = b.firstChild.cloneNode(true);
+    sil.classList.add('sil');
+    const ov = h('span', { class: 'silov', 'aria-hidden': 'true' }, sil);
+    b.appendChild(ov);
+    b.classList.remove('cur'); a.classList.add('cur');
+    setTimeout(() => {
+      a.classList.remove('cur'); b.classList.add('cur', 'pop');
+      const fx = h('span', { class: 'fillfx', 'aria-hidden': 'true' }, [0, 1, 2, 3, 4, 5].map((k) => { const d = h('i'); d.style.setProperty('--a', (k * 60 + 30) + 'deg'); return d; }));
+      b.appendChild(fx);
+      requestAnimationFrame(() => ov.classList.add('go'));
+      setTimeout(() => { ov.remove(); fx.remove(); b.classList.remove('pop'); }, 1100);
+    }, 280);
   }
 
   function detail(id) {
@@ -828,6 +855,43 @@
       const t = await UI.textPrompt({ title: 'Discuss next time', multiline: true, cleanup: true, value: rv.whatsNext || '', placeholder: 'Bring next time' });
       if (t !== null) ST.updateRv(rv.id, { whatsNext: t.trim() });
     };
+    // v2.46: topic ideas for next time, from what is known about them; fetched only when Ideas is tapped and kept on the
+    // record until the next visit (never in the way of recording a visit)
+    const latestVisit = it.entries.find((e) => e.type === 'visit');
+    const ideasKey = latestVisit ? latestVisit.id : '';
+    const ideasCached = rv.ideas && rv.ideas.after === ideasKey && Array.isArray(rv.ideas.picks) ? rv.ideas.picks : null;
+    const topicsAll = ST.libItems('topic');
+    const canIdeas = !closed && !study && !rv.whatsNext && topicsAll.length && RV.ai && RV.ai.available();
+    const ideasBox = h('div', { class: 'ideas' });
+    const paintIdeas = (picks) => {
+      const rows = picks.map((p) => ({ p, t: topicsAll.find((x) => x.id === p.id) })).filter((x) => x.t);
+      ideasBox.replaceChildren(...(rows.length ? [h('div', { class: 'ideas-k' }, 'Ideas for next time')].concat(rows.map(({ p, t }) =>
+        h('button', { class: 'idea', type: 'button', onclick: () => {
+          const before = rv.whatsNext || '';
+          ST.updateRv(rv.id, { whatsNext: t.title + (t.question ? ': ' + t.question : '') });
+          toast('Added to Discuss next time', { seconds: 5, actions: [{ label: 'Undo', fn: () => ST.updateRv(rv.id, { whatsNext: before }) }] });
+        } }, h('b', null, t.title), p.why ? h('span', null, p.why) : null))) : [h('div', { class: 'muted small' }, 'No ideas this time.')]));
+    };
+    const ideasBtn = canIdeas ? h('button', { class: 'ideasbtn', type: 'button', onclick: async () => {
+      if (ideasCached) { if (ideasBox.firstChild) ideasBox.replaceChildren(); else paintIdeas(ideasCached); return; }
+      ideasBtn.disabled = true; ideasBtn.classList.add('busy'); ideasBtn.lastChild.textContent = 'Thinking…';
+      try {
+        const lt = rv.lastTopic ? topicsAll.find((y) => y.id === rv.lastTopic) : null;
+        const nx = lt ? nextInSeries(lt) : null;
+        const picks = await RV.ai.suggestTopics({
+          stage: L.shownName(S.settings, rv.stage), notes: rv.notes || '',
+          lastTopic: lt ? lt.title + (nx ? ' (next part: ' + nx.title + ')' : '') : '',
+          visits: it.entries.filter((e) => e.type === 'visit' && e.text).slice(0, 5).map((e) => U.fmtDate(e.at) + ': ' + String(e.text).slice(0, 400)),
+          topics: topicsAll.map((t) => ({ id: t.id, title: t.title, question: t.question || t.text || '', next: (nextInSeries(t) || {}).title || '' })),
+        });
+        ST.updateRv(rv.id, { ideas: { after: ideasKey, at: U.nowISO(), picks } });
+        if (!picks.length) toast('No ideas this time.');
+      } catch (e) {
+        toast('Couldn\u2019t get ideas right now.', { seconds: 4 });
+        ideasBtn.disabled = false; ideasBtn.classList.remove('busy'); ideasBtn.lastChild.textContent = 'Ideas';
+      }
+    } }, icon('sparkle', 14), h('span', null, 'Ideas')) : null;
+    if (canIdeas && ideasCached) paintIdeas(ideasCached);
     // v2.41: the topic last used with them, and the next part of its series
     const lastTopic = rv.lastTopic ? S.lib.find((y) => y.id === rv.lastTopic && !y.deletedAt) || null : null;
     const nextTopic = lastTopic ? nextInSeries(lastTopic) : null;
@@ -840,10 +904,15 @@
             h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
           : null,
         (!closed && !study) || rv.whatsNext
-          ? h(closed ? 'div' : 'button', { class: 'snap-row next' + (rv.whatsNext ? '' : ' add1'), type: closed ? null : 'button', onclick: closed ? null : editNext },
-            h('div', { class: 'snap-k' }, 'Discuss next time'),
-            rv.whatsNext ? h('div', { class: 'snap-v' }, rv.whatsNext) : h('span', { class: 'add1v' }, '+ Add'))
+          ? (rv.whatsNext || closed
+            ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
+              h('div', { class: 'snap-k' }, 'Discuss next time'), h('div', { class: 'snap-v' }, rv.whatsNext))
+            // v2.46: empty: + Add, and Ideas (topic suggestions, only when asked for)
+            : h('div', { class: 'snap-row next add1', onclick: (e) => { if (!e.target.closest('.ideasbtn, .add1v')) editNext(); } },
+              h('div', { class: 'snap-k' }, 'Discuss next time'),
+              h('div', { class: 'add1b' }, ideasBtn, h('button', { class: 'add1v', type: 'button', onclick: editNext }, '+ Add'))))
           : null,
+        ideasBox,
         lastTopic ? h('div', { class: 'snap-row ltopic' },
           h('div', { class: 'snap-k' }, 'Topic last used'),
           h('div', { class: 'ltv' },
@@ -958,5 +1027,5 @@
     };
   }
 
-  RV.screens = { coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { playFill, coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

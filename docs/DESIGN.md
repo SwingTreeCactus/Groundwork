@@ -736,3 +736,14 @@ Mark asked for a restore option so people coming from Witness Work, another fiel
 - Not brought in: service time reports (not planned for Groundwork), day plans, preferences, badges, mileage.
 - The duplicate check shared by both backup imports is now `dedupe()` in js/settings.js.
 - Tests: ww 7 (new, node), smoke 336 (Witness Work import; Import contacts now offers four sources, Getting started five import choices). Others unchanged. VERSION 2.45.0, cache rvapp-v98.
+
+## 58. v2.46.0 Growth path fixed, silhouettes that fill in, Archive as a stage choice, Ideas for next time (built 2026-10-31)
+
+From Mark's screenshot and the audit (claude/app-audit.md):
+- **Growth path fixed.** The garden's stepping-stone layer (v2.36) had reused the class `.gpath`, so on the record the growth path was pinned to the top of the card under the title bar. The stones are now `.gstones`; the path sits in the flow under the progress bar.
+- **Silhouettes.** Forms still ahead are solid single-colour silhouettes (CSS filter on the real drawing, so no transparency; the generic shape until the kind is revealed). The current form sits on a meadow highlight.
+- **Fill-in moment.** After a growth or reveal moment, back on the record: the highlight starts on the old form, then moves to the new one with a quiet six-dot burst, a small pop, and the silhouette wiping away from the soil up to show the colour (about a second; skipped with reduced motion). `RV.screens.playFill(rvId, from, to)`, called from `afterVisit`.
+- **Archive as a stage choice.** The Stage list in Edit ends with "Archive…"; saving with it asks for the reason (the same archive flow). The stage under the person's name now shows a chevron, since tapping it opens the stage picker (Archive included).
+- **Ideas for next time.** When a record has nothing under Discuss next time, the row shows Ideas beside + Add. Only when tapped, the household notes, the five latest visit notes, the stage and the last topic (with its next part), never the name, address or phone, go with the topic library (id, title, question, next part) to Claude Haiku 5.5 (`RV.ai.suggestTopics`, max 600 tokens, about $0.0004 a call). Three picks come back with a few words on why; unknown ids are dropped. They are kept on the record (`rv.ideas = {after: latest visit id, picks}`) until the next visit, so reopening costs nothing. Tapping one fills Discuss next time with "Title: question" (Undo). Nothing changes in Record a visit or New contact, so recording stays fast. Privacy page updated.
+
+Tests: smoke 342, ai_cleanup 54 (Ideas: nothing sent until tapped, name not sent, fast model, unknown ids dropped, kept after reopening, fills Discuss next time), others unchanged. VERSION 2.46.0, cache rvapp-v99.

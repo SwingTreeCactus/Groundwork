@@ -230,7 +230,41 @@
     return true;
   }
 
-  RV.ai = { availabilityOf,
+  // v2.46: topic ideas for the next visit. Sends what is known about the person (household notes, recent visit notes,
+  // the last topic, never their name or address) and the topic list (id, title, question); three ids come back with a
+  // short reason each. Always the fast model: it is a small choice, not writing.
+  const IDEAS_SYSTEM = [
+    'You help a publisher in door-to-door Bible-based ministry choose what to discuss on their next visit with someone.',
+    'You get notes about the person (household notes and recent visits, newest first) and a list of conversation topics.',
+    'Pick the three topics from the list that best fit this person: what they said, asked, worried about or showed interest in.',
+    'If a last topic is given and the list has the next part of its series, include that one.',
+    'Never pick the last topic itself. Never invent topics; use only ids from the list.',
+    'For each pick give "why": a few plain words (at most 12) pointing to what in the notes makes it fit, e.g. "She worries about her son".',
+    'If the notes say almost nothing, pick broadly appealing topics and say "A good opener" or similar.',
+    'Reply with only a JSON object: {"picks": [{"id": "...", "why": "..."}]}. No other text.',
+  ].join('\n');
+  async function suggestTopics(input) {
+    const topics = (input.topics || []).filter((t) => t && t.id);
+    if (!topics.length) return [];
+    const lines = topics.map((t) => t.id + ' | ' + String(t.title || '').trim() + (t.question ? ' | ' + String(t.question).trim().slice(0, 160) : '') + (t.next ? ' | next part: ' + t.next : ''));
+    const person = [
+      input.stage ? 'Stage: ' + input.stage : '',
+      input.notes ? 'Household notes: ' + input.notes : '',
+      input.lastTopic ? 'Last topic: ' + input.lastTopic : '',
+      (input.visits || []).length ? 'Recent visits (newest first):\n' + input.visits.map((v) => '- ' + v).join('\n') : 'No visit notes yet.',
+    ].filter(Boolean).join('\n');
+    const out = await call({ model: 'claude-haiku-5-5', max_tokens: 600, system: IDEAS_SYSTEM,
+      messages: [{ role: 'user', content: 'About the person:\n' + person + '\n\nTopics (id | title | question):\n' + lines.join('\n') }] }, 30000);
+    const j = parseJson(out);
+    const ids = new Set(topics.map((t) => t.id));
+    const seen = new Set();
+    return (j && Array.isArray(j.picks) ? j.picks : [])
+      .filter((p) => p && ids.has(p.id) && !seen.has(p.id) && seen.add(p.id))
+      .slice(0, 3)
+      .map((p) => ({ id: p.id, why: String(p.why || '').trim().slice(0, 90) }));
+  }
+
+  RV.ai = { availabilityOf, suggestTopics, IDEAS_SYSTEM,
     MODELS, key, hasKey, shared, available, installId, model, cleanUp, test, AiError, parseJson, cutTooMuch, readNotes, IMPORT_SYSTEM,
     setKey: (k) => set(KEY, String(k || '').trim()),
     setModel: (m) => set(MODEL, m),

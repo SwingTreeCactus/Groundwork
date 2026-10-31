@@ -1646,8 +1646,8 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 .gtuft { width: 18px; height: 13px; } .gtuft .tuft { stroke: var(--tuft); stroke-width: 1.8; }
 .gwf { position: absolute; width: 8px; height: 8px; pointer-events: none; } .gwf svg { width: 100%; height: 100%; display: block; }
 .gwf .pc { fill: #E7B53C; } .gwf.w0 .pt { fill: var(--wf0); } .gwf.w1 .pt { fill: var(--wf1); } .gwf.w2 .pt { fill: var(--wf2); }
-.gpath { position: absolute; inset: 0 0 60px; pointer-events: none; }
-.gpath i { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: var(--stone); box-shadow: 0 2px 0 var(--stoneEdge); }
+.gstones { position: absolute; inset: 0 0 60px; pointer-events: none; }
+.gstones i { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: var(--stone); box-shadow: 0 2px 0 var(--stoneEdge); }
 /* raised wooden beds: dark soil framed by a rim, plank front, a shadow on the grass */
 .gbed { background-color: var(--soil); background-image: radial-gradient(circle, var(--soilTop) 0 1.6px, transparent 1.7px), radial-gradient(circle, var(--soilTop) 0 1.2px, transparent 1.3px); background-size: 30px 22px, 21px 17px; background-position: 0 0, 8px 6px; border-radius: 10px; box-shadow: 0 0 0 5px var(--woodTop); margin-bottom: 40px; }
 .gbed::before { content: ""; position: absolute; left: -5px; right: -5px; top: calc(100% + 5px); height: 30px; border-radius: 0 0 8px 8px;
@@ -1709,7 +1709,7 @@ body.immersive .view > div > .gscene:first-child .gsky { height: calc(250px + en
 .gshrub { position: absolute; width: 46px; height: 37px; transform: translate(-50%, -50%); }
 .gshrub .bsh { fill: var(--shade); } .gshrub .b0 { fill: var(--t2, #4F7D4C); } .gshrub .b1 { fill: var(--t1, #5E8E55); }
 .gscene[data-t="night"] .gshrub .bf { fill: #8E8B80; }
-.gpath i { background: radial-gradient(ellipse at 42% 34%, color-mix(in srgb, var(--stone) 70%, #FFFFFF) 0 35%, var(--stone) 62%); }
+.gstones i { background: radial-gradient(ellipse at 42% 34%, color-mix(in srgb, var(--stone) 70%, #FFFFFF) 0 35%, var(--stone) 62%); }
 /* milestone objects in real materials: wood, stone, iron, water, roses */
 .gsquare .o-rv .o1 { fill: #A9733F; } .gsquare .o-rv .o2 { fill: #7E532D; }
 .gsquare .o-first .o1s { stroke: #F4EFE4; } .gsquare .o-first .o2 { fill: #E3DCCD; } .gsquare .o-first .o2s { stroke: #E3DCCD; } .gsquare .o-first .oa { fill: #E5BF45; }
@@ -1922,3 +1922,33 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .topbar h1 { font-weight: 700; letter-spacing: -.02em; font-size: 1.8rem; }
 .circ .num, .atile .n, .ahead .n, .gtile .num, .ring .rw .n, .streak .big, .rates .n, .recap .n, .exrow .n, .effort .big .num, .tile .tn, .fcount, .exh b, .keypad button { letter-spacing: -.03em; }
 .conv .tcount { font-weight: 500; letter-spacing: 0; }
+
+/* v2.46: the record's growth path: forms still ahead as solid silhouettes; a growth fills the next one in */
+.gpath .pl.sil { filter: brightness(0) invert(.87) sepia(.2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gpath .pl.sil { filter: brightness(0) invert(.25) sepia(.15); } }
+:root[data-theme="dark"] .gpath .pl.sil { filter: brightness(0) invert(.25) sepia(.15); }
+.gpath .gs > span { position: relative; transition: background-color .35s ease; }
+.gpath .gs > span.cur { background: var(--mead); }
+.gpath .silov { position: absolute; inset: 6px 8px 4px; display: flex; clip-path: inset(0 0 0 0); transition: clip-path .7s cubic-bezier(.3, .7, .3, 1); }
+.gpath .silov.go { clip-path: inset(0 0 100% 0); }
+.gpath .gs > span.pop > .pl:not(.sil) { animation: gp-pop .45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes gp-pop { 0% { transform: scale(.9); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.fillfx { position: absolute; left: 50%; top: 45%; width: 0; height: 0; pointer-events: none; }
+.fillfx i { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--green2);
+  transform: rotate(var(--a)) translateY(0) scale(1); animation: gp-burst .7s ease-out forwards; }
+.fillfx i:nth-child(even) { background: var(--red); }
+@keyframes gp-burst { 0% { transform: rotate(var(--a)) translateY(0) scale(.4); } 55% { transform: rotate(var(--a)) translateY(-22px) scale(1); } 100% { transform: rotate(var(--a)) translateY(-28px) scale(0); } }
+/* the stage under the name reads as something to tap (it opens the stage picker, Archive included) */
+.ghero .gwho .gname { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; }
+.ghero .gwho .gname .icon { color: var(--muted); }
+/* v2.46: Ideas for next time (topic suggestions, only when asked for) */
+.snap-row.next.add1 .add1b { display: flex; align-items: center; gap: 6px; }
+.snap-row.next.add1 .add1v { border: 0; background: none; font: inherit; color: var(--green-t); font-weight: 600; font-size: .92rem; padding: 6px 4px; cursor: pointer; }
+.ideasbtn { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 14px; background: var(--mead); color: var(--green-t); font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 11px; cursor: pointer; }
+.ideasbtn.busy { opacity: .75; } .ideasbtn.busy .icon { animation: cleanup-pulse 1s ease-in-out infinite; }
+.ideas:empty { display: none; }
+.ideas { display: flex; flex-direction: column; gap: 6px; padding: 2px 0 4px; }
+.ideas-k { font-size: .78rem; color: var(--muted); margin: 2px 2px 0; }
+.idea { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 0; border-radius: 14px; background: var(--surface2); color: var(--fg); font: inherit; padding: 10px 12px; cursor: pointer; }
+.idea b { font-weight: 600; }
+.idea span { font-size: .84rem; color: var(--muted); }
