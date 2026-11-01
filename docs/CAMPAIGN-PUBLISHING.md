@@ -1,12 +1,14 @@
 # Groundwork: publishing campaigns to everyone (design, 2026-11-01)
 
 Status: design only, nothing built. Mark asked for this on 2026-11-01 (option 2 of the two discussed).
+Updated 2026-11-01 with Mark's answers: a published campaign is a title, dates and an explanation only (no linked
+topics or scriptures); users can hide a whole campaign; the publisher key is hidden behind a long press.
 
 ## Why
 
 Campaigns come from the organization, not from each publisher. Today every user has to type each campaign in
 by hand, so most won't. Mark should be able to schedule a campaign once from his own app and have it appear on
-every phone, with its dates and topics, without a new release.
+every phone, with its dates and explanation, without a new release.
 
 ## In one paragraph
 
@@ -14,26 +16,30 @@ Mark's copy of Groundwork gets a "Publish to everyone" switch on the campaign fo
 has entered an admin key once. Saving a published campaign sends it to a small list held by Groundwork's
 Cloudflare Worker. Every copy of Groundwork reads that list when it opens (at most every few hours), keeps it on
 the phone for offline use, and adds, updates or removes those campaigns. Users can't edit a published campaign,
-but they can hide it or hide any of its topics, and their own campaigns keep working as they do now.
+but they can hide it, and their own campaigns keep working as they do now. A published campaign is a concept,
+not a topic list: a title, its dates and an explanation of what the campaign is.
 
 ## What each person sees
 
 **Mark (publisher)**
-- Settings › About: a "Publisher key" row, shown only after a long press on the version line. He enters the key
-  once; it stays on that phone. A "Forget key" button removes it.
-- Campaign form, with a key entered: a "Publish to everyone" switch at the foot. On save:
+- Getting to the key: Menu › Settings › About, then press and hold the version line (for example "Groundwork
+  2.49.0") for about two seconds. A "Publisher key" sheet opens. He enters the key once; it stays on that phone.
+  The same press-and-hold later shows "Forget key".
+- Campaign form, with a key entered: a "Publish to everyone" switch at the top. Turned on, the form shows only
+  what a published campaign carries: Title, Start, End and Explanation (the Topic, Topics and Publications fields
+  are hidden). On save:
   - "Published. It reaches every phone within a few hours, sooner when the app is opened."
   - Errors are plain: "Couldn't publish: no connection" or "That key isn't right".
 - His published campaigns show a small "Everyone" tag in the Campaigns list. Editing one republishes it.
   Delete becomes "Remove for everyone", with a confirm.
-- The topic picker in publish mode offers only built-in topics and the 2025 tracts, because a topic Mark made
-  himself doesn't exist on anyone else's phone.
 
 **Everyone else**
-- Published campaigns appear in Campaigns under a "From Groundwork" heading, and on Today exactly like a
-  campaign they made themselves (banner, topics first in the carousel, visits tagged).
-- Opening one shows its details read-only, with two choices: "Hide this campaign" and, per topic, the usual
-  hide switch. Hidden campaigns sit in a "Hidden" fold and can be shown again.
+- The day it starts, Today shows the campaign banner with its title, and the explanation is one tap away (the
+  banner opens it). New visits are tagged with it, as with their own campaigns. The topic carousel is
+  unchanged, since a published campaign brings no topics.
+- Published campaigns are listed in Campaigns under a "From Groundwork" heading. Opening one shows the title,
+  dates and explanation read-only, with "Hide this campaign". Hidden campaigns sit in a "Hidden" fold and can be
+  shown again.
 - Settings › Campaigns: "Get campaigns from Groundwork", on by default. Off stops the check and removes the
   published campaigns from that phone (their tagged visits keep their history).
 
@@ -72,12 +78,12 @@ KV namespace so it never touches the cleanup counts.
 - **`PUT /campaigns/<id>`** and **`DELETE /campaigns/<id>`** (admin only).
   - Requires `Authorization: Bearer <key>`, checked in constant time.
   - After 10 wrong keys in an hour from one address it refuses further tries for the hour.
-  - Validates every field: lengths, dates in `YYYY-MM-DD`, end not before start, topic ids that look like
-    built-ins (`lib-…`), at most 12 topics.
+  - Validates every field: title up to 80 characters, explanation up to 2,000, dates in `YYYY-MM-DD`, end not
+    before start.
   - Rejects overlapping published campaigns.
   - Bumps `rev` on every change.
-- **Campaign shape:** `{ id, rev, title, topic, start, end, text, publications, topics: [ids], updatedAt }`.
-  These are the same fields the campaign form already has.
+- **Campaign shape:** `{ id, rev, title, start, end, text, updatedAt }`. `text` is the explanation; it maps onto
+  the existing campaign `text` field, so Today and the visit tagging need no new fields.
 - **What it stores:** only the campaigns. The GET logs nothing and stores nothing about who asked. Cloudflare
   itself sees the request, as it does for every page load of the site.
 - **Cost:** a KV read per uncached check; well inside Cloudflare's free allowance at any likely user count.
@@ -112,6 +118,8 @@ and enters the new key on his phone; the old one stops working at once.
   working, with the clash message naming "from Groundwork".
 - **Settings › Campaigns:** the "From Groundwork" heading, the switch, and the "Hidden" fold.
 - **Campaign form:** a read-only view for central campaigns, and the publish switch when a key is present.
+- **Today banner:** tapping it opens the explanation (for published and own campaigns alike).
+- **About:** press-and-hold on the version line opens the Publisher key sheet.
 - **Service worker:** no change. The check is a normal network request; the list is stored in IndexedDB, not the
   service worker cache.
 - **Backup and restore:** central campaigns are left out of backups (they come back from the server), but
@@ -136,13 +144,15 @@ Add under "What leaves your phone":
 - `merge`:
   - add, update by rev, ignore an older rev, remove;
   - hidden survives an update;
+  - a published campaign carries no topics;
   - a user's own campaign is untouched.
 - `activeCampaign`: published beats an overlapping own one; the own one returns after the published one ends.
 - Browser (smoke):
   - a stubbed list appears on Today and in Campaigns;
   - hide works;
   - the switch off removes them;
-  - the publish switch appears only with a key.
+  - the publish switch appears only with a key, and hides the topic fields when on;
+  - press-and-hold on the version opens the key sheet.
 
 ## Effort
 
@@ -154,10 +164,13 @@ About a day:
 
 Then Mark's 10-minute Cloudflare setup, above.
 
-## Decisions for Mark
+## Decisions
 
+Settled by Mark (2026-11-01):
+- Users can hide a whole published campaign.
+- The publisher key is hidden: press and hold the version line in Settings › About.
+- A published campaign is a title, dates and an explanation; no linked topics or scriptures.
+
+Still open (the recommendation is used unless Mark says otherwise):
 1. When a published campaign and a user's own campaign overlap, which wins? (Recommended: published.)
 2. "Get campaigns from Groundwork": on by default? (Recommended: yes.)
-3. Should users be able to hide a published campaign entirely, or only its topics? (Recommended: both.)
-4. Where does the publisher key go? (Recommended: hidden behind a long press in About; it could be a visible
-   row instead.)
