@@ -133,7 +133,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
   - A button to create a phone contact from a Groundwork contact (mapping name, phone, address). Mark: hold off on this for sure for now.
-- Area shapes (Mark, 2026-11-01): design written, not built: docs/AREA-SHAPES.md (project claude/area-shapes.md). Draw areas as shapes on the Contacts map (Edit areas button; shapes visible only while editing), areas made from the map, corners snap and overlaps are trimmed so shapes never overlap; contacts inside a shape get that area. Next: a mockup, then build only when Mark says.
+- Area shapes (Mark, 2026-11-01): design written, not built: docs/AREA-SHAPES.md (project claude/area-shapes.md). Draw areas as shapes on the Contacts map (Edit areas button; shapes visible only while editing), areas made from the map, corners snap and overlaps are trimmed so shapes never overlap; contacts inside a shape get that area. Mockup made 2026-11-01: design canvas "Groundwork area shapes" (https://claude.ai/artifact/5TjAXi36dQkTsju3gfJqE7): map with Edit areas, edit mode, draw by tapping (working, with snapping), draw with a crosshair, overlap trimmed, change a shape, name the area, sort contacts. Waiting on Mark: tap or crosshair, and build go-ahead.
 - Central campaign publishing (Mark, 2026-11-01): design written, not built: docs/CAMPAIGN-PUBLISHING.md (project claude/campaign-publishing.md). Mark publishes from his own app with an admin key (a Cloudflare Secret he sets himself); every app fetches, caches and merges the list. Updated with Mark's answers: published campaigns are title, dates and explanation only (no topics); users can hide a whole campaign or attach their own topics to it; key behind press-and-hold on the version line in About. Two decisions still open (overlap rule, default on). Build nothing until Mark says build.
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
@@ -146,4 +146,5 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - claude/garden-plan.md: garden spec (section 12: plant kinds and palette, built in v2.34.0).
 - claude/brand-guide.md: brand.
 - Design canvas "Garden visitors": https://claude.ai/artifact/EX832JVcy4GSFeaRhha6yC
+- Design canvas "Groundwork area shapes": https://claude.ai/artifact/5TjAXi36dQkTsju3gfJqE7
 - Design canvas "Groundwork plant kinds": https://claude.ai/artifact/7TX6CxTZr17EUpTGSAzyeL

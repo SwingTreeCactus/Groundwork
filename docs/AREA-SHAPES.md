@@ -16,3 +16,6 @@ Draw each area as a shape on the Contacts map. A contact whose map point (geotag
 - Existing contacts: a one-time "Sort N contacts into areas" that lists the moves before applying. Contacts outside every shape keep their area.
 - Address-only contacts need a connection for the one-time lookup; one added offline gets its area once the map has signal. Geotagged contacts work offline.
 - Shapes saved in settings, so they ride along in Drive backups.
+
+## Mockup
+Design canvas "Groundwork area shapes" (https://claude.ai/artifact/5TjAXi36dQkTsju3gfJqE7), 2026-11-01. Eight phone screens: the map with Edit areas; edit mode (shapes and names show, area list, New area); drawing by tapping (interactive: corners snap to neighbours' corners and edges, tap the first corner to close); drawing with a fixed crosshair and Add corner; a loosely drawn shape with the overlap trimmed; changing a shape (corner handles, side dots to add a corner, Rename, Redraw, Remove shape); naming it (an existing area without a shape, or a new name); sorting the contacts inside into the area (moves listed with ticks; contacts outside or not yet on the map left as they are).
