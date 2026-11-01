@@ -2,7 +2,8 @@
 
 Status: design only, nothing built. Mark asked for this on 2026-11-01 (option 2 of the two discussed).
 Updated 2026-11-01 with Mark's answers: a published campaign is a title, dates and an explanation only (no linked
-topics or scriptures); users can hide a whole campaign; the publisher key is hidden behind a long press.
+topics or scriptures); users can hide a whole campaign and attach their own topics to it; the publisher key is
+hidden behind a long press.
 
 ## Why
 
@@ -16,7 +17,7 @@ Mark's copy of Groundwork gets a "Publish to everyone" switch on the campaign fo
 has entered an admin key once. Saving a published campaign sends it to a small list held by Groundwork's
 Cloudflare Worker. Every copy of Groundwork reads that list when it opens (at most every few hours), keeps it on
 the phone for offline use, and adds, updates or removes those campaigns. Users can't edit a published campaign,
-but they can hide it, and their own campaigns keep working as they do now. A published campaign is a concept,
+but they can hide it or attach topics of their own choosing, and their own campaigns keep working as they do now. A published campaign is a concept,
 not a topic list: a title, its dates and an explanation of what the campaign is.
 
 ## What each person sees
@@ -35,10 +36,12 @@ not a topic list: a title, its dates and an explanation of what the campaign is.
 
 **Everyone else**
 - The day it starts, Today shows the campaign banner with its title, and the explanation is one tap away (the
-  banner opens it). New visits are tagged with it, as with their own campaigns. The topic carousel is
-  unchanged, since a published campaign brings no topics.
+  banner opens it). New visits are tagged with it, as with their own campaigns. A published campaign brings no
+  topics, so the carousel is unchanged unless the user attaches some.
 - Published campaigns are listed in Campaigns under a "From Groundwork" heading. Opening one shows the title,
-  dates and explanation read-only, with "Hide this campaign". Hidden campaigns sit in a "Hidden" fold and can be
+  dates and explanation read-only, then "Topics for this campaign" (the same picker their own campaigns use,
+  empty to start) and "Hide this campaign". Topics they attach lead Today's carousel while the campaign runs,
+  exactly as with their own campaigns. Any topic works, including ones they made. Hidden campaigns sit in a "Hidden" fold and can be
   shown again.
 - Settings › Campaigns: "Get campaigns from Groundwork", on by default. Off stops the check and removes the
   published campaigns from that phone (their tagged visits keep their history).
@@ -54,8 +57,8 @@ not a topic list: a title, its dates and an explanation of what the campaign is.
 2. **Stable ids.** A published campaign is stored as `central-<id>`; the id never changes, so visits tagged with
    it stay linked across updates.
 3. **Updates.** If the server copy is newer (`rev` higher), the phone replaces its copy. Users can't edit a
-   published campaign, so there is nothing of theirs to overwrite except the hide choices, which are kept
-   separately and survive updates.
+   published campaign's title, dates or explanation; their hide choice and attached topics are kept separately
+   and survive updates.
 4. **Removal.** If a campaign disappears from the list, the phone marks it deleted. Visits tagged with it keep
    their history, as with a user deleting their own campaign.
 5. **Offline and failures.** The last good list is kept on the phone. A failed check changes nothing and is
@@ -113,7 +116,9 @@ and enters the new key on his phone; the old one stops working at once.
   - Only when online.
   - Only when "Get campaigns from Groundwork" is on.
 - **Storage:** published campaigns live in the existing `lib` store as `kind: 'campaign'`, with
-  `central: true`, `id: 'central-<id>'` and `rev`. Hide choices: `hiddenCentral: [ids]` in settings.
+  `central: true`, `id: 'central-<id>'` and `rev`. Per-user choices are kept apart from the server copy so updates never touch them:
+  `centralPrefs: { <id>: { hidden, topics: [ids] } }` in settings. `todayTopics()` reads the attached topics
+  for an active published campaign the same way it reads `topics` on an own campaign.
 - **Logic:** `L.activeCampaign` prefers a central campaign over an overlapping own one. `L.campaignOverlap` keeps
   working, with the clash message naming "from Groundwork".
 - **Settings › Campaigns:** the "From Groundwork" heading, the switch, and the "Hidden" fold.
@@ -123,7 +128,7 @@ and enters the new key on his phone; the old one stops working at once.
 - **Service worker:** no change. The check is a normal network request; the list is stored in IndexedDB, not the
   service worker cache.
 - **Backup and restore:** central campaigns are left out of backups (they come back from the server), but
-  `hiddenCentral` is kept.
+  `centralPrefs` is kept.
 - **Handoff:** unaffected.
 
 ## Privacy page
@@ -143,7 +148,8 @@ Add under "What leaves your phone":
   - `rev` bumps.
 - `merge`:
   - add, update by rev, ignore an older rev, remove;
-  - hidden survives an update;
+  - hidden and attached topics survive an update;
+  - attached topics lead the carousel while the campaign runs;
   - a published campaign carries no topics;
   - a user's own campaign is untouched.
 - `activeCampaign`: published beats an overlapping own one; the own one returns after the published one ends.
@@ -170,6 +176,7 @@ Settled by Mark (2026-11-01):
 - Users can hide a whole published campaign.
 - The publisher key is hidden: press and hold the version line in Settings › About.
 - A published campaign is a title, dates and an explanation; no linked topics or scriptures.
+- Each user can attach topics of their own to a published campaign if they want to.
 
 Still open (the recommendation is used unless Mark says otherwise):
 1. When a published campaign and a user's own campaign overlap, which wins? (Recommended: published.)
