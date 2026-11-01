@@ -8,6 +8,7 @@ Draw each area as a shape on the Contacts map. A contact whose map point (geotag
 ## Agreed
 - **Edit areas button on the Map view.** Shapes show only while editing (tinted, with the area name); Done hides them. The map otherwise stays as it is (the v2.19.3 overlay stays gone).
 - **Make areas from the map.** In Edit areas: New area, draw the shape, name it (a new name, or an existing area from the list, which links the shape to it). Tap a shape to move corners, rename or delete it.
+- **One shape per area (Mark, 2026-11-01).** Naming a drawn shape offers only areas that have no shape yet, plus a new name. Areas that already have a shape aren't offered; a new name matching one (ignoring case and spacing, as the area picker does) is refused with a pointer to edit that area's shape instead.
 - **No overlaps.** Corners snap to a nearby corner or edge of a neighbouring shape, so shapes share borders. Anything that still overlaps is trimmed off the shape being drawn, so two shapes never cover the same ground. Clipping by a small bundled polygon library (works offline).
 
 ## Proposed, to confirm at the mockup
