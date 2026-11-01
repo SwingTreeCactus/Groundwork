@@ -109,17 +109,18 @@
   // Research Guide and publication index, 2026-10-31. No tract text is copied: titles name the tract to hand over.
   const TRACT_THEME = { id: 'tracts', name: '2025 tracts' };
   const TR = [
-    ['life-forever', 'Life forever', 'Can we enjoy life forever?', 'Ps 37:29', 25, '', 'future'],
-    ['happy-family', 'A happy family', 'How can you have a happy family?', 'Eph 5:33', 49, '', 'family'],
-    ['true-god', 'The true God', 'Who is the true God?', 'Jer 10:10', 4, 'Ps 83:18', 'god'],
-    ['prayers', 'Prayer', 'Is anyone listening to our prayers?', 'Ps 65:2', 9, '', 'prayer'],
-    ['jesus-advice', 'Jesus\u2019 advice', 'Does Jesus\u2019 advice work today?', 'Mt 7:12', 37, 'Mt 6:34', 'jesus'],
-    ['kingdom', 'God\u2019s Kingdom', 'How will God\u2019s Kingdom solve our problems?', 'Ps 37:10, 11', 33, '', 'gods-kingdom'],
-    ['no-pain', 'Pain and sadness', 'Is living without pain or sadness possible?', 'Re 21:4', 26, '', 'suffering'],
-    ['loved-ones', 'Loved ones who died', 'Will you ever see your loved ones who have died?', 'Joh 5:28, 29', 30, '', 'death'],
-    ['religions', 'All religions?', 'Do all religions please God?', 'Mt 7:14', 13, '', 'religion'],
+    ['life-forever', 'Life forever', 'Can we enjoy life forever?', 'Ps 37:29', 25, '', 1102024301],
+    ['happy-family', 'A happy family', 'How can you have a happy family?', 'Eph 5:33', 49, '', 1102024303],
+    ['true-god', 'The true God', 'Who is the true God?', 'Jer 10:10', 4, 'Ps 83:18', 1102024305],
+    ['prayers', 'Prayer', 'Is anyone listening to our prayers?', 'Ps 65:2', 9, '', 1102024307],
+    ['jesus-advice', 'Jesus\u2019 advice', 'Does Jesus\u2019 advice work today?', 'Mt 7:12', 37, 'Mt 6:34', 1102024309],
+    ['kingdom', 'God\u2019s Kingdom', 'How will God\u2019s Kingdom solve our problems?', 'Ps 37:10, 11', 33, '', 1102024311],
+    ['no-pain', 'Pain and sadness', 'Is living without pain or sadness possible?', 'Re 21:4', 26, '', 1102024313],
+    ['loved-ones', 'Loved ones who died', 'Will you ever see your loved ones who have died?', 'Joh 5:28, 29', 30, '', 1102024315],
+    ['religions', 'All religions?', 'Do all religions please God?', 'Mt 7:14', 13, '', 1102024317],
   ];
-  // v2.48.2: each tract's page on jw.org; a tract's scripture buttons open the tract itself (Mark)
-  const TRACTS = TR.map(([id, title, question, scripture, lesson, from, slug], i) => ({ id: 'tract-' + id, theme: TRACT_THEME.id, title, question, scripture, next: '', video: '', source: '', lff: { lesson, from }, tract: true, url: 'https://www.jw.org/en/library/tracts/' + slug + '/', order: i + 1 }));
+  // v2.48.2: a tract's scripture buttons open the tract itself (Mark). v2.48.3: through jw.org's finder by the tract's
+  // docid (from its jw.org page, T-ftr 1102024301 to T-rlg 1102024317), so JW Library opens it when installed, like the verses
+  const TRACTS = TR.map(([id, title, question, scripture, lesson, from, docid], i) => ({ id: 'tract-' + id, theme: TRACT_THEME.id, title, question, scripture, next: '', video: '', source: '', lff: { lesson, from }, tract: true, docid, url: 'https://www.jw.org/finder?wtlocale=E&docid=' + docid, order: i + 1 }));
   RV.library = { THEMES, TOPICS, SERIES, TRACTS, TRACT_THEME, seriesOf, byId: (id) => TOPICS.find((t) => t.id === id) || TRACTS.find((t) => t.id === id) || null };
 })(typeof window !== 'undefined' ? window : globalThis);

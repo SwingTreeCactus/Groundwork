@@ -154,7 +154,7 @@ with sync_playwright() as p:
     check(page.locator('.conv .tcar .tcard').count() == 12 and page.locator('.conv .tcar .tcard').first.get_attribute('data-id') == 'lib-tract-life-forever', 'v2.48: the carousel: the nine 2025 tracts lead, then the three switched-on topics (%d)' % page.locator('.tcard').count())
     tc = page.locator('.conv .tcar .tcard').first
     check('Tract' in tc.locator('.tband').inner_text() and 'Enjoy Life, lesson 25' in tc.inner_text() and tc.locator('a.tbtn').count() == 1, 'a tract card: its main scripture and the Enjoy Life lesson, no video')
-    check(tc.locator('a.tbtn').get_attribute('href') == 'https://www.jw.org/en/library/tracts/future/' and '37:29' in tc.locator('a.tbtn').inner_text(), 'v2.48.2: a tract card\'s scripture button opens the tract on jw.org (%s)' % tc.locator('a.tbtn').get_attribute('href'))
+    check(tc.locator('a.tbtn').get_attribute('href') == 'https://www.jw.org/finder?wtlocale=E&docid=1102024301' and '37:29' in tc.locator('a.tbtn').inner_text(), 'v2.48.2: a tract card\'s scripture button opens the tract on jw.org (%s)' % tc.locator('a.tbtn').get_attribute('href'))
     check(page.locator('text=Conversation starters').count() == 0 and page.locator('.card-head:has-text("Needs attention")').count() == 0, 'no starters card, no work lists on Home')
     check([t.split('\n')[0].strip() for t in page.locator('.tab').all_inner_texts()] == ['Home', 'Contacts', 'My garden'], 'three tabs: Home, Contacts, My garden')
     order = ev("[...document.querySelector('.home').children].map(e => e.className + (e.querySelector('.tcar, .tempty') ? ' conv' : ''))")
