@@ -61,7 +61,7 @@
         { id: 'recent', on: false },
       ],
       // v2.40: conversation topic themes (folders in Topics); the seeded library uses the first eleven
-      themes: (typeof RV !== 'undefined' && RV.library ? RV.library.THEMES : []).map((t) => Object.assign({}, t)),
+      themes: (typeof RV !== 'undefined' && RV.library ? [RV.library.TRACT_THEME].concat(RV.library.THEMES) : []).map((t) => Object.assign({}, t)),
       theme: 'system',
       accent: 'purple',
       textScale: 1,
@@ -111,6 +111,8 @@
       out.overdue30 = true;
     }
     if (!Array.isArray(out.archiveReasons) || !out.archiveReasons.length) out.archiveReasons = d.archiveReasons;
+    // v2.48: the 2025 tracts theme leads the topic themes
+    if (Array.isArray(out.themes) && typeof RV !== 'undefined' && RV.library && RV.library.TRACT_THEME && !out.themes.some((t) => t.id === 'tracts')) out.themes = [Object.assign({}, RV.library.TRACT_THEME)].concat(out.themes);
     // v2.47: Handed over (a contact given to another publisher), added for everyone, before Other
     if (!out.archiveReasons.some((r) => r.id === 'handed')) { const i = out.archiveReasons.findIndex((r) => r.id === 'other'); out.archiveReasons.splice(i < 0 ? out.archiveReasons.length : i, 0, { id: 'handed', name: 'Handed over', restorable: true, hidden: true, dnc: false }); }
     return out;

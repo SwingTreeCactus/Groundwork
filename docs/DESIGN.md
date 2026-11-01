@@ -758,3 +758,19 @@ Agreed 2026-10-30 (file, no accounts) and 2026-10-31 (Mark: the file version; th
 - **Archive reason** Handed over (restorable) is added for everyone, before Other.
 
 Tests: handoff 4 (new unit suite), smoke 352 (send with choices, download fallback, archive as Handed over, receive with note and duplicate warning, imported visits, Import page source), others unchanged. VERSION 2.47.0, cache rvapp-v101.
+
+## 60. v2.48.0 The 2025 tracts lead; handing over by link (built 2026-10-31)
+
+**2025 tracts** (Mark: prioritize them; use only each tract's main scripture and the Enjoy Life Forever! lesson that cites it, from the full book, not the introductory brochure; for two tracts no lesson cites the main scripture, so a lesson from another scripture in the tract, marked as such; the older topics just go underneath).
+- `RV.library.TRACTS` (9) and the theme "2025 tracts" (first; added for everyone). Each: a short name, the tract's own title as the question (it names the tract to hand over; no tract text is copied), its main scripture only, and `lff: {lesson, from}`:
+  Can we enjoy life forever? Ps 37:29 → 25 · How can you have a happy family? Eph 5:33 → 49 · Who is the true God? Jer 10:10 → 4 (from Ps 83:18) · Is anyone listening to our prayers? Ps 65:2 → 9 · Does Jesus' advice work today? Mt 7:12 → 37 (from Mt 6:34) · How will God's Kingdom solve our problems? Ps 37:10, 11 → 33 · Is living without pain or sadness possible? Re 21:4 → 26 · Will you ever see your loved ones who have died? Joh 5:28, 29 → 30 · Do all religions please God? Mt 7:14 → 13. Researched in the WOL Research Guide and publication index (2026-10-31).
+- Seeded switched on (the only topics that start on), for new and existing users; they lead Today's carousel (after any campaign topics), the topic chips, View all (By series: their own group first) and the Topics page (By theme and By series). Cards are banded "Tract" and show the scripture button and, in place of the video, "Enjoy Life, lesson N" (plus "from <scripture> in the tract" when it comes from another scripture). Ideas for next time is told to prefer tracts when one fits. Reset to original restores the lesson too.
+
+**Hand over by link** (agreed 2026-10-31 for this update after a received .json opened as "unsupported" and offered JW Library: a home-screen web app can't register to open files).
+- Send link is now the main button. The contact rides in the link after the `#` (deflate-raw, base64url: `#/handoff/z…`), which browsers never send to a server; no relay. It shares a short message with it ("Mark is handing Ana Ruiz over to you in Groundwork. Tap the link to add them: … No Groundwork yet? The link opens it in your browser, where you can add it to your home screen."). Without a share sheet the message is copied and the app asks before archiving. Very long handoffs (over 12,000 characters) go as a file. "Send as a file instead" keeps the v2.47 file, now with a message that says where to import it.
+- Opening the link opens Handed to you (the address bar goes back to Home). On an iPhone browser (Safari keeps a separate copy from the home-screen app) it explains in three steps, with Copy link and "Add it here".
+- Import contacts › From another publisher: paste the link or the whole message (or, if empty, Add reads the clipboard), or Choose a file.
+- Android: anything shared to Groundwork now lands on `#/shared`; a handoff (file or link text) opens Handed to you, anything else goes to the notes import as before.
+- Privacy page updated.
+
+Tests: handoff 8 (link round trip, junk), topics 7 (tracts), smoke 360 (tract cards, Send link message and link, opening it, iPhone page, paste in Import, Android share pickup, file fallback), screens 60 (a new user starts with the nine tracts). VERSION 2.48.0, cache rvapp-v102.

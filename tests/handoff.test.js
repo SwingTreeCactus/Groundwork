@@ -47,4 +47,18 @@ test('file names are safe', () => {
   assert.equal(H.fileName('Ana / Ruiz: "family"'), 'Groundwork handoff - Ana Ruiz family.json');
   assert.equal(H.fileName(''), 'Groundwork handoff - contact.json');
 });
-console.log(passed + ' passed');
+// v2.48: the link version
+(async () => {
+  const ok = async (name, fn) => { try { await fn(); passed++; console.log('  ok  ' + name); } catch (e) { console.error('FAIL  ' + name + '\n' + e.stack); process.exitCode = 1; } };
+  const d = H.pack(rv, entries, {}, { from: 'Mark', message: 'Speaks Spanish', stageKey: 'rv', now: new Date('2026-10-31T15:00:00Z') });
+  const link = await H.toLink(d, 'https://mygroundwork.app/#/home');
+  await ok('a link carries the contact after #, compressed', () => { assert.ok(link.startsWith('https://mygroundwork.app/#/handoff/z')); assert.ok(link.length < JSON.stringify(d).length * 1.4); });
+  await ok('the link reads back from a whole message', async () => assert.deepEqual(await H.fromText('Mark is handing Ana over. Open: ' + link + ' thanks'), d));
+  await ok('the raw file text reads back too', async () => assert.deepEqual(await H.fromText(JSON.stringify(d)), d));
+  await ok('broken codes and other text give nothing', async () => {
+    assert.equal(await H.fromText('https://mygroundwork.app/#/handoff/zAAAA'), null);
+    assert.equal(await H.fromText('hello'), null);
+    assert.equal(await H.fromText(JSON.stringify({ app: 'rv-app' })), null);
+  });
+  console.log(passed + ' passed');
+})();

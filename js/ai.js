@@ -238,6 +238,7 @@
     'You get notes about the person (household notes and recent visits, newest first) and a list of conversation topics.',
     'Pick the three topics from the list that best fit this person: what they said, asked, worried about or showed interest in.',
     'If a last topic is given and the list has the next part of its series, include that one.',
+    'Topics marked [tract] are the current tracts publishers carry; when one fits, prefer it.',
     'Never pick the last topic itself. Never invent topics; use only ids from the list.',
     'For each pick give "why": a few plain words (at most 12) pointing to what in the notes makes it fit, e.g. "She worries about her son".',
     'If the notes say almost nothing, pick broadly appealing topics and say "A good opener" or similar.',
@@ -246,7 +247,7 @@
   async function suggestTopics(input) {
     const topics = (input.topics || []).filter((t) => t && t.id);
     if (!topics.length) return [];
-    const lines = topics.map((t) => t.id + ' | ' + String(t.title || '').trim() + (t.question ? ' | ' + String(t.question).trim().slice(0, 160) : '') + (t.next ? ' | next part: ' + t.next : ''));
+    const lines = topics.map((t) => (t.tract ? '[tract] ' : '') + t.id + ' | ' + String(t.title || '').trim() + (t.question ? ' | ' + String(t.question).trim().slice(0, 160) : '') + (t.next ? ' | next part: ' + t.next : ''));
     const person = [
       input.stage ? 'Stage: ' + input.stage : '',
       input.notes ? 'Household notes: ' + input.notes : '',

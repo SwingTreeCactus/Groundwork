@@ -1,7 +1,7 @@
 """Browser smoke test. Run: python3 -I tests/smoke.py   (needs playwright + chromium)
 Serves the app on localhost, drives it at phone size, checks the main flows and console errors.
 Screenshots go to the folder given as the first argument (default /tmp/out/shots)."""
-import http.server, socketserver, threading, os, sys, json, functools, time
+import http.server, socketserver, threading, os, sys, json, functools, time, re
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -151,7 +151,9 @@ with sync_playwright() as p:
     check(ev('RV.store.S.lib.filter(x=>x.kind=="topic"&&!x.deletedAt&&!x.builtin).length') == 3, 'migration: all three kept as topics')
     check(ev('RV.store.S.lib.filter(x=>x.kind=="topic"&&x.builtin&&!x.showOnHome).length') == 60, 'v2.41: the 60-topic library is seeded, all switched off')
     check(page.locator('.campbar:has-text("Fall invitation")').count() == 1, 'active campaign shown as a banner on Home')
-    check(page.locator('.conv .tcar .tcard').count() == 3, 'v2.41: the carousel: Today shows the three switched-on topics (%d)' % page.locator('.tcard').count())
+    check(page.locator('.conv .tcar .tcard').count() == 12 and page.locator('.conv .tcar .tcard').first.get_attribute('data-id') == 'lib-tract-life-forever', 'v2.48: the carousel: the nine 2025 tracts lead, then the three switched-on topics (%d)' % page.locator('.tcard').count())
+    tc = page.locator('.conv .tcar .tcard').first
+    check('Tract' in tc.locator('.tband').inner_text() and 'Enjoy Life, lesson 25' in tc.inner_text() and tc.locator('a.tbtn').count() == 1, 'a tract card: its main scripture and the Enjoy Life lesson, no video')
     check(page.locator('text=Conversation starters').count() == 0 and page.locator('.card-head:has-text("Needs attention")').count() == 0, 'no starters card, no work lists on Home')
     check([t.split('\n')[0].strip() for t in page.locator('.tab').all_inner_texts()] == ['Home', 'Contacts', 'My garden'], 'three tabs: Home, Contacts, My garden')
     order = ev("[...document.querySelector('.home').children].map(e => e.className + (e.querySelector('.tcar, .tempty') ? ' conv' : ''))")
@@ -1163,10 +1165,10 @@ with sync_playwright() as p:
 
     print('v2.40: the topic library')
     page.goto(URL + '#/settings/lib/topic'); page.wait_for_selector('.tlib .tfold')
-    check(page.locator('.tlib .tfold').count() == 12 and page.locator('.tlib .tfold .nm').first.inner_text() == 'The Bible', 'eleven theme folders and Other (own topics with no theme)')
+    check(page.locator('.tlib .tfold').count() == 13 and page.locator('.tlib .tfold .nm').first.inner_text() == '2025 tracts', 'the 2025 tracts, eleven theme folders and Other (own topics with no theme)')
     page.fill('.tsearch', 'ps37'); time.sleep(0.2)
     hits = page.locator('.tlib .trow .name').all_inner_texts()
-    check(all(t in hits[:4] for t in ["God's promise for the earth", "Life under God's purpose", 'Living forever']), 'fuzzy search: "ps37" finds the Psalm 37 topics (%s)' % hits[:4])
+    check(all(t in hits[:7] for t in ["God's promise for the earth", "Life under God's purpose", 'Living forever', 'Life forever']), 'fuzzy search: "ps37" finds the Psalm 37 topics, tracts included (%s)' % hits[:7])
     page.fill('.tsearch', 'sufering prayr'); time.sleep(0.2)
     page.fill('.tsearch', 'sufering'); time.sleep(0.2)
     check(page.locator('.tlib .trow').count() >= 4, 'a misspelled word still finds its topics')
@@ -1243,7 +1245,7 @@ with sync_playwright() as p:
     ev("RV.store.renameTheme('prayer', 'Prayer and worship')")
     check(ev("RV.store.themes().find(t => t.id === 'prayer').name") == 'Prayer and worship', 'a theme can be renamed')
     ev("RV.store.deleteTheme('prayer')")
-    check(ev("RV.store.themes().length") == 10 and ev("RV.store.S.lib.find(x => x.id === '%s').theme" % tid) == 'jesus', 'deleting a theme moves its topics to the next one')
+    check(ev("RV.store.themes().length") == 11 and ev("RV.store.S.lib.find(x => x.id === '%s').theme" % tid) == 'jesus', 'deleting a theme moves its topics to the next one')
     # v2.40.1: web addresses in a topic's text are short tappable links; the edit sheet keeps the address
     lid = ev("RV.store.addLib('topic', { title: 'Link test', text: 'See https://www.jw.org/en/library/videos/ for more.', theme: 'jesus', showOnHome: true }).id")
     page.goto(URL + '#/settings/lib/topic'); page.wait_for_selector('.tlib')
@@ -1279,8 +1281,38 @@ with sync_playwright() as p:
     check(page.locator('.sheet .check').count() == 4, 'the sender picks what goes: notes, visits, plan, phone')
     page.fill('.sheet input[autocomplete="name"]', 'Mark'); page.fill('.sheet textarea', 'Lives near you')
     page.locator('.sheet .check:has-text("Phone number") input').uncheck()
+    # v2.48: Send link is the main way; with no share sheet the link and a short message are copied
+    ev("() => { window.__copied = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; }, readText: async () => window.__copied } }); }")
+    page.click('.sheet button.hosend'); page.wait_for_selector('.overlay h2:has-text("Archive Handy Person?")')
+    copied = ev("window.__copied")
+    check('Mark is handing Handy Person over to you in Groundwork' in copied and '#/handoff/z' in copied, 'Send link copies a message that says what to do, with the link')
+    page.locator('.overlay button.btn:text-is("Cancel")').last.click(); time.sleep(0.3)
+    check(not ev("RV.logic.isClosed(RV.store.S.settings, RV.store.S.rvs.find(r => r.name === 'Handy Person'))"), 'not archived until you say so')
+    link = re.search(r'https?://\S+#/handoff/\S+', copied).group(0)
+    page.goto(link); page.wait_for_selector('.sheet h2:has-text("Handed to you")')
+    check('Handy Person' in page.locator('.sheet .hocard').inner_text() and ev("location.hash") == '#/home', 'tapping the link opens Handed to you (and the address goes back to Home)')
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    ev("window.__RV_FORCE_IOS = true"); page.goto(link.replace('#/handoff', '#/home').split('#')[0] + '#/home'); page.goto(link); page.wait_for_selector('.sheet h2:has-text("Open this in Groundwork")')
+    check(page.locator('.sheet .hosteps li').count() == 3 and page.locator('.sheet button:has-text("Copy link")').count() == 1, 'on an iPhone browser: steps to open it in the home-screen app, and Copy link')
+    page.keyboard.press('Escape'); time.sleep(0.3); ev("window.__RV_FORCE_IOS = null")
+    page.goto(URL + '#/settings/import'); page.wait_for_selector('.isrc')
+    page.click('.isrc:has-text("From another publisher")'); page.wait_for_selector('.sheet h2:has-text("From another publisher")')
+    page.fill('.sheet textarea', 'hi! ' + link); page.click('.sheet button:has-text("Add")'); page.wait_for_selector('.sheet h2:has-text("Handed to you")')
+    check(True, 'pasting the link (or the whole message) in Import opens it too')
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    # Android: a handoff shared to Groundwork waits in the share cache; it opens instead of the notes import
+    ev("(t) => caches.open('rvapp-share').then(c => c.put(new Request('./__share/1-0?name=msg.txt'), new Response(t)))", copied)
+    page.goto(URL + '#/shared'); page.wait_for_selector('.sheet h2:has-text("Handed to you")')
+    check(ev("caches.open('rvapp-share').then(c => c.keys()).then(k => k.length)") == 0 and ev("location.hash") == '#/home', 'a shared handoff opens Handed to you, not the notes import')
+    page.keyboard.press('Escape'); time.sleep(0.3)
+    page.goto(URL + '#/rv/' + hid); page.wait_for_selector('.ghero')
+    page.click('button[aria-label="More actions"]'); page.wait_for_selector('.sheet .opt:has-text("Hand over")')
+    page.click('.sheet .opt:has-text("Hand over")'); page.wait_for_selector('.sheet h2:has-text("Hand over Handy Person")')
+    check(page.locator('.sheet input[autocomplete="name"]').input_value() == 'Mark', 'your name is remembered')
+    page.fill('.sheet textarea', 'Lives near you')
+    page.locator('.sheet .check:has-text("Phone number") input').uncheck()
     with page.expect_download() as dl:
-        page.click('.sheet button:has-text("Share file")')
+        page.click('.sheet button:has-text("Send as a file instead")')
     path = dl.value.path(); name = dl.value.suggested_filename
     data = json.load(open(path))
     check(name == 'Groundwork handoff - Handy Person.json' and data['app'] == 'groundwork-handoff' and data['from'] == 'Mark' and data['contact']['phone'] == '' and len(data['visits']) == 2 and data['contact']['stage'] == 'rv', 'without a share sheet the file downloads, with what was chosen (%s)' % name)

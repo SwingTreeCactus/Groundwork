@@ -144,12 +144,14 @@
         let groups;
         if (mode === 'series') {
           const LIB = RV.library, used = new Set();
-          groups = LIB.SERIES.map((sr) => {
+          const tracts = all.filter((x) => x.tract);
+          tracts.forEach((x) => used.add(x.id));
+          groups = (tracts.length ? [{ t: { id: 's:tracts', name: '2025 tracts', series: true }, items: tracts }] : []).concat(LIB.SERIES.map((sr) => {
             const items = sr.topics.map((id) => all.find((x) => x.builtin === id)).filter(Boolean);
             items.forEach((x) => used.add(x.id));
             const [y, m] = sr.ran.split('-');
             return { t: { id: 's:' + sr.id, name: sr.name, series: true, ran: U.MONTHS[+m - 1] + ' ' + y }, items, parts: (x) => 'Part ' + (sr.topics.indexOf(x.builtin) + 1) };
-          }).filter((g) => g.items.length);
+          }).filter((g) => g.items.length));
           const rest = all.filter((x) => !used.has(x.id));
           if (rest.length) groups.push({ t: { id: 's:', name: 'Not in a series', series: true }, items: rest });
         } else {
@@ -834,13 +836,64 @@
           location.hash = '#/rv/' + rec.id;
         } }, 'Add contact'))));
   }
-  async function handoffImport() {
-    const file = await pickFile('.json,application/json');
-    if (!file) return;
-    let data = null;
-    try { data = JSON.parse(file.text); } catch (e) { /* not JSON */ }
-    if (!RV.handoff.isHandoff(data)) { toast('That isn\u2019t a Groundwork handoff file.'); return; }
-    handoffSheet(data);
+  // v2.48: Import › From another publisher: paste the link (or the whole message), or choose a file
+  function handoffImport() {
+    const box = h('textarea', { placeholder: 'Paste the link or the whole message here', 'aria-label': 'Handoff link', style: { minHeight: '90px' } });
+    sheet('From another publisher', (close) => h('div', null,
+      h('p', { class: 'muted', style: { marginTop: 0 } }, 'When another publisher hands someone over to you, they send a link (or a file). Tap the link, or paste it here.'),
+      field('Link', box),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', type: 'button', onclick: async () => {
+          const file = await pickFile('.json,application/json');
+          if (!file) return;
+          const data = await RV.handoff.fromText(file.text);
+          if (!data) { toast('That isn\u2019t a Groundwork handoff file.'); return; }
+          close(); handoffSheet(data);
+        } }, 'Choose a file'),
+        h('button', { class: 'btn primary', type: 'button', onclick: async () => {
+          let text = box.value;
+          if (!text.trim() && navigator.clipboard && navigator.clipboard.readText) { try { text = await navigator.clipboard.readText(); } catch (e) { /* ignore */ } }
+          const data = await RV.handoff.fromText(text);
+          if (!data) { toast('No handoff link found in that text.'); box.focus(); return; }
+          close(); handoffSheet(data);
+        } }, 'Add'))));
+  }
+  // A handoff link opened: on an iPhone, a link opens Safari, whose storage is separate from Groundwork on the home
+  // screen, so explain and offer to copy the link (or add it here anyway). Everywhere else it opens straight away.
+  const iosBrowser = () => /iPhone|iPad|iPod/.test(navigator.userAgent || '') && !navigator.standalone && !(root.matchMedia && root.matchMedia('(display-mode: standalone)').matches);
+  async function openHandoffCode(code) {
+    const data = await RV.handoff.fromCode(code);
+    if (!data) { toast('This handoff link is incomplete. Ask them to send it again.'); return; }
+    const ios = root.__RV_FORCE_IOS != null ? !!root.__RV_FORCE_IOS : iosBrowser(); // the override is for tests
+    if (!ios) return handoffSheet(data);
+    const link = location.origin + location.pathname + '#/handoff/' + code;
+    const name = (data.contact && data.contact.name) || 'this contact';
+    sheet('Open this in Groundwork', (close) => h('div', null,
+      h('p', { style: { marginTop: 0 } }, (data.from ? data.from + ' is' : 'Someone is') + ' handing ' + name + ' over to you.'),
+      h('p', { class: 'muted' }, 'On iPhone, links open in Safari, which keeps its own separate copy of Groundwork. To add ' + name + ' to the Groundwork on your home screen:'),
+      h('ol', { class: 'hosteps' },
+        h('li', null, 'Tap Copy link below.'),
+        h('li', null, 'Open Groundwork from your home screen.'),
+        h('li', null, 'Go to Menu \u203A Backup and import \u203A Import contacts \u203A From another publisher, and tap Add.')),
+      h('p', { class: 'muted small' }, 'Don\u2019t have Groundwork on your home screen? Tap Share, then Add to Home Screen, first.'),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', type: 'button', onclick: () => { close(); handoffSheet(data); } }, 'Add it here'),
+        h('button', { class: 'btn primary', type: 'button', onclick: async () => {
+          try { await navigator.clipboard.writeText(link); toast('Link copied. Now open Groundwork from your home screen.', { seconds: 6 }); } catch (e) { toast('Could not copy. Press and hold the address bar to copy it.'); }
+        } }, 'Copy link'))));
+  }
+  // Something shared to Groundwork (Android share sheet) that is a handoff: a file or a link. Opens it and returns true.
+  async function takeHandoffShare() {
+    if (!root.caches) return false;
+    try {
+      const c = await caches.open(SHARE_CACHE);
+      for (const k of await c.keys()) {
+        const r = await c.match(k);
+        const data = await RV.handoff.fromText(await r.text());
+        if (data) { await c.delete(k); handoffSheet(data); return true; }
+      }
+    } catch (e) { /* ignore */ }
+    return false;
   }
 
   async function restoreFlow() {
@@ -1248,7 +1301,7 @@
       await restoreData(await D.fetchBackup(list[0].id));
     } catch (e) { toast(e.message || 'Could not read Drive.'); }
   }
-  RV.importers = { handoff: handoffImport, handoffSheet, ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
+  RV.importers = { handoff: handoffImport, handoffSheet, openHandoffCode, takeHandoffShare, ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
 
   function about() {
     return page('About', [

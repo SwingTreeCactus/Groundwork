@@ -51,7 +51,7 @@ with sync_playwright() as p:
     pg.goto(base+'#/home'); pg.wait_for_selector('.home'); shot('today')
     n_today = pg.evaluate("RV.logic.todaySet(RV.store.items(), new Date()).length")
     check(pg.locator('.topbar h1').inner_text().strip().startswith('Today'), 'Home is titled Today')
-    check(pg.locator('.tempty a:has-text("Choose topics")').count()==1, 'with no topics on, Conversations points to Choose topics')
+    check(pg.locator('.tcar .tcard').first.get_attribute('data-id') == 'lib-tract-life-forever' and pg.locator('.tcar .tcard').count()==9, 'v2.48: a new user starts with the nine 2025 tracts on Today')
     check(pg.locator('.seeline').inner_text().startswith(str(n_today)), 'one line: %d people to see today' % n_today)
     check(pg.locator('.gtile, .cgrid, .almost, .upnext, .sec.today').count()==0, 'no tiles and no list of people')
     check(pg.locator('.tabbar .dot').count()==0, 'no count on the Home tab')

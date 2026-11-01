@@ -161,12 +161,16 @@
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
+  // v2.48: where a tract's scripture is taught in Enjoy Life Forever! (the book, not a link)
+  const lffLine = (x, cls) => (x && x.lff && x.lff.lesson ? h('div', { class: 'tlff' + (cls ? ' ' + cls : '') },
+    icon('book', 16), h('span', null, h('b', null, 'Enjoy Life, lesson ' + x.lff.lesson), x.lff.from ? ' \u00B7 from ' + x.lff.from + ' in the tract' : '')) : null);
   // read-only view for use at the door
   function topicView(x) {
     sheet(x.title, (close) =>
       h('div', { class: 'tview' },
         x.question ? h('p', { class: 'tq' }, '“', ...linkify(x.question), '”') : null,
         x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture)) : null,
+        lffLine(x, 'tline'),
         x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Linking question'), h('div', null, ...linkify(x.next))) : null,
         // v2.41: where it sits in its series, and a way on to the next part
         ...seriesOfItem(x).map((si) => h('div', { class: 'tline tser' }, h('span', { class: 'muted small' }, si.series.name + ' \u00B7 part ' + si.part + ' of ' + si.of),
@@ -273,6 +277,7 @@
   const seriesOfItem = (x) => (x && x.builtin && LIB ? LIB.seriesOf(x.builtin) : []);
   const libItem = (builtinId) => S.lib.find((y) => y.id === 'lib-' + builtinId && !y.deletedAt) || null;
   function orderKey(x) {
+    if (x.tract) return -1000 + (x.order || 0); // v2.48: the 2025 tracts lead
     const s = seriesOfItem(x)[0];
     if (s) return LIB.SERIES.indexOf(s.series) * 10 + s.part;
     return x.builtin ? 5000 + (x.order || 0) : 9000 + (x.order || 0);
@@ -308,7 +313,7 @@
     };
     return h('article', { class: 'tcard' + (x._camp ? ' camp' : ''), 'data-id': x.id, role: 'group', 'aria-label': x.title },
       h('div', { class: 'tband' },
-        h('span', { class: 'tth' }, x._camp ? 'Campaign' : themeName(x.theme)),
+        h('span', { class: 'tth' }, x._camp ? 'Campaign' : x.tract ? 'Tract' : themeName(x.theme)),
         s ? h('span', { class: 'tpart' }, 'Part ' + s.part + ' of ' + s.of) : null,
         h('span', { class: 'tsprout', 'aria-hidden': 'true' }),
         o.noX ? null : h('button', { class: 'tx', type: 'button', 'aria-label': 'Remove ' + x.title + ' from Today', onclick: remove }, icon('x', 16))),
@@ -316,6 +321,7 @@
         h('div', { class: 'tt' }, x.title),
         x.question ? h('div', { class: 'tq' }, '“', ...linkify(x.question), '”') : x.text ? h('div', { class: 'tq plain' }, ...linkify(x.text)) : h('div', { class: 'tq' }),
         h('div', { class: 'tbtns' }, ...refButtons(x.scripture), x.video ? ext(x.video, 'tbtn' + (x.scripture ? ' soft' : ''), [icon('play', 16), 'Video']) : null),
+        lffLine(x),
         x.next ? h('button', { class: 'tlinkq', type: 'button', onclick: (e) => { e.stopPropagation(); if (nxt) goToTopic(nxt); else topicView(x); } },
           h('span', { class: 'k' }, 'Linking question'), h('span', { class: 'v' }, x.next, nxt ? icon('right', 16) : null)) : null));
   }
@@ -384,6 +390,8 @@
           body.replaceChildren(...groupByTheme(items).flatMap((g) => [h('div', { class: 'vag' }, g.name), ...g.items.map((x) => row(x))]));
         } else {
           const out = [], used = new Set();
+          const tr = items.filter((x) => x.tract);
+          if (tr.length) { out.push(h('div', { class: 'vag' }, '2025 tracts')); tr.forEach((x) => { used.add(x.id); out.push(row(x)); }); }
           for (const s of LIB.SERIES) {
             const inS = s.topics.map((id) => items.find((x) => x.builtin === id)).filter(Boolean);
             if (!inS.length) continue;
@@ -883,7 +891,7 @@
           stage: L.shownName(S.settings, rv.stage), notes: rv.notes || '',
           lastTopic: lt ? lt.title + (nx ? ' (next part: ' + nx.title + ')' : '') : '',
           visits: it.entries.filter((e) => e.type === 'visit' && e.text).slice(0, 5).map((e) => U.fmtDate(e.at) + ': ' + String(e.text).slice(0, 400)),
-          topics: topicsAll.map((t) => ({ id: t.id, title: t.title, question: t.question || t.text || '', next: (nextInSeries(t) || {}).title || '' })),
+          topics: topicsAll.map((t) => ({ id: t.id, tract: !!t.tract, title: t.title, question: t.question || t.text || '', next: (nextInSeries(t) || {}).title || '' })),
         });
         ST.updateRv(rv.id, { ideas: { after: ideasKey, at: U.nowISO(), picks } });
         if (!picks.length) toast('No ideas this time.');

@@ -59,7 +59,39 @@
     return { rv, entries };
   }
 
-  const api = { KIND, pack, unpack, isHandoff, fileName };
+  // v2.48: the handoff as a link. The packed contact rides in the part after "#", which the browser never sends to a
+  // server: https://mygroundwork.app/#/handoff/z<base64url of deflate-raw JSON> ("j" when compression is unavailable).
+  const B64 = (bytes) => { let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const UNB64 = (str) => { const b = atob(String(str).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(str).length + 3) % 4)); const out = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) out[i] = b.charCodeAt(i); return out; };
+  async function pipe(bytes, Stream, mode) {
+    const s = new Blob([bytes]).stream().pipeThrough(new Stream(mode));
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  }
+  async function toCode(data) {
+    const raw = new TextEncoder().encode(JSON.stringify(data));
+    if (typeof CompressionStream !== 'undefined') return 'z' + B64(await pipe(raw, CompressionStream, 'deflate-raw'));
+    return 'j' + B64(raw);
+  }
+  async function fromCode(code) {
+    const c = String(code || '').trim();
+    if (!/^[zj][A-Za-z0-9_-]+$/.test(c)) return null;
+    try {
+      const bytes = UNB64(c.slice(1));
+      const raw = c[0] === 'z' ? await pipe(bytes, DecompressionStream, 'deflate-raw') : bytes;
+      const d = JSON.parse(new TextDecoder().decode(raw));
+      return isHandoff(d) ? d : null;
+    } catch (e) { return null; }
+  }
+  const toLink = async (data, base) => String(base || '').replace(/[#?].*$/, '').replace(/\/?$/, '/') + '#/handoff/' + (await toCode(data));
+  // a handoff found in any text: a pasted link or message, or the raw file contents
+  async function fromText(text) {
+    const t = String(text || '');
+    const m = /#\/handoff\/([zj][A-Za-z0-9_-]+)/.exec(t);
+    if (m) return fromCode(m[1]);
+    try { const d = JSON.parse(t); return isHandoff(d) ? d : null; } catch (e) { return null; }
+  }
+
+  const api = { KIND, pack, unpack, isHandoff, fileName, toCode, fromCode, toLink, fromText };
   RV.handoff = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

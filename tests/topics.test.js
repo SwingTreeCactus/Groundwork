@@ -25,6 +25,16 @@ test('series: 27, every part a real topic, seriesOf gives the part', () => {
   assert.deepEqual(LIB.seriesOf(s.topics[1]).find((x) => x.series === s), { series: s, part: 2, of: s.topics.length });
   assert.ok(LIB.TOPICS.filter((t) => !LIB.seriesOf(t.id).length).length <= 4);
 });
+test('the 2025 tracts: nine, one main scripture each, an Enjoy Life lesson each', () => {
+  assert.equal(LIB.TRACTS.length, 9);
+  for (const t of LIB.TRACTS) {
+    assert.equal(T.parseRefs(t.scripture).length, 1, t.title);
+    assert.ok(t.lff.lesson >= 1 && t.lff.lesson <= 60, t.title);
+    assert.ok(t.question.endsWith('?'), t.title);
+  }
+  assert.deepEqual(LIB.TRACTS.filter((t) => t.lff.from).map((t) => t.lff.from), ['Ps 83:18', 'Mt 6:34']);
+  assert.equal(LIB.byId('tract-kingdom').lff.lesson, 33);
+});
 test('references parse: verse lists, ranges, two refs, full and short book names', () => {
   const p = (s) => T.parseRefs(s).map((r) => [r.book, r.ch, r.from, r.to]);
   assert.deepEqual(p('Ps 37:10, 11 or Isa 9:6, 7'), [[19, 37, 10, 11], [23, 9, 6, 7]]);

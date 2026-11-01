@@ -122,6 +122,13 @@
       add.push({ id, kind: 'topic', builtin: t.id, title: t.title, question: t.question, scripture: t.scripture, next: t.next, video: t.video, source: t.source,
         theme: t.theme, text: '', tags: [], showOnHome: false, active: false, order: i + 1, updatedAt: U.nowISO(), deletedAt: null });
     });
+    // v2.48: the 2025 tracts, switched on (the only topics that start on)
+    (RV.library.TRACTS || []).forEach((t) => {
+      const id = 'lib-' + t.id;
+      if (have.has(id)) return;
+      add.push({ id, kind: 'topic', builtin: t.id, tract: true, title: t.title, question: t.question, scripture: t.scripture, next: '', video: '', source: '', lff: t.lff,
+        theme: t.theme, text: '', tags: [], showOnHome: true, active: false, order: t.order, updatedAt: U.nowISO(), deletedAt: null });
+    });
     if (!add.length) return;
     S.lib.push(...add);
     await DB.putMany('lib', add);
@@ -130,7 +137,7 @@
     const o = S.lib.find((x) => x.id === id);
     const t = o && o.builtin && RV.library ? RV.library.byId(o.builtin) : null;
     if (!t) return null;
-    return updateLib(id, { title: t.title, question: t.question, scripture: t.scripture, next: t.next, video: t.video, source: t.source, text: '' });
+    return updateLib(id, Object.assign({ title: t.title, question: t.question, scripture: t.scripture, next: t.next, video: t.video, source: t.source, text: '' }, t.lff ? { lff: t.lff } : {}));
   }
   // themes: an ordered list in settings; deleting one moves its topics to the next (or the one before)
   const themes = () => (S.settings.themes || []).slice();

@@ -712,35 +712,57 @@
       const res = ST.setStage(rvId, closed.id, { reason: 'handed' });
       if (res) toast('Handed over. ' + rv.name + ' is archived here.', { seconds: 6, actions: [{ label: 'Undo', fn: res.undo }] });
     };
+    const build = () => {
+      try { localStorage.setItem(FROM_KEY, from.value.trim()); } catch (e) { /* ignore */ }
+      const pick = (k) => (inc[k] ? inc[k].cb.checked : true);
+      const shown = L.shownStage(S.settings, rv.stage) || {}, firstKey = (L.shownStages(S.settings)[0] || {}).key;
+      const stageKey = shown.study ? 'study' : shown.key === firstKey ? 'first' : 'rv'; // generic, so it maps onto anyone's stages
+      return RV.handoff.pack(rv, it ? it.entries : [], { notes: pick('notes'), visits: pick('visits'), next: pick('next'), phone: pick('phone') }, { from: from.value, message: msg.value, stageKey });
+    };
+    // v2.48: the message that goes with it tells the other person what to do
+    const intro = () => (from.value.trim() ? from.value.trim() + ' is' : 'I\u2019m') + ' handing ' + rv.name + ' over to you in Groundwork.';
+    const askArchive = async (what) => { if (await confirmDialog({ title: 'Archive ' + rv.name + '?', message: what + ' Once you\u2019ve sent it, archive ' + first + ' here as Handed over.', confirmText: 'Archive' })) archive(); };
+    async function sendFile(close, data) {
+      const name = RV.handoff.fileName(rv.name);
+      const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+      let file = null;
+      try { file = new File([blob], name, { type: 'application/json' }); } catch (e) { file = null; }
+      const text = intro() + ' To add them: open Groundwork, then Menu \u203A Backup and import \u203A Import contacts \u203A From another publisher, and choose this file.';
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Groundwork: ' + rv.name, text }); close(); archive(); }
+        catch (e) { if (!e || e.name !== 'AbortError') toast('Could not share the file.'); }
+        return;
+      }
+      // no share sheet (most computers): save the file, then ask before archiving
+      const a = h('a', { href: URL.createObjectURL(blob), download: name, style: { display: 'none' } });
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      close();
+      askArchive('The file is saved.');
+    }
+    async function sendLink(close) {
+      const data = build();
+      const link = await RV.handoff.toLink(data, location.origin + location.pathname);
+      if (link.length > 12000) { toast('That\u2019s too much for a link, so it goes as a file.'); return sendFile(close, data); }
+      const text = intro() + ' Tap the link to add them:\n' + link + '\n\nNo Groundwork yet? The link opens it in your browser, where you can add it to your home screen.';
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Groundwork: ' + rv.name, text }); close(); archive(); }
+        catch (e) { if (!e || e.name !== 'AbortError') toast('Could not share the link.'); }
+        return;
+      }
+      try { await navigator.clipboard.writeText(text); } catch (e) { toast('Could not copy the link.'); return; }
+      close();
+      askArchive('The link and a short message are copied. Paste them into a message to them.');
+    }
     sheet('Hand over ' + rv.name, (close) => h('div', null,
-      h('p', { class: 'muted', style: { marginTop: 0 } }, 'Makes a small file with ' + first + ' for another publisher. Send it however you like; they open it in Groundwork. Afterwards ' + first + ' is archived here as Handed over.'),
+      h('p', { class: 'muted', style: { marginTop: 0 } }, 'Sends ' + first + ' to another publisher as a link, by any app you like. They tap it and add ' + first + ' in Groundwork. Afterwards ' + first + ' is archived here as Handed over.'),
       field('Your name', from),
       field('A note for them (optional)', msg),
       Object.values(inc).some(Boolean) ? h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Include'), ...Object.values(inc).filter(Boolean).map((x) => x.el)) : null,
-      h('div', { class: 'muted small', style: { margin: '-2px 2px 12px' } }, 'Name, address and area always go. The file isn\u2019t locked, so send it only to the person it\u2019s for.'),
+      h('div', { class: 'muted small', style: { margin: '-2px 2px 12px' } }, 'Name, address and area always go. Anyone with the link can open it, so send it only to the person it\u2019s for.'),
       h('div', { class: 'actions' },
         h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-        h('button', { class: 'btn primary', type: 'button', onclick: async () => {
-          try { localStorage.setItem(FROM_KEY, from.value.trim()); } catch (e) { /* ignore */ }
-          const pick = (k) => (inc[k] ? inc[k].cb.checked : true);
-          const shown = L.shownStage(S.settings, rv.stage) || {}, firstKey = (L.shownStages(S.settings)[0] || {}).key;
-          const stageKey = shown.study ? 'study' : shown.key === firstKey ? 'first' : 'rv'; // generic, so it maps onto anyone's stages
-          const data = RV.handoff.pack(rv, it ? it.entries : [], { notes: pick('notes'), visits: pick('visits'), next: pick('next'), phone: pick('phone') }, { from: from.value, message: msg.value, stageKey });
-          const name = RV.handoff.fileName(rv.name);
-          const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
-          let file = null;
-          try { file = new File([blob], name, { type: 'application/json' }); } catch (e) { file = null; }
-          if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ files: [file], title: 'Groundwork: ' + rv.name }); close(); archive(); }
-            catch (e) { if (!e || e.name !== 'AbortError') toast('Could not share the file.'); }
-            return;
-          }
-          // no share sheet (most computers): save the file, then ask before archiving
-          const a = h('a', { href: URL.createObjectURL(blob), download: name, style: { display: 'none' } });
-          document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-          close();
-          if (await confirmDialog({ title: 'Archive ' + rv.name + '?', message: 'The file is saved. Once you\u2019ve sent it, archive ' + first + ' here as Handed over.', confirmText: 'Archive' })) archive();
-        } }, icon('share', 18), 'Share file'))));
+        h('button', { class: 'btn primary hosend', type: 'button', onclick: () => sendLink(close) }, icon('share', 18), 'Send link')),
+      h('button', { class: 'link-quiet hofile', type: 'button', onclick: () => sendFile(close, build()) }, 'Send as a file instead')));
   }
 
   async function restoreFlow(rvId) {

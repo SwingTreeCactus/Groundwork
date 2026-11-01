@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v101';
+const CACHE = 'rvapp-v102';
 const ASSETS = [
   './',
   './index.html',
@@ -77,7 +77,7 @@ async function takeShare(req) {
     const text = [form.get('title'), form.get('text'), form.get('url')].filter((x) => typeof x === 'string' && x.trim()).join('\n\n');
     if (text) await put(((form.get('title') || 'Shared note') + '').slice(0, 60).replace(/[\\/]/g, '-') + '.txt', new Blob([text], { type: 'text/plain' }));
   } catch (e) { /* open the import screen anyway */ }
-  return Response.redirect('./#/settings/notes', 303);
+  return Response.redirect('./#/shared', 303); // v2.48: the app decides: a handoff opens it, anything else goes to the notes import
 }
 
 self.addEventListener('fetch', (event) => {

@@ -1956,3 +1956,12 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .hocard { padding: 14px 16px; margin-bottom: 12px; background: var(--surface2); box-shadow: none; }
 .hocard b { font-size: 1.1rem; }
 .homsg { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); white-space: pre-wrap; }
+/* v2.48: a tract's Enjoy Life lesson, under its scripture */
+.tlff { display: flex; align-items: flex-start; gap: 7px; margin-top: 12px; font-size: .88rem; color: var(--muted); }
+.tlff b { color: var(--fg); font-weight: 600; }
+.tlff .icon { flex: none; margin-top: 1px; color: var(--green-t); }
+.tview .tlff { margin-top: 0; }
+/* v2.48: hand over: the file option, and the iPhone steps */
+.hofile { display: block; margin: 12px auto 0; }
+.hosteps { margin: 4px 0 10px; padding-left: 22px; line-height: 1.5; }
+.hosteps li { margin: 4px 0; }

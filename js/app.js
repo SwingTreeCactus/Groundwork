@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.47.0';
+  RV.VERSION = '2.48.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -32,6 +32,18 @@
     }
   }
 
+  let sharing = false;
+  async function routeShared() {
+    if (!root.caches || sharing) return;
+    sharing = true;
+    try {
+      if (!(await caches.has('rvapp-share'))) return;
+      if (RV.importers && RV.importers.takeHandoffShare && await RV.importers.takeHandoffShare()) return;
+      const k = await (await caches.open('rvapp-share')).keys();
+      if (k && k.length) location.hash = '#/settings/notes';
+    } catch (e) { /* ignore */ } finally { sharing = false; }
+  }
+
   // ---------- routing ----------
   function parts() { return location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent); }
   function buildScreen() {
@@ -40,6 +52,10 @@
     switch (p[0]) {
       case undefined: case 'home': return SC.home();
       case 'today': location.replace('#/home'); return SC.home(); // v2.39: the stage tiles are gone
+      // v2.48: a handoff link (the contact rides after the #); the address bar goes back to Home
+      case 'handoff': { const code = p[1]; history.replaceState(null, '', '#/home'); setTimeout(() => RV.importers && RV.importers.openHandoffCode(code), 0); return SC.home(); }
+      // v2.48: something shared to Groundwork from another app (Android): a handoff opens it, anything else goes to the notes import
+      case 'shared': history.replaceState(null, '', '#/home'); setTimeout(routeShared, 0); return SC.home();
       case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
@@ -236,8 +252,8 @@
     if (!location.hash) history.replaceState(null, '', '#/home');
     render();
     showLock();
-    // v2.31: notes shared from another app wait in a cache; open the notes import to take them
-    if (root.caches && !/^#\/settings\/notes/.test(location.hash)) caches.has('rvapp-share').then((has) => has && caches.open('rvapp-share')).then((c) => c && c.keys()).then((k) => { if (k && k.length) location.hash = '#/settings/notes'; }).catch(() => {});
+    // v2.31: notes shared from another app wait in a cache; open the notes import to take them (v2.48: a shared handoff opens it)
+    if (!/^#\/settings\/notes/.test(location.hash)) routeShared();
     // the week's-end recap, once, after the Sunday-to-Saturday week ends (also when the app comes back on Sunday)
     setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });

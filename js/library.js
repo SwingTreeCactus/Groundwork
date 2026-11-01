@@ -103,5 +103,22 @@
   const SERIES = S.map(([id, name, ran, topics]) => ({ id, name, ran, topics }));
   // the series a topic belongs to, first one first, with its place in each
   const seriesOf = (id) => SERIES.filter((s) => s.topics.includes(id)).map((s) => ({ series: s, part: s.topics.indexOf(id) + 1, of: s.topics.length }));
-  RV.library = { THEMES, TOPICS, SERIES, seriesOf, byId: (id) => TOPICS.find((t) => t.id === id) || null };
+  // v2.48: the nine 2025 tracts lead the topics. Each: a short name, the tract's own title (its question), only its
+  // main scripture, and the Enjoy Life Forever! (full book) lesson that cites that scripture. For two tracts no lesson
+  // cites the main scripture, so the lesson comes from another scripture in the tract ("from"). Researched in the WOL
+  // Research Guide and publication index, 2026-10-31. No tract text is copied: titles name the tract to hand over.
+  const TRACT_THEME = { id: 'tracts', name: '2025 tracts' };
+  const TR = [
+    ['life-forever', 'Life forever', 'Can we enjoy life forever?', 'Ps 37:29', 25, ''],
+    ['happy-family', 'A happy family', 'How can you have a happy family?', 'Eph 5:33', 49, ''],
+    ['true-god', 'The true God', 'Who is the true God?', 'Jer 10:10', 4, 'Ps 83:18'],
+    ['prayers', 'Prayer', 'Is anyone listening to our prayers?', 'Ps 65:2', 9, ''],
+    ['jesus-advice', 'Jesus\u2019 advice', 'Does Jesus\u2019 advice work today?', 'Mt 7:12', 37, 'Mt 6:34'],
+    ['kingdom', 'God\u2019s Kingdom', 'How will God\u2019s Kingdom solve our problems?', 'Ps 37:10, 11', 33, ''],
+    ['no-pain', 'Pain and sadness', 'Is living without pain or sadness possible?', 'Re 21:4', 26, ''],
+    ['loved-ones', 'Loved ones who died', 'Will you ever see your loved ones who have died?', 'Joh 5:28, 29', 30, ''],
+    ['religions', 'All religions?', 'Do all religions please God?', 'Mt 7:14', 13, ''],
+  ];
+  const TRACTS = TR.map(([id, title, question, scripture, lesson, from], i) => ({ id: 'tract-' + id, theme: TRACT_THEME.id, title, question, scripture, next: '', video: '', source: '', lff: { lesson, from }, tract: true, order: i + 1 }));
+  RV.library = { THEMES, TOPICS, SERIES, TRACTS, TRACT_THEME, seriesOf, byId: (id) => TOPICS.find((t) => t.id === id) || TRACTS.find((t) => t.id === id) || null };
 })(typeof window !== 'undefined' ? window : globalThis);
