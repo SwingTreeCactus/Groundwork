@@ -119,11 +119,14 @@
     return out;
   }
   // each verse a tap that opens it in JW Library (or jw.org); nothing of the Bible text is copied
-  function refChips(scripture) {
+  // v2.48.2: on a tract, the scripture opens the tract on jw.org instead of the verse
+  function refChips(scripture, url) {
     const refs = TP ? TP.parseRefs(scripture) : [];
-    if (!refs.length) return scripture ? h('span', { class: 'vrefs' }, h('span', { class: 'vref plain' }, scripture)) : null;
-    return h('span', { class: 'vrefs' }, refs.map((r) => ext(TP.linkFor(r), 'vref', [icon('book', 14), r.label])));
+    if (!refs.length) return scripture ? h('span', { class: 'vrefs' }, url ? ext(url, 'vref', [icon('book', 14), scripture]) : h('span', { class: 'vref plain' }, scripture)) : null;
+    return h('span', { class: 'vrefs' }, refs.map((r) => ext(url || TP.linkFor(r), 'vref', [icon('book', 14), r.label])));
   }
+  // the jw.org page of a library tract (also for tracts saved before v2.48.2, found by their library id)
+  const tractUrl = (x) => (x && x.tract && LIB ? (LIB.byId(x.builtin || String(x.id || '').replace(/^lib-/, '')) || {}).url || '' : '');
   function libSheet(kind, item, opts) {
     // kind is always 'topic'; scriptures and conversation starters live inside topics
     opts = opts || {};
@@ -169,7 +172,7 @@
     sheet(x.title, (close) =>
       h('div', { class: 'tview' },
         x.question ? h('p', { class: 'tq' }, '“', ...linkify(x.question), '”') : null,
-        x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture)) : null,
+        x.scripture ? h('div', { class: 'tline' }, refChips(x.scripture, tractUrl(x))) : null,
         lffLine(x, 'tline'),
         x.next ? h('div', { class: 'tline' }, h('span', { class: 'muted small' }, 'Linking question'), h('div', null, ...linkify(x.next))) : null,
         // v2.41: where it sits in its series, and a way on to the next part
@@ -320,15 +323,15 @@
       h('div', { class: 'tin', role: 'button', tabindex: '0', onclick: () => topicView(x), onkeydown: (e) => { if (e.key === 'Enter') topicView(x); } },
         h('div', { class: 'tt' }, x.title),
         x.question ? h('div', { class: 'tq' }, '“', ...linkify(x.question), '”') : x.text ? h('div', { class: 'tq plain' }, ...linkify(x.text)) : h('div', { class: 'tq' }),
-        h('div', { class: 'tbtns' }, ...refButtons(x.scripture), x.video ? ext(x.video, 'tbtn' + (x.scripture ? ' soft' : ''), [icon('play', 16), 'Video']) : null),
+        h('div', { class: 'tbtns' }, ...refButtons(x.scripture, tractUrl(x)), x.video ? ext(x.video, 'tbtn' + (x.scripture ? ' soft' : ''), [icon('play', 16), 'Video']) : null),
         lffLine(x),
         x.next ? h('button', { class: 'tlinkq', type: 'button', onclick: (e) => { e.stopPropagation(); if (nxt) goToTopic(nxt); else topicView(x); } },
           h('span', { class: 'k' }, 'Linking question'), h('span', { class: 'v' }, x.next, nxt ? icon('right', 16) : null)) : null));
   }
   // verse buttons for a card: the first is solid, the rest soft
-  function refButtons(scripture) {
+  function refButtons(scripture, url) {
     const refs = TP ? TP.parseRefs(scripture) : [];
-    return refs.map((r, i) => ext(TP.linkFor(r), 'tbtn' + (i ? ' soft' : ''), [icon('book', 16), longRef(r)]));
+    return refs.map((r, i) => ext(url || TP.linkFor(r), 'tbtn' + (i ? ' soft' : ''), [icon('book', 16), longRef(r)]));
   }
   const longRef = (r) => (TP.BOOKS[r.book - 1][2]) + ' ' + r.label.replace(/^\S+\s/, '').replace(/^(\d+\s)?[A-Za-z]+\s/, '');
   // show a topic: on today's carousel scroll to it, otherwise open it

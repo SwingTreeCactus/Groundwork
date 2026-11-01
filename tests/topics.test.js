@@ -34,6 +34,8 @@ test('the 2025 tracts: nine, one main scripture each, an Enjoy Life lesson each'
   }
   assert.deepEqual(LIB.TRACTS.filter((t) => t.lff.from).map((t) => t.lff.from), ['Ps 83:18', 'Mt 6:34']);
   assert.equal(LIB.byId('tract-kingdom').lff.lesson, 33);
+  for (const t of LIB.TRACTS) assert.match(t.url, /^https:\/\/www\.jw\.org\/en\/library\/tracts\/[a-z-]+\/$/, t.title);
+  assert.equal(new Set(LIB.TRACTS.map((t) => t.url)).size, 9);
 });
 test('references parse: verse lists, ranges, two refs, full and short book names', () => {
   const p = (s) => T.parseRefs(s).map((r) => [r.book, r.ch, r.from, r.to]);
