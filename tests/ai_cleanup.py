@@ -137,13 +137,12 @@ with sync_playwright() as p:
     page.wait_for_selector('.toast:has-text("Visit saved")')
     check(ev(f'RV.store.S.entries.filter(e=>e.rvId=="{rid}" && e.type=="visit").length') == 1, 'visit still saves normally')
 
-    print('new RV form')
+    print('new contact form (v2.49): no Clean up under What did you discuss?; Household notes keeps one in More details')
     page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab')
-    ev('RV.forms.quickAdd()'); page.wait_for_selector('.sheet .btn.cleanup')
-    mode.update(status=200, reply=json.dumps({'note': 'Met at the door. Likes gardening.', 'discussNext': ''}))
-    page.locator('.sheet textarea').first.fill('met at the door uh likes gardening')
-    page.click('.sheet .btn.cleanup'); page.wait_for_selector('.toast:has-text("Cleaned up")')
-    check(page.locator('.sheet textarea').first.input_value() == 'Met at the door. Likes gardening.', 'New RV note cleaned')
+    ev('RV.forms.quickAdd()'); page.wait_for_selector('.sheet .qstage')
+    check(page.locator('.sheet .btn.cleanup:visible').count() == 0, 'no Clean up on the short New contact form')
+    page.click('.sheet .more-btn')
+    check(page.locator('.sheet .btn.cleanup:visible').count() == 1, 'Household notes has Clean up under More details')
     shot('05-new-rv')
 
     print('study log has Clean up too (v2.36.2), proofreading only')

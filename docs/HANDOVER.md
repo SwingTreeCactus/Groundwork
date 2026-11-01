@@ -1,15 +1,15 @@
-# Groundwork handover (2026-11-01, after v2.48.3)
+# Groundwork handover (2026-11-01, after v2.49.0)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.48.3 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v105` (sw.js).
+- Current release: v2.49.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v106` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.48.4 / rvapp-v106), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.49.1 / rvapp-v107), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
@@ -60,10 +60,10 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.48.3)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (361; needs /tmp/out to exist)
+## Tests (all passing at v2.49.0)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (365; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
-- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (54)
+- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (55)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23)
 - `node tests/garden.test.js` (49), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (7), `node tests/handoff.test.js` (8), `node tests/ww.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
@@ -76,9 +76,11 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - `RV.gmap._view()` and `RV.gmap._forget()` are there for tests.
   - smoke's "map shows plants as pins" can fail once on timing; rerun before digging in. It also fails every time if an earlier step opened the Contacts map while nominatim was stubbed empty (every address gets remembered as not found); the Witness Work step clears `rv.approx` for that reason.
   - Contacts in the study stage bring the owl at night, whose arrival redraws the garden and can close a sheet a later step opened; test-added contacts are deleted again after their checks.
+  - Sheets don't focus text fields on open (v2.49): tests that type after opening a sheet must click or fill the field.
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.49.0: New contact has a Potential / RV quick stage (two buttons) and no Clean up under the note; sheets don't pop the keyboard until a field is tapped (`data-autofocus="tap"` keeps it for the Studying sheet). Design-doc 61.
 - v2.21–v2.29: garden game (flowers, rounds, tending, milestones, 15 visitors with rare coats, visitor sets, seasons, Getting started quests), visitor announcements, empty-garden tutorial, menu regrouped with a Customize page, "conversations" wording, address tap edits the address. Details in design-doc sections 33–41.
 - v2.28.1: Drive stays signed in (groundwork-auth live).
 - v2.30.0: Note cleanup for everyone through groundwork-ai ($5 prepaid credit, no auto reload).

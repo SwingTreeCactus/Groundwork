@@ -38,8 +38,11 @@
     openCount++;
     document.addEventListener('keydown', onKey);
     if (!opts.noFocus) {
-      const first = box.querySelector('[data-autofocus]') || box.querySelector('textarea, input[type=text], input[type=search], input[type=tel], input[type=number], input[type=password]');
-      // Focus the first field, unless the person has already tapped into the sheet.
+      // v2.49: no keyboard until a field is tapped (Mark: it shrinks the screen). Only a non-typing control marked
+      // data-autofocus (a confirm button) takes focus on open; text fields wait for a tap. The exception is
+      // data-autofocus="tap": the sheet was opened by tapping that very field's line (the Studying block).
+      const first = [...box.querySelectorAll('[data-autofocus]')].find((el) => el.dataset.autofocus === 'tap' || !el.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), select, [contenteditable]'));
+      // Focus it, unless the person has already tapped into the sheet.
       if (first) setTimeout(() => { if (box.contains(document.activeElement)) return; try { first.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }, 30);
     }
     return { close, el: box };

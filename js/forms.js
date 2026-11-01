@@ -252,6 +252,20 @@
     };
     f.stage.addEventListener('change', syncStudy);
     syncStudy();
+    // v2.49: New contact: two buttons, Potential and RV, kept in step with the Stage list in More details
+    const quickStage = isNew ? (() => {
+      const sc = stageChoices(f.stage.value);
+      const two = sc.options.slice(0, 2);
+      if (two.length < 2) return null;
+      const box = h('div', { class: 'seg qstage', role: 'group', 'aria-label': 'Stage' });
+      const paint = () => [...box.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === f.stage.value)));
+      two.forEach((o) => box.appendChild(h('button', { type: 'button', 'data-v': o.value, onclick: () => {
+        f.stage.value = o.value; f.stage.dispatchEvent(new Event('change')); paint();
+      } }, o.label)));
+      f.stage.addEventListener('change', paint);
+      paint();
+      return { el: box, paint };
+    })() : null;
     const bestDays = daysPicker(isNew ? [new Date().getDay()] : draft ? (draft.bestDays || []) : L.bestDaysOf(rv));
     const visitsBox = (visits, nextVisit, title) => (visits && visits.length) || nextVisit ? h('div', { class: 'fillvisits' },
       h('div', { class: 'fillvh' }, title),
@@ -371,7 +385,8 @@
         isNew ? field('What did you discuss?', f.visit) : null,
         isNew ? topicChips(f.visit, f.whatsNext, (t) => { newTopic = t.id; }) : null,
         fillVisits,
-        isNew ? (() => { const b = cleanupButton(f.visit, f.whatsNext, (av) => { if (av.days.length) bestDays.set(av.days); }); return b ? h('div', { class: 'note-tools' }, b) : null; })() : null,
+        // v2.49: no Clean up here (Mark); a quick Potential / RV choice instead of opening More details for the stage
+        isNew && quickStage ? field('Stage', quickStage.el) : null,
         moreBtn,
         more,
         h('div', { class: 'actions' },
@@ -382,7 +397,7 @@
         filled = c;
         f.name.value = c.name; f.address.value = c.address || f.address.value; f.phone.value = c.phone || '';
         f.notes.value = c.notes || ''; f.whatsNext.value = c.discussNext || '';
-        if (c.study) { const st = [...f.stage.options].find((o) => L.isStudyStage(S.settings, o.value)); if (st) { f.stage.value = st.value; syncStudy(); } }
+        if (c.study) { const st = [...f.stage.options].find((o) => L.isStudyStage(S.settings, o.value)); if (st) { f.stage.value = st.value; syncStudy(); if (quickStage) quickStage.paint(); } }
         more.hidden = false; if (moreBtn) moreBtn.hidden = true;
         fillBox.replaceChildren(h('div', { class: 'fillnote' }, 'Filled from your note. Check it, then Add.'));
         fillBox.className = 'fillbox done';
@@ -805,9 +820,9 @@
     // being saved as Start next time when none was set)
     // the field you tapped gets the cursor: the publication line opens Publication, the Next line Start next time
     const toPub = focus ? focus === 'pub' : !rv.publication;
-    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-s', autocomplete: 'off', placeholder: 'e.g. Enjoy Life Forever', 'data-autofocus': toPub || null });
+    const pub = h('input', { type: 'text', value: rv.publication || '', list: 'pub-list-s', autocomplete: 'off', placeholder: 'e.g. Enjoy Life Forever', 'data-autofocus': toPub ? 'tap' : null });
     const pubList = h('datalist', { id: 'pub-list-s' }, ST.publications().map((n) => h('option', { value: n })));
-    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': toPub ? null : true });
+    const nxt = h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4', 'data-autofocus': toPub ? null : 'tap' });
     sheet('Studying', (close) =>
       h('form', { onsubmit: (e) => { e.preventDefault(); ST.updateRv(rvId, { publication: pub.value.trim(), nextStart: nxt.value.trim() }); close(); } },
         pubList,
