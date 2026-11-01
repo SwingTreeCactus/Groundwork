@@ -1965,3 +1965,17 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .hofile { display: block; margin: 12px auto 0; }
 .hosteps { margin: 4px 0 10px; padding-left: 22px; line-height: 1.5; }
 .hosteps li { margin: 4px 0; }
+
+/* v2.48.1: Topics page: a category reads as a header (meadow band, green name, a turning chevron), its topics as items (indented on a green line, lighter name, smaller switch) */
+.tlib .tfold { overflow: hidden; margin-bottom: 14px; }
+.tlib .tfold .ahead { background: var(--mead); padding: 14px 14px 14px 12px; }
+.tlib .tfold .ahead .t { display: grid; grid-template-columns: 22px 1fr; column-gap: 8px; align-items: center; }
+.tlib .tfold .ahead .t::before { content: ""; grid-row: 1 / span 2; width: 9px; height: 9px; border-right: 2.5px solid var(--green-t); border-bottom: 2.5px solid var(--green-t); transform: rotate(-45deg); justify-self: center; transition: transform .2s; }
+.tlib .tfold.open .ahead .t::before { transform: rotate(45deg); }
+.tlib .tfold .ahead .nm { font-size: 1.12rem; font-weight: 700; color: var(--green-t); }
+.tlib .tfold .ahead .sub { grid-column: 2; font-size: .82rem; }
+.tlib .tfold .abody { padding: 4px 0 6px; }
+.tlib .tfold .abody .list { margin-left: 18px; border-left: 2px solid var(--mead); }
+.tlib .tfold .abody .row { background: transparent; border-radius: 0; padding: 10px 12px 10px 14px; }
+.tlib .tfold .abody .row .name { font-size: .98rem; font-weight: 600; }
+.tlib .tfold .abody .switch { transform: scale(.82); transform-origin: right center; }

@@ -774,3 +774,4 @@ Tests: handoff 4 (new unit suite), smoke 352 (send with choices, download fallba
 - Privacy page updated.
 
 Tests: handoff 8 (link round trip, junk), topics 7 (tracts), smoke 360 (tract cards, Send link message and link, opening it, iPhone page, paste in Import, Android share pickup, file fallback), screens 60 (a new user starts with the nine tracts). VERSION 2.48.0, cache rvapp-v102.
+- v2.48.1: the Topics page tells categories from topics (Mark: hard to tell apart). A category header is a meadow band with its name larger and green and a chevron that turns when it opens; its topics sit indented on a thin green line, with a lighter name and a smaller switch, so the header's switch reads as the one for the whole group. Same in By theme and By series, light and dark. CSS only. Tests unchanged (smoke 360, screens 60). Cache rvapp-v103.
