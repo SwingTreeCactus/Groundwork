@@ -125,6 +125,17 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
     2. Android: accept handoff files in the share target (long-press the attachment › Share › Groundwork opens "Handed to you").
     3. Helper text everywhere the receiver could get stuck (Mark: "the user won't know what to do"): the message that goes with the link or file ("Open this in Groundwork…" with the steps), the landing page when Groundwork isn't installed or it opens in Safari, and the Import screen.
   - Later, if wanted: friends/accounts.
+- 2025 tracts as the lead topics (Mark, 2026-10-31; not built yet): the nine 2025 tracts lead Topics and Today; each card shows the tract's title, ONLY its main scripture, and the Enjoy Life Forever! (full book, lff) lesson that cites that scripture, in place of the video/link. Researched from the WOL Research Guide / publication index for each main scripture:
+  - Can we enjoy life forever? (t-ftr) Ps 37:29 → lff 25 (also 31, 33)
+  - How can you have a happy family? (T-fam) Eph 5:33 → lff 49
+  - Who is the true God? (T-god) Jer 10:10 → no lff citation
+  - Is anyone listening to our prayers? (T-pry) Ps 65:2 → lff 9
+  - Does Jesus' advice work today? (t-jss) Mt 7:12 → no lff citation
+  - How will God's Kingdom solve our problems? (T-kng) Ps 37:10, 11 → lff 33
+  - Is living without pain or sadness possible? (T-sfr) Re 21:4 → lff 26 (also 2)
+  - Will you ever see your loved ones who have died? (T-dth) Joh 5:28, 29 → lff 30
+  - Do all religions please God? (T-rlg) Mt 7:14 → lff 13
+  Open: what to show for the two without a citation; whether the old 60 stay ranked below or move under an "Older sample conversations" heading.
 - Pinned future concept (Mark, 2026-10-31): XP, a gardener avatar, items board, shop and a companion pet are scrapped for now. Keep them as an idea if we look for ways to improve the game later (mockups and the XP table are in the 2026-10-30 chat). Naming visitors (name a visitor on its first visit; later announcements use the name) is the one piece Mark wants in a future rollout, since it doesn't complicate the game.
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
