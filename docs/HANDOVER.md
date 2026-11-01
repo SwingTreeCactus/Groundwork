@@ -133,10 +133,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Future ideas, do NOT build until Mark explicitly agrees (noted 2026-10-29):
   - Adding a phone number should be a rewarded action in the garden (getting someone's number is a good step).
   - A button to create a phone contact from a Groundwork contact (mapping name, phone, address). Mark: hold off on this for sure for now.
+- Area shapes (Mark, 2026-11-01): design written, not built: docs/AREA-SHAPES.md (project claude/area-shapes.md). Draw areas as shapes on the Contacts map (Edit areas button; shapes visible only while editing), areas made from the map, corners snap and overlaps are trimmed so shapes never overlap; contacts inside a shape get that area. Next: a mockup, then build only when Mark says.
 - Central campaign publishing (Mark, 2026-11-01): design written, not built: docs/CAMPAIGN-PUBLISHING.md (project claude/campaign-publishing.md). Mark publishes from his own app with an admin key (a Cloudflare Secret he sets himself); every app fetches, caches and merges the list. Updated with Mark's answers: published campaigns are title, dates and explanation only (no topics); users can hide a whole campaign or attach their own topics to it; key behind press-and-hold on the version line in About. Two decisions still open (overlap rule, default on). Build nothing until Mark says build.
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
+- claude/area-shapes.md (docs/AREA-SHAPES.md): design for drawing areas on the map, not built.
 - claude/campaign-publishing.md (docs/CAMPAIGN-PUBLISHING.md): design for publishing campaigns to every user, not built.
 - claude/app-audit.md (docs/AUDIT-2026-10-31.md): full app audit at v2.45.0, issues ranked, nothing built yet.
 - claude/design-doc.md: full design log (every release).
