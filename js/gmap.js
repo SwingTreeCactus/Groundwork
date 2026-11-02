@@ -95,6 +95,8 @@
         const cur = ST.rvById(rv.id);
         if (!cur || GEO.addrKey(cur) !== GEO.addrKey(rv)) continue;
         cur.approx = pt ? { q: GEO.addrKey(rv), lat: pt.lat, lng: pt.lng } : { q: GEO.addrKey(rv), fail: true };
+        // v2.50: a contact with no area joins the area whose shape its point falls in
+        if (pt && !cur.neighborhood && RV.areas) { const a = RV.areas.areaAt(ST.S.settings, pt); if (a) cur.neighborhood = a; }
         ST.persistRv(cur);
         if (pt) onPlaced(cur);
         await new Promise((r) => setTimeout(r, 1100));
@@ -120,6 +122,11 @@
     const live = () => RV.store.items().filter((i) => i.att.state !== 'closed').map((it) => ({ it, st: G.forItem(it, S.settings, new Date()) })).filter((x) => x.st.form);
     const chip = h('button', { class: 'gmap-chip', type: 'button', 'aria-pressed': 'false', onclick: () => { todayOnly = !todayOnly; paintChip(); paintMarkers(); } });
     const locate = h('button', { class: 'gmap-loc', type: 'button', 'aria-label': 'Show where I am', onclick: () => findMe() }, icon('navigation', 18));
+    // v2.50: area shapes are drawn and changed in a full-screen editor; they show only there
+    const editAreas = RV.areaEdit ? h('button', { class: 'gmap-areas', type: 'button', onclick: () => {
+      const c = map ? map.getCenter() : null;
+      RV.areaEdit.open({ center: c ? [c.lng, c.lat] : null, zoom: map ? map.getZoom() : null, onClose: () => paintMarkers(false) });
+    } }, icon('shape', 18), 'Edit ' + UI.lbl('neighborhood').toLowerCase() + 's') : null;
     function paintChip() {
       const today = todayIds();
       const n = live().filter((x) => today.has(x.it.rv.id) && RV.geo.pointOf(x.it.rv)).length;
@@ -185,7 +192,7 @@
       }, fail, { enableHighAccuracy: !o.quiet, timeout: o.quiet ? 10000 : 15000, maximumAge: o.quiet ? 60000 : 0 });
     }
     const mapEl = h('div', { class: 'gmap-canvas' });
-    box.append(mapEl, chip, locate, msg, card);
+    box.append(...[mapEl, chip, editAreas, locate, msg, card].filter(Boolean));
     paintChip();
     (async () => {
       if (navigator.onLine === false) { msg.textContent = 'The map needs a connection.'; msg.hidden = false; return; }
@@ -220,6 +227,6 @@
     return { el: box, refresh() { paintMarkers(false); }, destroy() { open = false; if (map) { map.remove(); map = null; } } };
   }
 
-  RV.gmap = { view, restyle, THEMES, _view: () => lastView, _forget: () => { lastView = null; lastHere = null; } };
+  RV.gmap = { view, restyle, THEMES, loadLib, baseStyle, isDark, placeMissing, _view: () => lastView, _forget: () => { lastView = null; lastHere = null; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.gmap;
 })(typeof window !== 'undefined' ? window : globalThis);

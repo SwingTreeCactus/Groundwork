@@ -1,6 +1,6 @@
-# Area shapes (design, not built)
+# Area shapes
 
-Agreed with Mark 2026-11-01. Build nothing until Mark says build; a mockup comes first.
+Agreed with Mark 2026-11-01; built in v2.50.0 (docs/DESIGN.md section 62 has what shipped). Both Tap and Crosshair ship behind a switch.
 
 ## Idea
 Draw each area as a shape on the Contacts map. A contact whose map point (geotag, else the point looked up once from its address, `rv.approx`) falls inside a shape gets that area.

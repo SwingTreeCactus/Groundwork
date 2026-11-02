@@ -43,7 +43,7 @@
       render();
     });
     render();
-    return { el: sel, get: () => value };
+    return { el: sel, get: () => value, set: (v) => { value = String(v || ''); render(); } };
   }
 
   // ---------- best days: tap any weekdays ----------
@@ -202,6 +202,8 @@
     let geo = rv.geo || null;
     const geoRow = h('div', { class: 'georow' });
     function paintGeo() {
+      // v2.50: geotagged with no area yet: take the area whose shape holds the spot
+      if (geo && RV.areas && !f.neighborhood.get()) { const a = RV.areas.areaAt(S.settings, geo); if (a) f.neighborhood.set(a); }
       geoRow.replaceChildren(...[
         // new record: just the button (a check once tagged); editing: the coordinates and an x to delete them
         h('button', { class: 'btn sm', type: 'button', onclick: geotag, 'aria-label': geo ? 'Geotagged; tag again' : 'Geotag' }, icon(isNew && geo ? 'check' : 'navigation', 16), isNew && geo ? 'Geotagged' : 'Geotag'),

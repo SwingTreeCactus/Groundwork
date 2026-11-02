@@ -397,7 +397,7 @@
           const other = ST.neighborhoods().find((n) => n !== name && areaKey(n) === areaKey(v));
           const target = other || v;
           live().filter((r) => r.neighborhood === name).forEach((r) => ST.updateRv(r.id, { neighborhood: target }));
-          save((s) => { s.lists.neighborhoods = U.uniq(s.lists.neighborhoods.filter((n) => n !== name).concat(target)); });
+          save((s) => { s.lists.neighborhoods = U.uniq(s.lists.neighborhoods.filter((n) => n !== name).concat(target)); if (RV.areas) s.areaShapes = RV.areas.renamed(s.areaShapes || [], name, target); });
           toast(other ? 'Merged into ' + other : 'Renamed to ' + target);
           renderAreas();
         } }, h('div', null, h('div', null, 'Rename or merge'), h('div', { class: 'sub' }, 'Type an existing name to merge them'))),
@@ -405,7 +405,7 @@
           close();
           if (used && !(await confirmDialog({ title: 'Remove ' + name + '?', message: used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) + ' will have no ' + lbl('neighborhood').toLowerCase() + '.', confirmText: 'Remove', danger: true }))) return;
           live().filter((r) => r.neighborhood === name).forEach((r) => ST.updateRv(r.id, { neighborhood: '' }));
-          save((s) => { s.lists.neighborhoods = s.lists.neighborhoods.filter((n) => n !== name); });
+          save((s) => { s.lists.neighborhoods = s.lists.neighborhoods.filter((n) => n !== name); if (RV.areas) s.areaShapes = RV.areas.removed(s.areaShapes || [], name); });
           renderAreas();
         } }, h('div', null, h('div', null, 'Remove'), h('div', { class: 'sub' }, used ? 'Clears it from ' + used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) : 'Not used on any record')))));
     }
