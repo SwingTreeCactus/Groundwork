@@ -13,6 +13,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
+- No "need to water" pressure (Mark, 2026-11-03): no lists of who to water, no to-water counts or lines on Today or in Areas, no reminders about thirsty plants. Seeing who's thirsty in the garden is the goal; you can't always reach everyone in a week.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
@@ -145,7 +146,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
-- claude/ux-audit.md (docs/UX-AUDIT-2026-11-03.md): UX and workflow audit at v2.50.2 against the mission and the model games; nothing built yet. Top items: name who needs water in the watering can sheet with a Today line to it, count a plan only when written, local dates for evening entries.
+- claude/ux-audit.md (docs/UX-AUDIT-2026-11-03.md): UX and workflow audit at v2.50.2 against the mission and the model games; nothing built yet. Mark declined the to-water list, the Today line and the Areas count (no pressure). Open: count a plan only when written, local dates, one meaning for bunting, keep progress when care fades, empty Contacts opens on List, backup reminder, and the easy cleanups.
 - claude/area-shapes.md (docs/AREA-SHAPES.md): design for drawing areas on the map, not built.
 - claude/campaign-publishing.md (docs/CAMPAIGN-PUBLISHING.md): design for publishing campaigns to every user, not built.
 - claude/app-audit.md (docs/AUDIT-2026-10-31.md): full app audit at v2.45.0, issues ranked, nothing built yet.
