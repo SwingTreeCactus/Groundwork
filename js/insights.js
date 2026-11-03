@@ -55,7 +55,7 @@
     const c = eff.counts60;
     const tile = (n, label) => h('div', { class: 'tile' }, h('div', { class: 'tn' }, String(n)), h('div', { class: 'tl' }, label));
     const tiles = h('div', { class: 'tiles' },
-      tile(c.newRvs, 'New ' + lbl('rvs')), tile(c.visits, 'Visits'), tile(c.nh, lbl('notHome')), tile(c.advances, 'Moved forward'), tile(c.studies, 'Studies started'));
+      tile(c.newRvs, 'New contacts'), tile(c.visits, 'Visits'), tile(c.nh, lbl('notHome')), tile(c.advances, 'Moved forward'), tile(c.studies, 'Studies started'));
 
     const rowFor = (it, line2, line3) =>
       h('a', { class: 'row', href: '#/rv/' + it.rv.id },

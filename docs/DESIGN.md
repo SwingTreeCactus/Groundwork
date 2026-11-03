@@ -812,3 +812,18 @@ Mark: first-time users need to know what the app is. An auto-playing slideshow w
 - **Tips on the contact**: the Record a visit tip, then the Not Home tip, show on a contact's screen one at a time until Got it, while Getting started is on or finished (not when it was skipped), so they outlive the checklist.
 - Tests: smoke 375 (intro and its fold, steps out of order, intro gone after one step, rows until contacts are in, tips after the checklist). Others unchanged. VERSION 2.50.1, cache rvapp-v108.
 - v2.50.2: on topics, "theme" is now "Category" (Mark: "theme" reads as light/dark, which Display still calls Theme): By category / By series on the Topics page and in View all, the topic editor's Category field and No category, the category ⋯ sheet, the delete message. Creating is "New" on the Topics page (New topic, New category, New topic in this category), since "Add" there read like putting something on Today. Wording only; stored fields (`theme`, `themes`) unchanged. Other pages keep "Add" (campaign, stage, reason, custom field). Tests: smoke 375. Cache rvapp-v109.
+
+## 64. v2.50.3 Cleanups from the UX audit (built 2026-11-03)
+
+The items from claude/ux-audit.md (and the 2026-10-31 audit) that needed no decision.
+- **"Contact" everywhere it means the person**: New contact (the + button's label), Edit contact, Delete this contact, Hide for this contact, the not-home banner switch, empty states and the map's empty line, import summaries and toasts, "N contacts and N visits on this phone", Restore's count, the Lead stages and Lists counts, the visit-log CSV's Contact column, "not a Groundwork backup". RV stays as the stage name (and in Labels).
+- **Local dates**: `U.fmtDate` shows a full timestamp on its local day; an evening study in California showed as the next day ("last covered Lesson 4, Tue" for a Monday study).
+- **Today's carousel cards size to their content** (the 380 px minimum height is gone; cards in the row still match the tallest).
+- **The menu closes on Escape and on any change of page**, including the phone's Back.
+- **Removed from the site**: the 14 test screenshots at the root and the old v1 app at /rv-app/; `.gitignore` keeps root screenshots out.
+- **Privacy page**: the map is in Contacts and when addresses are looked up, Clean up on every visit and person field, imports read on the device, jw.org links, the menu path to Erase.
+- **Areas** show the last real visit or Not Home ("last visit" left out when there is none; adding someone isn't a visit).
+- **Record screen**: wide kinds (the grapevine's arbour) stay inside the card.
+- **Touch targets**: the A to Z strip's letters are bigger and a finger can slide along it to jump; the garden's bed signs are bigger.
+- Not in this release: the can and streak changes (WIP branch wip/2.50.3, part of the motivation redesign that goes to mockup first).
+- Tests: smoke 375 (wording), others unchanged. VERSION 2.50.3, cache rvapp-v110.

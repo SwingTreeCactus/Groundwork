@@ -231,7 +231,7 @@
         const chosen = m.move.filter((x) => ticks.get(x.rv.id));
         chosen.forEach((x) => ST.updateRv(x.rv.id, { neighborhood: x.to }));
         closeS(); paintAll();
-        UI.toast('Moved ' + chosen.length + ' ' + (chosen.length === 1 ? lbl('rv') : lbl('rvs')));
+        UI.toast('Moved ' + chosen.length + ' ' + (chosen.length === 1 ? 'contact' : 'contacts'));
       } },
         h('p', { class: 'muted' }, one ? inCount + ' ' + (inCount === 1 ? 'contact has its' : 'contacts have their') + ' pin inside ' + one + (m.already ? '. ' + m.already + ' ' + (m.already === 1 ? 'is' : 'are') + ' already there.' : '.') : m.move.length + ' ' + (m.move.length === 1 ? 'contact is' : 'contacts are') + ' inside a different ' + lbl('neighborhood').toLowerCase() + '’s shape.'),
         h('div', { class: 'group ae-moves' }, m.move.map((x) => h('label', { class: 'ae-move' },

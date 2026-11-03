@@ -47,7 +47,7 @@
       setRow('#/settings/stages', 'Lead stages', S.settings.stages.filter((s) => !s.closed).map((s) => s.name).join(' › '), 'shuffle'),
       setRow('#/settings/reasons', 'Archive reasons', S.settings.archiveReasons.map((r) => r.name).join(', '), 'archive'),
       setRow('#/settings/fields', 'Lists and custom fields', nFields ? nFields + (nFields === 1 ? ' custom field' : ' custom fields') : null, 'users'),
-      setRow('#/settings/labels', 'Labels', 'What the app calls ' + lbl('rvs') + ', ' + lbl('notHome') + ' and more', 'edit'),
+      setRow('#/settings/labels', 'Labels', 'What the app calls stages, ' + lbl('notHome') + ' and more', 'edit'),
       setRow('#/settings/attention', 'Needs attention', 'When someone counts as due', 'clock'),
     ]);
   }
@@ -71,7 +71,7 @@
           (v) => { save((s) => { s.textScale = v; }); RV.app.applyDisplay(); })),
       h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Show ' + lbl('notHomeShort') + ' button on list rows')),
         UI.toggle(S.settings.nhRowButton, (v) => save((s) => { s.nhRowButton = v; }), 'Show Not Home button on list rows')),
-      h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Garden'), h('div', { class: 'muted small' }, 'Plants show each ' + lbl('rv') + "'s stage and care. Off: plain rows.")),
+      h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Garden'), h('div', { class: 'muted small' }, "Plants show each contact's stage and care. Off: plain rows.")),
         UI.toggle(S.settings.garden !== false, (v) => save((s) => { s.garden = v; }), 'Garden')),
     ], { noRerender: true });
   }
@@ -323,7 +323,7 @@
                 class: 'btn sm danger', type: 'button',
                 onclick: async () => {
                   const n = used(st.id);
-                  if (n) { toast(n + ' ' + lbl('rvs') + ' are in this stage. Move them first.'); return; }
+                  if (n) { toast(n + ' contacts are in this stage. Move them first.'); return; }
                   if (acts.length <= 1) { toast('Keep at least one active stage.'); return; }
                   if (await confirmDialog({ title: 'Delete stage "' + st.name + '"?', confirmText: 'Delete', danger: true })) { save((s) => { s.stages = s.stages.filter((x) => x.id !== st.id); }); render(); }
                 },
@@ -357,7 +357,7 @@
             class: 'btn sm danger', type: 'button',
             onclick: async () => {
               const n = used(r.id);
-              if (n) { toast(n + ' archived ' + lbl('rvs') + ' use this reason.'); return; }
+              if (n) { toast(n + ' archived contacts use this reason.'); return; }
               if (S.settings.archiveReasons.length <= 1) { toast('Keep at least one reason.'); return; }
               if (await confirmDialog({ title: 'Delete reason "' + r.name + '"?', confirmText: 'Delete', danger: true })) { save((s) => { s.archiveReasons.splice(i, 1); }); render(); }
             },
@@ -380,7 +380,7 @@
       abox.replaceChildren(h('div', { class: 'list' }, names.length ? names.map((n) => {
         const used = live().filter((r) => r.neighborhood === n).length;
         return h('button', { class: 'row area-row', type: 'button', onclick: () => areaSheet(n, used) },
-          h('div', { class: 'main' }, h('div', { class: 'name' }, n), h('div', { class: 'line2' }, used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')),
+          h('div', { class: 'main' }, h('div', { class: 'name' }, n), h('div', { class: 'line2' }, used + ' ' + (used === 1 ? 'contact' : 'contacts'),
             names.some((x) => x !== n && areaKey(x) === areaKey(n)) ? h('span', { class: 'dup-hint' }, ' · Looks like a duplicate. Tap to merge') : null)), icon('right', 18));
       }) : h('div', { class: 'muted small', style: { padding: '14px 16px' } }, 'None yet.')),
       saveBtn('Add ' + lbl('neighborhood').toLowerCase(), async () => {
@@ -405,11 +405,11 @@
         } }, h('div', null, h('div', null, 'Rename or merge'), h('div', { class: 'sub' }, 'Type an existing name to merge them'))),
         h('button', { class: 'opt', type: 'button', onclick: async () => {
           close();
-          if (used && !(await confirmDialog({ title: 'Remove ' + name + '?', message: used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) + ' will have no ' + lbl('neighborhood').toLowerCase() + '.', confirmText: 'Remove', danger: true }))) return;
+          if (used && !(await confirmDialog({ title: 'Remove ' + name + '?', message: used + ' ' + (used === 1 ? 'contact' : 'contacts') + ' will have no ' + lbl('neighborhood').toLowerCase() + '.', confirmText: 'Remove', danger: true }))) return;
           live().filter((r) => r.neighborhood === name).forEach((r) => ST.updateRv(r.id, { neighborhood: '' }));
           save((s) => { s.lists.neighborhoods = s.lists.neighborhoods.filter((n) => n !== name); if (RV.areas) s.areaShapes = RV.areas.removed(s.areaShapes || [], name); });
           renderAreas();
-        } }, h('div', null, h('div', null, 'Remove'), h('div', { class: 'sub' }, used ? 'Clears it from ' + used + ' ' + (used === 1 ? lbl('rv') : lbl('rvs')) : 'Not used on any record')))));
+        } }, h('div', null, h('div', null, 'Remove'), h('div', { class: 'sub' }, used ? 'Clears it from ' + used + ' ' + (used === 1 ? 'contact' : 'contacts') : 'Not used on any record')))));
     }
     renderAreas();
     const hm = h('textarea', { value: S.settings.lists.howMet.join('\n'), style: { minHeight: '110px' } });
@@ -457,12 +457,12 @@
     const minTries = h('input', { type: 'number', min: '1', max: '10', inputmode: 'numeric', value: String(S.settings.notHomeBanner.minAttempts) });
     minTries.addEventListener('change', () => { const n = num(minTries.value); if (n == null || n < 1 || n > 10) { minTries.value = String(S.settings.notHomeBanner.minAttempts); return; } save((s) => { s.notHomeBanner.minAttempts = n; }); });
     return page('Needs attention', [
-      hint('An ' + lbl('rv') + ' is flagged by how long it has been since the last logged visit, unless it has a follow-up date.'),
+      hint('A contact is flagged by how long it has been since the last logged visit, unless it has a follow-up date.'),
       mk('defaultStaleDays', 'Default days before flagged', 'Used for stages with no number of their own.', 1, 365),
       mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days are marked as coming up.', 1, 60),
-      mk('soonDays', 'Heads-up before due (days)', 'Flag as coming up this many days before an ' + lbl('rv') + ' is due.', 0, 14),
-      mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A ' + lbl('rv') + ' with a best day is only marked due on that day. After this many times its usual timing, it is marked due on any day so nothing gets buried.', 1, 10),
-      mk('stuckFactor', 'Stuck in stage (times the usual timing)', 'Insights lists ' + lbl('rvs') + ' that have stayed in one stage this many times the stage\'s timing.', 2, 20),
+      mk('soonDays', 'Heads-up before due (days)', 'Flag as coming up this many days before a contact is due.', 0, 14),
+      mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A contact with a best day is only marked due on that day. After this many times its usual timing, it is marked due on any day so nothing gets buried.', 1, 10),
+      mk('stuckFactor', 'Stuck in stage (times the usual timing)', 'Insights lists contacts that have stayed in one stage this many times the stage\'s timing.', 2, 20),
       h('div', { class: 'card' },
         h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner')),
           UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
@@ -637,7 +637,7 @@
     const refresh = () => {
       const { res, keep, dups, updates } = parsed(defStage.value, skipDup.checked, bestDay.checked);
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
-        keep.length + ' ' + lbl('rvs') + ' and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
+        keep.length + ' contacts and ' + res.entries.filter((e) => keep.some((r) => r.id === e.rvId)).length + ' notes will be added.' +
         (updates.length ? ' ' + updates.length + ' already here will get a best day.' : '') +
         (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
         (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
@@ -661,7 +661,7 @@
               ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
               updates.forEach((u) => ST.updateRv(u.id, { bestDays: u.bestDays, dayPrimary: null, daySecondary: null }));
               close();
-              toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl('rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
+              toast(keep.length ? 'Imported ' + keep.length + ' contacts' + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' contacts');
               location.hash = '#/rvs';
             },
           }, 'Import')));
@@ -706,7 +706,7 @@
       const { res, keep, dups, updates } = parsed(...args());
       const n = visitsOf(res, keep).length;
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
-        keep.length + ' ' + lbl(keep.length === 1 ? 'rv' : 'rvs') + ' and ' + n + (n === 1 ? ' conversation' : ' conversations') + ' will be added.' +
+        keep.length + ' ' + (keep.length === 1 ? 'contact' : 'contacts') + ' and ' + n + (n === 1 ? ' conversation' : ' conversations') + ' will be added.' +
         (updates.length ? ' ' + updates.length + ' already here will get a best day.' : '') +
         (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '') +
         (res.skipped ? ' ' + res.skipped + ' without a name skipped.' : '')));
@@ -729,7 +729,7 @@
               ST.importRvs(keep, visitsOf(res, keep));
               updates.forEach((u) => ST.updateRv(u.id, { bestDays: u.bestDays, dayPrimary: null, daySecondary: null }));
               close();
-              toast(keep.length ? 'Imported ' + keep.length + ' ' + lbl(keep.length === 1 ? 'rv' : 'rvs') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' ' + lbl('rvs'));
+              toast(keep.length ? 'Imported ' + keep.length + ' ' + (keep.length === 1 ? 'contact' : 'contacts') + (updates.length ? ', updated ' + updates.length : '') : 'Updated ' + updates.length + ' contacts');
               if (keep.length) {
                 try { sessionStorage.setItem('rvapp.lastImport', JSON.stringify(keep.map((r) => r.id))); } catch (e) { /* ignore */ }
                 location.hash = '#/rvs/imported';
@@ -770,7 +770,7 @@
     const refresh = () => {
       const { res, keep, dups, map } = calc();
       summary.replaceChildren(icon('note'), h('div', { class: 'body' },
-        map.name == null ? 'Choose which column holds the name.' : keep.length + ' ' + lbl('rvs') + ' will be added.' +
+        map.name == null ? 'Choose which column holds the name.' : keep.length + ' contacts will be added.' +
           (res.skipped.length ? ' ' + res.skipped.length + ' rows skipped (no name).' : '') +
           (dups ? ' ' + dups + (skipDup.checked ? ' skipped as possible duplicates.' : ' look like duplicates.') : '')));
     };
@@ -800,7 +800,7 @@
             const ids = new Set(keep.map((r) => r.id));
             ST.importRvs(keep, res.entries.filter((e) => ids.has(e.rvId)));
             close();
-            toast('Imported ' + keep.length + ' ' + lbl('rvs'));
+            toast('Imported ' + keep.length + ' contacts');
             location.hash = '#/rvs';
           },
         }, 'Import')));
@@ -908,9 +908,9 @@
     await restoreData(data);
   }
   async function restoreData(data) {
-    if (!data || data.app !== 'rv-app' || !Array.isArray(data.rvs)) { toast('This is not an RV app backup.'); return; }
+    if (!data || data.app !== 'rv-app' || !Array.isArray(data.rvs)) { toast('This is not a Groundwork backup.'); return; }
     const live = data.rvs.filter((r) => !r.deletedAt).length;
-    const choice = await UI.pick('Restore backup (' + live + ' ' + lbl('rvs') + ')', [
+    const choice = await UI.pick('Restore backup (' + live + ' contacts)', [
       { value: 'merge', label: 'Merge', sub: 'Keep what is here, add and update from the backup' },
       { value: 'replace', label: 'Replace everything', sub: 'Erase this device\'s data first' },
     ]);
@@ -950,7 +950,7 @@
   function exportSheet() {
     const row = (ic, label, sub, fn) => h('button', { class: 'setrow', type: 'button', onclick: fn }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, label), h('div', { class: 'sub' }, sub)), icon('right', 18));
     sheet('Export', (close) => h('div', null,
-      row('users', lbl('rvs') === 'RVs' ? 'Contacts' : lbl('rvs'), 'A spreadsheet (CSV) for Excel or Google Sheets', () => { close(); UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv'); }),
+      row('users', 'Contacts', 'A spreadsheet (CSV) for Excel or Google Sheets', () => { close(); UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv'); }),
       row('calendar', 'Visit log', 'Every visit and ' + lbl('notHome').toLowerCase() + ', as a spreadsheet (CSV)', () => { close(); UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv'); }),
       row('lock', 'Backup file', 'Everything, to restore on another phone', () => { close(); downloadBackup(); })));
   }
@@ -996,11 +996,11 @@
     return page('Backup and import', [
       S.persistent ? null : h('div', { class: 'banner danger' }, icon('alert'), h('div', { class: 'body' }, 'This browser is blocking storage. Nothing will be kept.')),
       backupCard(),
-      h('div', { class: 'bkcount' }, live + ' ' + lbl(live === 1 ? 'rv' : 'rvs') + ' and ' + visits + (visits === 1 ? ' visit' : ' visits') + ' on this phone.'),
+      h('div', { class: 'bkcount' }, live + (live === 1 ? ' contact' : ' contacts') + ' and ' + visits + (visits === 1 ? ' visit' : ' visits') + ' on this phone.'),
       h('section', { class: 'setgroup' }, row('upload', 'Import contacts', 'Ministry Assistant, Witness Work, a notes app, or a spreadsheet', () => { location.hash = '#/settings/import'; })),
       h('section', { class: 'setgroup' }, row('download', 'Export', 'Contacts, visit log, or a backup file', exportSheet)),
       h('section', { class: 'setgroup bkerase' }, row('trash', 'Erase all data', null, async () => {
-        if (!(await confirmDialog({ title: 'Erase everything?', message: 'All ' + lbl('rvs') + ', visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
+        if (!(await confirmDialog({ title: 'Erase everything?', message: 'All contacts, visits, libraries and settings on this device will be deleted. Download a backup first if you might want them.', confirmText: 'Erase everything', danger: true }))) return;
         await ST.eraseAll();
         RV.app.applyDisplay();
         toast('All data erased');
@@ -1280,7 +1280,7 @@
             niReset();
             NI.notes = leftNotes.map((p) => ({ title: p.title, text: p.text, date: p.date ? p.date + 'T12:00:00.000Z' : null, from: 'Left for later' }));
             NI.shots = leftShots;
-            toast('Imported ' + rvs.length + ' ' + lbl(rvs.length === 1 ? 'rv' : 'rvs'));
+            toast('Imported ' + rvs.length + (rvs.length === 1 ? ' contact' : ' contacts'));
             location.hash = '#/rvs/imported';
           } }, on.length ? 'Import ' + on.length : 'Import'))].filter(Boolean));
     }

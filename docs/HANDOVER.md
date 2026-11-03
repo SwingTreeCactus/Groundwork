@@ -1,18 +1,19 @@
-# Groundwork handover (2026-11-03, after v2.50.2)
+# Groundwork handover (2026-11-03, after v2.50.3)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–63) for detail. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–64) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.50.2 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v109` (sw.js).
+- Current release: v2.50.3 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v110` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.3 / rvapp-v110), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.4 / rvapp-v111), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
+- Motivation (Mark, 2026-11-03): show what was accomplished, never what is left; no guilt. Habit apps that last (Apple Fitness, Finch, Headspace) count what you did, keep it, and welcome you back.
 - No "need to water" pressure (Mark, 2026-11-03): no lists of who to water, no to-water counts or lines on Today or in Areas, no reminders about thirsty plants. Seeing who's thirsty in the garden is the goal; you can't always reach everyone in a week.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
@@ -62,7 +63,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.50.2)
+## Tests (all passing at v2.50.3)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (375; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (55)
@@ -84,6 +85,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.50.3: audit cleanups: "contact" for the person everywhere (RV only as the stage), local dates for evening entries, carousel cards sized to content, menu closes on Back/Escape, test screenshots and /rv-app/ removed from the site, privacy page updated, Areas' last visit, bigger A to Z and bed-sign targets. Design-doc 64.
 - v2.50.2: topic groups are "categories", not "themes" (Theme means light/dark in Display); creating on the Topics page says New (New topic, New category). Stored field names unchanged.
 - v2.50.1: first view says what Groundwork is (intro on Today, folds to one row, gone once any step is done; also on About); Getting started is three setup steps, each tappable in any order; imports are two rows (Import from another app, Restore); visit and Not Home tips on the contact outlive the checklist. Design-doc 63.
 - v2.50.0: area shapes: Edit areas on the Contacts map opens a full-screen editor (js/areaedit.js; geometry js/areas.js; polygon-clipping in vendor/). Draw by Tap or Crosshair, snapping, overlaps trimmed, one shape per area, sort contacts in, auto-assign from geotag or address. Design-doc 62.
@@ -123,7 +125,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 
 ## Pending
-- UX audit (2026-11-03, claude/ux-audit.md): review only. Mark to choose what to build; mock up first.
+- UX audit (2026-11-03, claude/ux-audit.md): easy items shipped in v2.50.3. Agreed, to mock up next (Mark said go ahead): remove the streak entirely (freezes go; bunting means the campaign only; the five sundial milestones count weeks you went out in service, a total that never resets, earned ones kept; geese come after 4 weeks out in service in autumn; streak lines leave the recap and How your garden works); the can sheet shows only what was watered and the can fills through the week instead of emptying (started on branch wip/2.50.3, not shipped); growth steps kept while care fades; a plan counts only when written or changed in that visit; empty Contacts opens on List; backup card on Today (5+ contacts or 14 days, Not now hides 14 days) and last backup at the menu foot; a study hides a Discuss next time older than its first study; timeline entries tap to edit, newest one not repeated; first tab named Today; Stuck in stage dropped, Worth reconsidering at the foot of each area.
 - Witness Work import (v2.45.0): built from a single sample backup. Watch for fields the sample didn't use (phone, email, custom fields, contact `customFieldDefs`, conversation field defs, non-US addresses) once more users' files come in.
 - Plant kinds (v2.34.0, built 2026-10-28): watch for look-alike pairs in real gardens (apple and cherry trees share a round crown; lemon and cherry leafy share a column shape; colour separates them). The canvas "Groundwork plant kinds" holds the mockups; claude/plant-kinds-draft.js is the pre-build draft (js/kinds.js is the live code).
 - Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.

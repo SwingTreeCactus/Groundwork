@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.50.2';
+  RV.VERSION = '2.50.3';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -11,7 +11,7 @@
   const topbar = h('header', { class: 'topbar' });
   const statusBar = h('div', { style: { maxWidth: '640px', margin: '0 auto', width: '100%', padding: '10px 16px 0' } });
   const view = h('main', { class: 'view', id: 'view', tabindex: '-1' });
-  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': 'New ' + RV.ui.lbl('rv'), onclick: () => RV.forms.rvForm() }, icon('plus', 26));
+  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': 'New contact', onclick: () => RV.forms.rvForm() }, icon('plus', 26));
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Main' }, h('div', { class: 'inner' }));
   let current = null;
   let lastHash = null;
@@ -97,7 +97,10 @@
       ['App', [['display', 'Display', 'sliders'], ['data', 'Backup and import', 'download'], ['ai', 'Note cleanup', 'sparkle'], ['security', 'Security', 'lock']]],
       [null, [['customize', 'Customize', 'edit']]],
     ];
-    const close = () => { scrim.remove(); document.body.classList.remove('no-scroll'); };
+    // v2.50.3: Escape or any change of page (the phone's Back included) closes the menu too
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const close = () => { scrim.remove(); document.body.classList.remove('no-scroll'); document.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', close); };
+    document.addEventListener('keydown', onKey); window.addEventListener('hashchange', close);
     const scrim = h('div', { class: 'drawer', onclick: (e) => { if (e.target === scrim) close(); } },
       h('nav', { class: 'drawer-panel', 'aria-label': 'Settings menu' },
         h('div', { class: 'drawer-head' }, h('h2', null, 'Menu'), h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('x'))),

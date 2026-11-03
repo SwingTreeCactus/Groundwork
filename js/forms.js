@@ -279,7 +279,7 @@
     const fillVisits = h('div');
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
 
-    return sheet(draft ? 'Edit details' : isNew ? 'New contact' : 'Edit ' + lbl('rv'), (close) => {
+    return sheet(draft ? 'Edit details' : isNew ? 'New contact' : 'Edit contact', (close) => {
       const more = h('div', { class: 'more-fields' },
         field('Phone', f.phone),
         h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
@@ -293,7 +293,7 @@
         field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
-        h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this ' + lbl('rv')),
+        h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this contact'),
         !existing ? null : h('button', {
           class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
           onclick: async () => {
@@ -304,7 +304,7 @@
             location.hash = '#/rvs';
             toast('Deleted ' + rv.name);
           },
-        }, icon('trash', 18), 'Delete this ' + lbl('rv')));
+        }, icon('trash', 18), 'Delete this contact'));
       more.hidden = isNew;
       const moreBtn = isNew ? h('button', { class: 'btn ghost more-btn', type: 'button', onclick: () => { more.hidden = false; moreBtn.hidden = true; } }, icon('down', 18), 'More details') : null;
 

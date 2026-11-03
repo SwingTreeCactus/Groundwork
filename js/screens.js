@@ -482,7 +482,7 @@
     } else if (noPeople) intro = introCard(false);
     const welcome = starter ? starterCard() : noPeople
       ? h('section', { class: 'card welcome' },
-        h('button', { class: 'btn primary block', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add your first ' + lbl('rv')),
+        h('button', { class: 'btn primary block', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add your first contact'),
         importRows())
       : null;
     const d = new Date();
@@ -594,7 +594,7 @@
         const wheels = {};
         const upd = () => {
           const n = L.filterItems(all, listFilterFor(st), S.settings).length;
-          go.textContent = 'Show ' + n + ' ' + (n === 1 ? lbl('rv') : lbl('rvs'));
+          go.textContent = 'Show ' + n + ' ' + (n === 1 ? 'contact' : 'contacts');
           saveListState(st); shown = 100; refresh();
         };
         const sec = (label, w) => h('div', { class: 'wsec' }, h('div', { class: 'wlab' }, label), w);
@@ -667,7 +667,7 @@
       }
       dropMap();
       if (!live.length) {
-        listBox.replaceChildren(UI.emptyState('users', 'No ' + lbl('rvs') + ' yet.'));
+        listBox.replaceChildren(UI.emptyState('users', 'No contacts yet.'));
         return;
       }
       if (cur === 'list') { listBox.replaceChildren(azList(live)); return; }
@@ -678,11 +678,12 @@
         const open = openFolders.has(g.key);
         const due = gardenOn() ? 0 : g.items.filter((i) => i.att.state === 'overdue').length;
         const dry = thirsty(g);
-        const newest = g.items.reduce((m, i) => (i.last > m ? i.last : m), 0);
+        // v2.50.3: the newest real visit or Not Home (adding someone isn't a visit)
+        const newest = g.items.reduce((m, i) => i.entries.reduce((mm, e) => (!e.deletedAt && (e.type === 'visit' || e.type === 'nh') && Date.parse(e.at) > mm ? Date.parse(e.at) : mm), m), 0);
         return h('section', { class: 'acard' + (open ? ' open' : '') },
           h('button', { class: 'ahead', type: 'button', 'aria-expanded': String(open), onclick: () => { if (open) openFolders.delete(g.key); else openFolders.add(g.key); refresh(); } },
             h('span', { class: 't' }, h('span', { class: 'nm' }, g.name),
-              h('span', { class: 'sub' }, due ? h('b', null, due + ' due') : null, due ? ' · ' : null, g.items.length + (g.items.length === 1 ? ' person' : ' people') + ' · last visit ' + U.relTime(newest))),
+              h('span', { class: 'sub' }, due ? h('b', null, due + ' due') : null, due ? ' · ' : null, g.items.length + (g.items.length === 1 ? ' person' : ' people') + (newest ? ' · last visit ' + U.relTime(newest) : ''))),
             dry.length ? h('span', { class: 'athirst', 'aria-label': dry.length + ' thirsty' }, dry.slice(0, 3).map((x, k) => plantOf(x.st, 'sm', { still: true, seed: k }))) : null,
             icon(open ? 'up' : 'down', 20)),
           open ? h('div', { class: 'abody' }, areaSections(g.key, all, now)) : null);
@@ -712,6 +713,13 @@
       const strip = h('nav', { class: 'azstrip', 'aria-label': 'Jump to letter' }, letters.map((l) => h('button', { type: 'button', onclick: () => {
         const el = body.querySelector('.azhead[data-l="' + l + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
       } }, l)));
+      // v2.50.3: slide a finger down the strip to jump, as phone contact lists do (the letters are small targets)
+      let lastL = '';
+      strip.addEventListener('touchmove', (e) => {
+        const t = e.touches[0], b = document.elementFromPoint(t.clientX, t.clientY);
+        if (b && b.parentNode === strip && b.textContent !== lastL) { lastL = b.textContent; const el = body.querySelector('.azhead[data-l="' + lastL + '"]'); if (el) el.scrollIntoView({ block: 'start' }); }
+        e.preventDefault();
+      }, { passive: false });
       return h('div', { class: 'az' }, body, letters.length > 3 ? strip : null);
     }
 
@@ -734,14 +742,14 @@
       const filter = searching ? { stages: new Set(S.settings.stages.filter((x) => !x.closed).map((x) => x.id)), q: st.q } : Object.assign(listFilterFor(st), { q: '' });
       const rows = L.filterItems(all, filter, S.settings).sort(L.SORTS[st.sort] || L.SORTS.oldest);
       const total = all.filter((i) => i.att.state !== 'closed').length;
-      const word = (k) => (k === 1 ? lbl('rv') : lbl('rvs'));
+      const word = (k) => (k === 1 ? 'contact' : 'contacts');
       metaEl.replaceChildren(...[
         h('span', null, searching ? rows.length + ' found' : n ? rows.length + ' of ' + total + ' ' + word(total) : rows.length + ' ' + word(rows.length)),
         !searching && n ? h('button', { class: 'link-quiet', type: 'button', onclick: clearAll }, 'Clear all') : null].filter(Boolean));
       listBox.replaceChildren();
       if (!rows.length) {
         const none = !S.rvs.some((r) => !r.deletedAt);
-        listBox.appendChild(UI.emptyState('users', none ? 'No ' + lbl('rvs') + ' yet.' : searching ? 'Nobody matches that search.' : 'Nobody matches these filters.',
+        listBox.appendChild(UI.emptyState('users', none ? 'No contacts yet.' : searching ? 'Nobody matches that search.' : 'Nobody matches these filters.',
           none ? null : !searching ? h('button', { class: 'btn', type: 'button', onclick: clearAll }, 'Clear filters') : null));
         return;
       }
@@ -870,7 +878,7 @@
   function detail(id) {
     const it = ST.itemFor(id);
     if (!it) {
-      return { title: 'Not found', back: '#/rvs', el: UI.emptyState('alert', 'This record no longer exists.', h('a', { class: 'btn', href: '#/rvs' }, 'Back to ' + lbl('rvs'))) };
+      return { title: 'Not found', back: '#/rvs', el: UI.emptyState('alert', 'This record no longer exists.', h('a', { class: 'btn', href: '#/rvs' }, 'Back to contacts')) };
     }
     const rv = it.rv;
     const closed = it.att.state === 'closed';
@@ -890,7 +898,7 @@
         h('div', { class: 'body' },
           h('strong', null, 'Usually not home on ' + pattern.label + '. '),
           'Not home ' + pattern.nh + ' of ' + (pattern.nh + pattern.home) + ' tries at this time.',
-          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => ST.updateRv(rv.id, { nhBannerOff: true }) }, 'Hide for this ' + lbl('rv')),
+          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => ST.updateRv(rv.id, { nhBannerOff: true }) }, 'Hide for this contact'),
             ' · Turn off for everyone in Settings > Needs attention.'))));
     }
 
@@ -1067,7 +1075,7 @@
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
           !closed ? act('Follow up on…', () => F.snoozeSheet(rv.id), rv.snoozedUntil ? U.fmtDate(rv.snoozedUntil) : 'Pick a date') : null,
           !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
-          act('Delete this ' + lbl('rv') + ' permanently', async () => {
+          act('Delete this contact permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
           }));

@@ -113,7 +113,7 @@
   function view(items) {
     const { h, icon } = RV.dom;
     const UI = RV.ui, L = RV.logic, G = RV.garden, P = RV.plant, S = RV.store.S;
-    const box = h('div', { class: 'gmap', role: 'region', 'aria-label': 'Map of your ' + UI.lbl('rvs') });
+    const box = h('div', { class: 'gmap', role: 'region', 'aria-label': 'Map of your contacts' });
     const msg = h('div', { class: 'gmap-msg', hidden: true });
     const card = h('div', { class: 'gcard', hidden: true });
     // the toggle: everyone, or just who to see today (the same people as Home's Today)
@@ -171,7 +171,7 @@
           map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: { top: 90, bottom: 120, left: 40, right: 40 }, maxZoom: 16, duration: 0 });
         }
       }
-      if (!pts.length && !todayOnly) { msg.textContent = 'Geotag an ' + UI.lbl('rv') + ' or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
+      if (!pts.length && !todayOnly) { msg.textContent = 'Geotag a contact or add addresses to see them here.'; msg.hidden = false; } else msg.hidden = true;
     }
     function putYou(ll) {
       if (!map) return;

@@ -44,8 +44,9 @@
     return day + ' · ' + fmtTime(d);
   }
   function fmtDate(s, now) {
-    const d = typeof s === 'string' ? parseDateStr(s) : s;
-    if (!d) return '';
+    // v2.50.3: a full timestamp is shown on its local day (an evening entry stored in UTC is already the next day there)
+    const d = typeof s === 'string' ? (s.length > 10 && s[10] === 'T' ? new Date(s) : parseDateStr(s)) : s;
+    if (!d || isNaN(d)) return '';
     now = now || new Date();
     return DAYS3[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() !== now.getFullYear() ? ', ' + d.getFullYear() : '');
   }

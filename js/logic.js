@@ -623,7 +623,7 @@
   }
   function entriesToCsv(entries, rvs, settings) {
     const names = new Map(rvs.map((r) => [r.id, r.name]));
-    const rows = [['Date', 'Time', 'RV', 'Type', 'Notes', 'Scriptures', 'From stage', 'To stage']];
+    const rows = [['Date', 'Time', 'Contact', 'Type', 'Notes', 'Scriptures', 'From stage', 'To stage']];
     const sorted = entries.filter((e) => !e.deletedAt).sort((a, b) => (a.at < b.at ? 1 : -1));
     const typeName = { nh: 'Not home', visit: 'Visit', note: 'Note', stage: 'Stage change' };
     for (const e of sorted) {

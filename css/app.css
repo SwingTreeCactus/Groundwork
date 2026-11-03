@@ -1844,7 +1844,7 @@ input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-l
 .tcar { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
   margin: 0 -12px; padding: 2px 12px 4px; scroll-padding: 0 12px; scrollbar-width: none; }
 .tcar::-webkit-scrollbar { display: none; }
-.tcar .tcard { flex: none; width: min(318px, calc(100vw - 72px)); min-height: 380px; scroll-snap-align: start; padding: 0; gap: 0; border-radius: 26px; overflow: hidden; cursor: default; background: var(--surface); }
+.tcar .tcard { flex: none; width: min(318px, calc(100vw - 72px)); scroll-snap-align: start; padding: 0; gap: 0; border-radius: 26px; overflow: hidden; cursor: default; background: var(--surface); }
 .tcard .tband { position: relative; height: 74px; background: var(--mead); display: flex; align-items: flex-end; gap: 6px; padding: 0 18px 12px; }
 .tcard.camp .tband { background: var(--campband); }
 .tcard .tth { font-size: .8rem; font-weight: 600; color: var(--green-t); background: var(--surface); padding: 3px 10px; border-radius: 12px; }
@@ -2064,3 +2064,9 @@ body.aedit-open { overflow: hidden; }
 .bringrow .bs { font-size: .8rem; color: var(--muted); }
 .bringrow > svg:last-child { flex: none; color: var(--muted); }
 .card.welcome { display: flex; flex-direction: column; gap: 4px; }
+/* v2.50.3: wide kinds (the grapevine's arbour) stay inside the record card */
+.ghero { padding-left: 10px; }
+/* v2.50.3: bigger touch targets: the A to Z strip (wider, taller letters; a finger can slide along it) and the bed signs */
+.azstrip { touch-action: none; }
+.azstrip button { min-width: 28px; min-height: 20px; padding: 2px 6px; }
+.gsign { padding: 8px 12px; }

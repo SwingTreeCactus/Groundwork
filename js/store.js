@@ -385,7 +385,7 @@
     };
   }
   async function restore(data, mode) {
-    if (!data || data.app !== 'rv-app' || !Array.isArray(data.rvs) || !Array.isArray(data.entries)) throw new Error('This file is not an RV app backup.');
+    if (!data || data.app !== 'rv-app' || !Array.isArray(data.rvs) || !Array.isArray(data.entries)) throw new Error('This file is not a Groundwork backup.');
     await pending;
     if (mode === 'replace') {
       S.rvs = data.rvs; S.entries = data.entries; S.lib = data.lib || [];
