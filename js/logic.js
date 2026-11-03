@@ -55,7 +55,8 @@
     const today = U.startOfDay(now);
     const daysSince = U.daysBetween(today, last);
     const sn = rv.snoozedUntil ? U.parseDateStr(rv.snoozedUntil) : null;
-    if (sn && sn >= today) return { state: 'snoozed', until: rv.snoozedUntil, daysSince };
+    // v2.51: quiet until the follow-up day; on the day itself they're back (and on Today's list)
+    if (sn && sn > today) return { state: 'snoozed', until: rv.snoozedUntil, daysSince };
     if (settings.useNextVisit && rv.nextVisit) {
       const due = U.parseDateStr(rv.nextVisit);
       if (due) {

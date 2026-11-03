@@ -36,46 +36,22 @@ test('conversations within the gap build the chain; Not Homes and a second visit
   const es = [v(r, 50), v(r, 50, { at: ago(50, 18) }), nh(r, 40), v(r, 25), v(r, 3)];
   assert.equal(G.chain(r, es, S, NOW).count, 3);
 });
-test('a gap longer than the window restarts the run at the next conversation', () => {
+test('v2.51: a gap no longer restarts the run; every conversation since the stage counts', () => {
   const r = rv({ stage: 'cultivating', stageChangedAt: ago(120) });
   const es = [v(r, 110), v(r, 90), v(r, 40), v(r, 20)]; // 90 -> 40 is 50 days
-  assert.equal(G.chain(r, es, S, NOW).count, 2);
+  assert.equal(G.chain(r, es, S, NOW).count, 4);
 });
-test('the first link must come within the gap of reaching the stage', () => {
+test('v2.51: steps are kept after the window passes (only care fades); nothing is marked broken or fading', () => {
   const r = rv({ stage: 'cultivating', stageChangedAt: ago(100) });
-  assert.equal(G.chain(r, [v(r, 50), v(r, 30)], S, NOW).count, 2); // 50 days late: the run starts at it
-  assert.equal(G.chain(r, [v(r, 80), v(r, 60)], S, NOW).count, 0); // last link 60 days ago: broken
-});
-test('when the gap passes the bar empties; the form stays', () => {
-  const r = rv({ stage: 'cultivating', stageChangedAt: ago(70) });
-  const c = G.chain(r, [v(r, 65), v(r, 45), v(r, 31)], S, NOW);
-  assert.equal(c.broken, true); assert.equal(c.count, 0);
-  assert.equal(G.formOf(S, r.stage), 3);
-});
-test('the bar fades in the last heads-up days before it would break', () => {
-  const r = rv({ stage: 'cultivating', stageChangedAt: ago(70) });
-  assert.equal(G.chain(r, [v(r, 28)], S, NOW).fading, true);   // 2 days left
-  assert.equal(G.chain(r, [v(r, 20)], S, NOW).fading, false);
+  const c = G.chain(r, [v(r, 80), v(r, 60)], S, NOW);
+  assert.equal(c.count, 2); assert.equal(c.broken, false); assert.equal(c.fading, false);
+  assert.equal(G.progress(r, [v(r, 80), v(r, 60)], S, NOW).have, 2);
+  assert.ok(G.care(r, [v(r, 80), v(r, 60)], S, NOW) <= G.CARE.DRY);
 });
 test('only visits after the stage was reached count; imported visits never count toward growth', () => {
   const r = rv({ stage: 'cultivating', stageChangedAt: ago(10) });
   assert.equal(G.chain(r, [v(r, 15), v(r, 5)], S, NOW).count, 1);
   assert.equal(G.chain(r, [v(r, 5, { imported: true })], S, NOW).count, 0);
-});
-test('the chain gap follows the stage window when it is changed in Settings', () => {
-  const s2 = D.defaultSettings(); s2.stages.find((s) => s.id === 'cultivating').days = 10;
-  const r = rv({ stage: 'cultivating', stageChangedAt: ago(40) });
-  assert.equal(G.chain(r, [v(r, 30), v(r, 15)], s2, NOW).broken, true);
-  assert.equal(G.chain(r, [v(r, 30), v(r, 15)], S, NOW).count, 2);
-});
-
-console.log('Follow up on <date>');
-test('a follow-up date holds the chain past the gap, through the date plus the heads-up grace', () => {
-  const r = rv({ stage: 'cultivating', stageChangedAt: ago(90), snoozedUntil: ahead(5) });
-  const c = G.chain(r, [v(r, 60), v(r, 40)], S, NOW); // 40 days since the last link
-  assert.equal(c.broken, false); assert.equal(c.held, true); assert.equal(c.count, 2); assert.equal(c.fading, false);
-  const late = rv({ stage: 'cultivating', stageChangedAt: ago(90), snoozedUntil: U.toDateStr(U.addDays(NOW, -3)) });
-  assert.equal(G.chain(late, [v(late, 60), v(late, 40)], S, NOW).broken, true); // date + 2 days grace has passed
 });
 test('a visit made while held counts as a link, and stays counted after the date is cleared', () => {
   const r = rv({ stage: 'cultivating', stageChangedAt: ago(90), snoozedUntil: ahead(1) });
@@ -297,23 +273,15 @@ test('visitors v2.26: bluebird, squirrel, frog, owl, deer, ladybug and rare coat
   global.__RV_SURPRISE = undefined; global.__RV_COATS = undefined;
   assert.equal(G.VISITORS.length, 15); assert.equal(G.COATS.length, 3);
 });
-test("today's tending: water the thirsty, leave a plan, grow one that's close (v2.25)", () => {
+test('v2.51: no tending; plans left today (the frog) and a welcome back after a week away (rain)', () => {
   const at = (h) => new Date(2026, 9, 21, h, 0).toISOString();
-  const a = rv({ name: 'Ann Dry', stage: 'return' }), b = rv({ name: 'Bo Dry', stage: 'return' });
-  const c = rv({ name: 'Cy Close', stage: 'cultivating', stageChangedAt: ago(60) });
-  const base = [it(a, [v(a, 40)]), it(b, [v(b, 45)]), it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true })])];
-  let t = G.tending(base, S, NOW);
-  assert.deepEqual(t.goals.map((g) => [g.key, g.have, g.need]), [['water', 0, 2], ['plan', 0, 1], ['grow', 0, 1]]);
-  assert.equal(t.goals[2].label, 'Grow Cy: one more conversation');
-  // a knock on Ann and a planned talk with Bo; Cy grows
-  const later = [it(a, [v(a, 40), { id: 'n1', rvId: a.id, type: 'nh', at: at(9) }]), it(b, [v(b, 45), { id: 'v1', rvId: b.id, type: 'visit', at: at(10), plan: true }]),
-    it(c, [v(c, 30, { plan: true }), v(c, 10, { plan: true }), { id: 'v2', rvId: c.id, type: 'visit', at: at(11), plan: false }, { id: 's1', rvId: c.id, type: 'stage', grew: true, from: 'cultivating', to: 'return', at: at(11) }])];
-  t = G.tending(later, S, NOW);
-  assert.ok(t.all, JSON.stringify(t.goals));
-  // nobody thirsty and nobody close: talk with 2, knock on 3 doors
-  const d = rv({ stage: 'return' });
-  t = G.tending([it(d, [v(d, 3)])], S, NOW);
-  assert.deepEqual(t.goals.map((g) => g.key), ['talk', 'plan', 'doors']);
+  const a = rv({ stage: 'return' });
+  assert.equal(G.plansToday([it(a, [{ id: 'p1', rvId: a.id, type: 'visit', at: at(9), plan: true }, { id: 'p2', rvId: a.id, type: 'visit', at: at(10), plan: false }])], NOW), 1);
+  assert.equal(G.plansToday([it(a, [{ id: 'p1', rvId: a.id, type: 'visit', at: at(9), plan: true }, { id: 'p3', rvId: a.id, type: 'visit', at: at(10), study: true, nextStart: 'Lesson 4' }])], NOW), 2);
+  assert.equal(G.welcomeBack([it(a, [v(a, 9), { id: 'n1', rvId: a.id, type: 'nh', at: at(9) }])], NOW), true);
+  assert.equal(G.welcomeBack([it(a, [v(a, 3), { id: 'n2', rvId: a.id, type: 'nh', at: at(9) }])], NOW), false);
+  assert.equal(G.welcomeBack([it(a, [v(a, 9)])], NOW), false); // nothing today
+  assert.equal(G.tending, undefined);
 });
 test('next milestones: the lowest open tier of each family, closest first (v2.25)', () => {
   const counts = { visits: 7, firsts: 1, plans: 0, revived: 0, studies: 0, best: 0, rounds: 0, area: 0 };
@@ -395,16 +363,13 @@ test('v2.29: seasons by date; seasonal visitors; sets complete only with every a
   assert.ok(G.SETS.every(([id]) => c2[id]) && c2.all);
   assert.equal(G.setsComplete(Object.assign({}, s2, { visitors: seen(['deer', 'fox', 'fox-silver']) })).times, false);
 });
-test('streak counts perfect weeks since the garden started, with a freeze from a perfect month', () => {
+test('v2.51: no streak; weeks with a visit or Not Home recorded, a total that only grows', () => {
   const a = rv({ stage: 'return', createdAt: ago(300) });
-  // a visit every 10 days keeps it from ever coming due
-  const es = []; for (let n = 120; n >= 0; n -= 10) es.push(v(a, n));
-  const s1 = G.streak([it(a, es)], S, NOW, ago(120));
-  assert.ok(s1.streak >= 16 && s1.best === s1.streak);
-  assert.ok(s1.freezes >= 1);
-  assert.equal(s1.weeks.length, 12);
-  // since now: nothing counted yet
-  assert.equal(G.streak([it(a, es)], S, NOW, NOW.toISOString()).streak, 0);
+  const es = [v(a, 120), v(a, 119), nh(a, 60), v(a, 10, { imported: true }), v(a, 1)];
+  assert.equal(G.weeksOut([it(a, es)], ago(200)), 3); // two in one week count once; imports never count
+  assert.equal(G.weeksOut([it(a, es)], ago(70)), 2);   // only since the garden started
+  const s1 = G.streak([it(a, es)], S, NOW, ago(200));
+  assert.equal(s1.weeksOut, 3); assert.equal(s1.best, 3); assert.ok(s1.ring && typeof s1.ring.seen === 'number');
 });
 test('rates and the activity grid', () => {
   const a = rv({ stage: 'return' });

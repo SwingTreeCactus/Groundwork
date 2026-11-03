@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.50.3';
+  RV.VERSION = '2.51.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -77,7 +77,7 @@
     const gOn = S.settings.garden !== false && RV.garden;
     let fresh = 0;
     if (gOn) { try { fresh = RV.garden.unseenHere(S.settings.visitorsHere).length; } catch (e) { fresh = 0; } }
-    const tabs = [['home', '#/home', 'home', 'Home'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', gOn ? 'sprout' : 'chart', gOn ? 'My garden' : 'Insights']];
+    const tabs = [['home', '#/home', 'home', 'Today'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', gOn ? 'sprout' : 'chart', gOn ? 'My garden' : 'Insights']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
@@ -109,7 +109,9 @@
           UI.toggle(isDark(), (on) => { ST.saveSettings((st) => { st.theme = on ? 'dark' : 'light'; }); applyDisplay(); render(); }, 'Dark mode'))) : null,
         h('div', { class: 'drawer-group' }, head ? h('div', { class: 'drawer-sub' }, head) : null,
           rows.map(([path, label, ic]) => h('a', { class: 'drawer-item', href: '#/settings/' + path, onclick: close }, icon(ic, 20), label)))]).flat().filter(Boolean),
-        h('a', { class: 'drawer-foot', href: '#/settings/about', onclick: close }, 'Groundwork ' + RV.VERSION)));
+        // v2.51: the last backup (Drive or a downloaded file) at the foot
+        h('div', { class: 'drawer-foot' }, h('a', { href: '#/settings/about', onclick: close }, 'Groundwork ' + RV.VERSION),
+          h('a', { href: '#/settings/data', onclick: close, class: 'drawer-bk' }, (() => { let d = null; try { d = localStorage.getItem('rvapp.lastBackup'); } catch (e) { /* ignore */ } return d ? 'Backed up ' + U.fmtDate(d) : 'Not backed up'; })()))));
     document.body.appendChild(scrim);
     document.body.classList.add('no-scroll');
   }

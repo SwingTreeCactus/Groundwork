@@ -79,29 +79,13 @@
   // count: links in the current run (each within the gap of the one before; the first within the gap of
   // the moment the stage was reached); broken: the gap has passed with no conversation (bar empties);
   // fading: inside the last heads-up days before it would break; held: a follow-up date is holding it.
+  // v2.51: steps toward the next form are kept (Mark: nothing earned is lost; habit apps that last keep what you did).
+  // A long gap no longer empties the run; it only lets the plant's care fade, and the next conversation revives it.
+  // broken, fading and held stay in the result (always false) so older callers keep working.
   function chain(rv, entries, settings, now) {
-    now = now || new Date();
-    const gap = gapFor(settings, rv);
     const since = sinceOf(rv);
-    const convs = conversations(entries, { liveOnly: true }).filter((e) => ms(e.at) > ms(since));
-    let count = 0, prev = dayOf(since);
-    for (const e of convs) {
-      const d = dayOf(e.at);
-      const within = gap == null || U.daysBetween(d, prev) <= gap || e.chainHeld === true;
-      count = within ? count + 1 : 1;
-      prev = d;
-    }
-    const out = { count, gap, lastLink: prev, broken: false, fading: false, held: false, deadline: null, daysLeft: null };
-    if (gap == null) return out;
-    let deadline = U.addDays(prev, gap);
-    const fu = followUp(rv, settings, now);
-    if (fu && fu.holdsUntil > deadline) { deadline = fu.holdsUntil; out.held = fu.active || U.startOfDay(now) <= fu.holdsUntil; }
-    out.deadline = deadline;
-    const left = U.daysBetween(deadline, now);
-    out.daysLeft = left;
-    if (left < 0) { out.broken = true; out.count = 0; out.held = false; return out; }
-    if (!out.held && count > 0 && left <= Math.max(0, settings.soonDays || 0)) out.fading = true;
-    return out;
+    const count = conversations(entries, { liveOnly: true }).filter((e) => ms(e.at) > ms(since)).length;
+    return { count, gap: gapFor(settings, rv), broken: false, fading: false, held: false, deadline: null, daysLeft: null };
   }
   // Whether a conversation logged at `at` should count as a held link (a follow-up date carried it past the gap).
   // logVisit stores the answer on the entry, because the follow-up date is cleared once the visit is saved.
@@ -120,7 +104,7 @@
   const studyCount = (entries) => conversations(entries, { liveOnly: true }).filter(isStudySession).length;
 
   // Shrub flowers (v2.23): at the shrub (form 4), each completed chain of FLOWER_RUN conversations sets one
-  // flower, up to FLOWER_MAX; a break empties the run toward the next one. Counted from when the plant became a
+  // flower, up to FLOWER_MAX (v2.51: gaps no longer empty the run). Counted from when the plant became a
   // shrub and from the day flowers arrived (settings.flowersSince; nothing earlier counts), live talks only.
   // Flowers never fall off; they close while the plant is Thirsty or Wilting (drawn by plant.js).
   const FLOWER_RUN = 3, FLOWER_MAX = 5;
@@ -132,8 +116,7 @@
     let n = 0, run = 0, prev = U.startOfDay(new Date(start));
     for (const e of convs) {
       const d = dayOf(e.at);
-      const within = gap == null || U.daysBetween(d, prev) <= gap || e.chainHeld === true;
-      run = within ? run + 1 : 1;
+      run += 1; // v2.51: a gap no longer empties the run toward the next flower
       prev = d;
       if (run >= FLOWER_RUN) { n++; run = 0; if (n >= FLOWER_MAX) break; }
     }
@@ -278,31 +261,25 @@
     for (const it of items) { const c = weekCheck(it, settings, ws, now); if (c) { due++; if (c.seen) seen++; } }
     return { due, seen, left: due - seen, perfect: seen === due };
   }
-  // Weeks in a row with every due RV seen, counted from the garden's start (never backfilled).
-  // A perfect calendar month earns a freeze, which covers one missed week later.
+  // v2.51: no streak. Weeks with at least one live visit or Not Home recorded, counted from the garden's start
+  // (never backfilled), as a total that only grows: a week off takes nothing away. `from`/`to` limit the count
+  // (the geese count one autumn).
+  function weeksOut(items, since, from, to) {
+    const t0 = Math.max(since ? ms(since) : 0, from ? from.getTime() : 0), t1 = to ? to.getTime() : Infinity;
+    const weeks = new Set();
+    for (const it of items) for (const e of it.entries) {
+      if (e.deletedAt || e.imported || (e.type !== 'visit' && e.type !== 'nh')) continue;
+      const t = ms(e.at);
+      if (t >= t0 && t < t1) weeks.add(U.toDateStr(weekStart(new Date(e.at))));
+    }
+    return weeks.size;
+  }
+  // The garden's week: what was watered this week (shown as done, never as what is left) and the weeks total.
+  // `best` stays as the weeks total so the sundial milestones read it.
   function streak(items, settings, now, since) {
     now = now || new Date();
-    const start = weekStart(since ? new Date(since) : now);
-    const cur = weekStart(now);
-    const weeks = [];
-    let run = 0, best = 0, freezes = 0, monthOk = true, monthWeeks = 0;
-    for (let ws = start; ws < cur; ws = U.addDays(ws, 7)) {
-      const r = weekRing(items, settings, ws, now);
-      let state = r.perfect ? 'ok' : 'miss';
-      if (state === 'miss' && freezes > 0) { freezes--; state = 'frz'; }
-      run = state === 'miss' ? 0 : run + 1;
-      best = Math.max(best, run);
-      weeks.push(state);
-      // a week belongs to the month its Saturday falls in
-      const sat = U.addDays(ws, 6), nextSat = U.addDays(ws, 13);
-      monthWeeks++; if (!r.perfect) monthOk = false;
-      if (nextSat.getMonth() !== sat.getMonth()) {
-        if (monthOk && monthWeeks >= 4) freezes++;
-        monthOk = true; monthWeeks = 0;
-      }
-    }
-    const pad = Math.max(0, 12 - weeks.length);
-    return { weeks: Array(pad).fill('none').concat(weeks.slice(-12)), streak: run, best, freezes, ring: weekRing(items, settings, cur, now) };
+    const n = weeksOut(items, since);
+    return { weeksOut: n, best: n, ring: weekRing(items, settings, weekStart(now), now) };
   }
   // Found home (conversations vs Not Homes) and prepared visits (left a plan), over the last 90 days.
   function rates(items, now) {
@@ -354,8 +331,8 @@
   const EXHIBITS = [
     ['first-plan', '1st', 'First plan left', 'plan', 1],
     ['round1', '1st', 'First round', 'round', 1],
-    ['ring1', '1st', 'First full week', 'streak', 1], ['streak4', '4', '4-week streak', 'streak', 2], ['streak12', '12', '12-week streak', 'streak', 3],
-    ['streak26', '26', '6-month streak', 'streak', 4], ['streak52', '1y', 'One-year streak', 'streak', 5],
+    ['ring1', '1st', 'First week with visits recorded', 'streak', 1], ['streak4', '4', '4 weeks with visits recorded', 'streak', 2], ['streak12', '12', '12 weeks with visits recorded', 'streak', 3],
+    ['streak26', '26', '26 weeks with visits recorded', 'streak', 4], ['streak52', '52', '52 weeks with visits recorded', 'streak', 5],
     ['revive1', '1st', 'First revival', 'revive', 1], ['revive5', '5', '5 revivals', 'revive', 2], ['revive25', '25', '25 revivals', 'revive', 3],
     ['rv10', '10', '10 return visits', 'rv', 1], ['rv25', '25', '25 return visits', 'rv', 2], ['rv50', '50', '50 return visits', 'rv', 3], ['rv100', '100', '100 return visits', 'rv', 4],
     ['first10', '10', '10 first conversations', 'first', 1], ['first25', '25', '25 first conversations', 'first', 2],
@@ -410,42 +387,31 @@
     return Array.from(fam.values()).sort((a, b) => b.have / b.need - a.have / a.need || a.need - b.need).slice(0, n || 3);
   }
 
-  // ---------- today's tending (v2.25) ----------
-  // Three small goals for today from the garden as it stood this morning; each fills as the day's logs come in.
-  // water: thirsty or wilting plants this morning that got a talk or a knock today (up to 2; else talk with 2 people);
-  // plan: a visit today that left a plan; grow: one plant that was a step from its next form grows today
-  // (else knock on 3 doors). Imports never count.
-  function tending(items, settings, now) {
+  // v2.51: today's tending (the chalkboard) is gone. What it rewarded moves to things noticed afterwards:
+  // plans left today (the frog) and coming back after a week or more away (rain, as a welcome back).
+  function plansToday(items, now) {
     now = now || new Date();
-    const sod = U.startOfDay(now), t0 = sod.getTime(), t1 = now.getTime();
-    const today = (e) => !e.deletedAt && !e.imported && ms(e.at) >= t0 && ms(e.at) <= t1;
-    const live = items.filter((it) => !L.isClosed(settings, it.rv) && !L.isDNC(settings, it.rv) && formOf(settings, it.rv.stage));
-    const touched = new Set(), talked = new Set();
-    let planned = 0;
-    for (const it of live) for (const e of it.entries) {
-      if (!today(e)) continue;
-      if (e.type === 'nh' || e.type === 'visit') touched.add(it.rv.id);
-      if (e.type === 'visit') { talked.add(it.rv.id); if (e.plan === true || (e.study && e.nextStart)) planned++; }
+    const t0 = U.startOfDay(now).getTime(), t1 = now.getTime();
+    let n = 0;
+    for (const it of items) for (const e of it.entries) {
+      if (e.deletedAt || e.imported || e.type !== 'visit') continue;
+      const t = ms(e.at);
+      if (t >= t0 && t <= t1 && (e.plan === true || (e.study && e.nextStart))) n++;
     }
-    const goals = [];
-    const morning = live.map((it) => {
-      const before = it.entries.filter((e) => ms(e.at) < t0);
-      return { it, care: care(it.rv, before, settings, sod), p: progress(it.rv, before, settings, sod) };
-    });
-    const dry = morning.filter((x) => x.care && x.care <= CARE.DRY);
-    if (dry.length) {
-      const need = Math.min(2, dry.length);
-      goals.push({ key: 'water', label: need === 1 ? 'Water a thirsty plant' : 'Water 2 thirsty plants', need, have: Math.min(need, dry.filter((x) => touched.has(x.it.rv.id)).length) });
-    } else goals.push({ key: 'talk', label: 'Have 2 conversations', need: 2, have: Math.min(2, talked.size) });
-    goals.push({ key: 'plan', label: 'Leave a plan on a visit', need: 1, have: planned ? 1 : 0 });
-    const near = morning.filter((x) => x.p.need && x.p.next && !x.p.broken && x.p.need - x.p.have === 1).sort((a, b) => U.cmp(a.it.rv.name, b.it.rv.name));
-    if (near.length) {
-      const x = near[0], first = String(x.it.rv.name || '').split(' ')[0];
-      const grew = x.it.entries.some((e) => today(e) && e.type === 'stage' && e.grew);
-      goals.push({ key: 'grow', label: 'Grow ' + first + ': ' + (x.p.kind === 'study' ? 'one more study' : 'one more conversation'), need: 1, have: grew ? 1 : 0, rvId: x.it.rv.id });
-    } else goals.push({ key: 'doors', label: 'Knock on 3 doors', need: 3, have: Math.min(3, touched.size) });
-    goals.forEach((g) => { g.done = g.have >= g.need; });
-    return { goals, all: goals.every((g) => g.done) };
+    return n;
+  }
+  // True when today has a live visit or Not Home and the one before today was 7 or more days earlier.
+  function welcomeBack(items, now) {
+    now = now || new Date();
+    const t0 = U.startOfDay(now).getTime();
+    let today = false, prev = 0;
+    for (const it of items) for (const e of it.entries) {
+      if (e.deletedAt || e.imported || (e.type !== 'visit' && e.type !== 'nh')) continue;
+      const t = ms(e.at);
+      if (t >= t0 && t <= now.getTime()) today = true;
+      else if (t < t0 && t > prev) prev = t;
+    }
+    return today && !!prev && (t0 - prev) >= 7 * 864e5;
   }
 
   // Week's-end recap: the Sunday-to-Saturday week that just ended, once (seen = that week's start as
@@ -469,10 +435,10 @@
       if (e.type === 'visit' && e.revived && !e.deletedAt) { const t = new Date(e.at); if (t >= ws && t < we) revived++; }
     }
     const lush = items.filter((it) => forItem(it, settings, now).care === CARE.LUSH).length;
-    const sk = streak(items, settings, now, since);
+    const weeks = weeksOut(items, since, null, we);
     const earned = Object.keys(settings.exhibits || {}).filter((id) => { const t = new Date(settings.exhibits[id]); return t >= ws && t < we; });
     const sets = Object.keys(settings.setsDone || {}).filter((id) => { const t = new Date(settings.setsDone[id]); return t >= ws && t < we; });
-    return { key, ws, we, ring, grew, revived, lush, streak: sk.streak, exhibits: earned, sets };
+    return { key, ws, we, ring, grew, revived, lush, weeksOut: weeks, exhibits: earned, sets };
   }
   // A field-service round: the latest run of live logs (Not Homes, visits, new contacts) no more than
   // ROUND_GAP minutes apart. Shown once (seen = the round's key, its last log time) when it has at least
@@ -544,7 +510,7 @@
     ['fox', 'Fox', 'Last week you went out on 2 or more days.', 'Go out on 2 or more days in a week, then look in one evening.', 'Sly', 'dusk'],
     ['bluebird', 'Bluebird', 'You finished a round of field service yesterday.', 'Finish a round of field service.', 'Content', 'dawn'],
     ['squirrel', 'Squirrel', 'Someone\u2019s plant grew today.', 'Help someone\u2019s plant grow to its next form.', 'Frazzled', 'day'],
-    ['frog', 'Frog', 'You finished all three of today\u2019s tending goals.', 'Finish all three of today\u2019s tending goals.', 'Unbothered', 'day'],
+    ['frog', 'Frog', 'You left plans on two or more visits today.', 'Leave plans on two or more visits in a day.', 'Unbothered', 'day'],
     ['owl', 'Owl', 'You have someone in the Bible study stage.', 'Have someone in the Bible study stage, then look in at night.', 'Skeptical', 'night'],
     ['deer', 'Deer', 'Last week you went out on 3 or more days.', 'Go out on 3 or more days in a week, then look in early in the morning.', 'Gentle', 'dawn'],
     ['ladybug', 'Ladybug', 'One of your plants is lush.', 'Grow a plant to lush in spring or summer.', 'Shy', 'day'],
@@ -552,7 +518,7 @@
     ['snail', 'Snail', 'You have kept visiting someone for six months.', 'Keep visiting someone on time for six months or more.', 'Unhurried', 'day'],
     ['robin', 'Robin', 'You added someone new today.', 'Add a new contact.', 'Cheerful', 'day'],
     // v2.29 seasonal
-    ['geese', 'Geese', 'Your weekly streak reached 4 weeks this autumn.', 'Keep your weekly streak going for 4 weeks in autumn.', 'Grumpy', 'dusk'],
+    ['geese', 'Geese', 'You recorded visits in 4 weeks this autumn.', 'Record visits in 4 different weeks in autumn.', 'Grumpy', 'dusk'],
     ['bees', 'Bees', 'You left plans on several visits in one area this week.', 'In spring or summer, leave a plan on 2 or more visits in one area in the same week.', 'Focused', 'day'],
     ['quail', 'California quail', 'Last week you had conversations in 3 or more areas.', 'In spring or summer, have conversations in 3 or more areas in a week.', 'Sociable', 'day'],
   ];
@@ -634,8 +600,8 @@
     // squirrel: someone's plant grew today
     const grewToday = live.filter((x) => x.it.entries.some((e) => !e.deletedAt && e.type === 'stage' && e.grew && ms(e.at) >= y1 && ms(e.at) <= t1)).sort(byId);
     if (grewToday.length && comes('squirrel')) out.squirrel = pickOne(grewToday, 'squirrel').it.rv.id;
-    // frog: all three of today's tending goals done
-    if (comes('frog') && tending(items, settings, now).all) out.frog = true;
+    // frog: plans left on two or more visits today (v2.51; was today's tending)
+    if (comes('frog') && plansToday(items, now) >= 2) out.frog = true;
     // owl: at night (8 pm to 6 am) when someone is in the study stage
     if ((hr >= 20 || hr < 6) && live.some((x) => L.isStudyStage(settings, x.it.rv.stage)) && comes('owl')) out.owl = true;
     // ladybug: spring and summer (March to August), on a lush plant
@@ -661,7 +627,7 @@
     if (items.some((it) => !it.rv.deletedAt && !it.rv.imported && ms(it.rv.createdAt) >= t0 && ms(it.rv.createdAt) <= t1) && comes('robin')) out.robin = true;
     // v2.29 seasonal visitors
     const season = seasonOf(now);
-    if (season === 'autumn' && comes('geese') && streak(items, settings, now, settings.gardenSince).streak >= 4) out.geese = true;
+    if (season === 'autumn' && comes('geese') && weeksOut(items, settings.gardenSince, new Date(now.getFullYear(), 8, 1), new Date(now.getFullYear(), 11, 1)) >= 4) out.geese = true;
     if (season === 'spring' || season === 'summer') {
       // bees: an area where 2+ visits this week (Sunday on) left a plan
       const wk0 = weekStart(now).getTime(), perArea = new Map();
@@ -772,7 +738,7 @@
 
   const api = {
     PLANT_KINDS, RARE_KINDS, RARE_ODDS, ALL_KINDS, drawPlantKind, needsReveal,
-    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, tending, VISITORS, COATS, SETS, setsComplete, seasonOf, starterSteps, starterOn, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
+    CARE, CARE_NAMES, FORM_NAMES, GROW_DEFAULTS, LUSH_RUN, NH_HOLD, EXHIBITS, round, lushRun, flowers, MILESTONE_NEED, milestoneCounts, nextMilestones, plansToday, welcomeBack, weeksOut, VISITORS, COATS, SETS, setsComplete, seasonOf, starterSteps, starterOn, visitors, visitorKey, newVisitors, settleVisitors, hereAsVis, unseenHere, markVisitorSeen, resting, FLOWER_RUN, FLOWER_MAX, ROUND_GAP, ROUND_MIN, ROUND_REST,
     formOf, needFor, kindFor, nextStageOf, conversations, isStudySession, sinceOf, followUp,
     chain, heldLink, studyCount, progress, growth, planned, care, stateOf,
     forItem, almost, weekStart, weekRing, streak, rates, activityGrid, plots, exhibitsEarned, recap, skyOf, growthName,

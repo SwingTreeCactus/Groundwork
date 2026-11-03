@@ -827,3 +827,31 @@ The items from claude/ux-audit.md (and the 2026-10-31 audit) that needed no deci
 - **Touch targets**: the A to Z strip's letters are bigger and a finger can slide along it to jump; the garden's bed signs are bigger.
 - Not in this release: the can and streak changes (WIP branch wip/2.50.3, part of the motivation redesign that goes to mockup first).
 - Tests: smoke 375 (wording), others unchanged. VERSION 2.50.3, cache rvapp-v110.
+
+## 65. v2.51.0 Motivation without guilt, Today's list, and the audit decisions (built 2026-11-03)
+
+Mark's rule from the UX audit (claude/ux-audit.md): show what was accomplished, never what is left; keep what was earned; no pressure. Habit apps that last (Apple Fitness, Finch, Headspace) count what you did, keep it, and welcome you back. Mockups: https://claude.ai/artifact/A3ttuVwYdcFdm8Ho12cK2q (panels 1–15).
+
+**The game**
+- **No streak.** The streak, its pennants on the fence, freezes and the Streak sheet are gone; bunting now only means a campaign is running. The five sundial milestones (ids unchanged, earned ones kept) count weeks with at least one live visit or Not Home recorded in Groundwork (`G.weeksOut`), a total that only grows: 1, 4, 12, 26, 52 weeks with visits recorded. Geese come in autumn after 4 such weeks that season.
+- **The watering can** starts the week empty and fills a quarter for each thirsty plant watered (full at four). Its sheet says only what was done ("3 thirsty plants watered this week"; "Each thirsty plant you water this week shows here." before any). The weekly recap shows "Watered" and "weeks with visits recorded", no ring and nothing "still thirsty".
+- **No chalkboard.** Today's tending (three daily goals, "Grow ___") is removed. The frog comes on a day with plans left on 2+ visits (`G.plansToday`); rain falls the first time you go out after 7+ days away, as a welcome back (`G.welcomeBack`; once a day, `settings.tendDone`).
+- **Growth is kept.** A long gap no longer empties the steps toward the next form or the run toward the next shrub flower; only care fades, and the next conversation revives the plant and growth carries on (`G.chain` counts every conversation since the stage). No hold mark is needed. How your garden works: "Each conversation grows it, however far apart."
+- **A plan counts only when written.** Record a visit's Discuss next time starts empty with last time's plan faintly inside it ("Last time: …"); only text written there (or a topic's linking question picked) counts as a plan (`entry.plan` from the sheet). Left empty, last time's plan stays on the record. The "Plan set · lush" nudge is gone; How your garden works still explains plans.
+
+**Today's list** (js/todaylist.js, `RV.todayList`; `settings.todayList = { day, ids, off, note }`, so it goes with backups)
+- On Today under the carousel: an optional note for the day, then the people you mean to see in the order you add them (drag the grip to reorder; nothing reorders for you). Each row: a tick, the plant, the name, likely-home timing (or address), and Bring up / Next lesson. A visit or Not Home ticks someone off ("Visited 10:40", "Not home 11:05"), and the heading counts what's done ("· 2 seen"). It clears overnight; nobody is marked missed.
+- **+ Add** opens everyone A to Z with a search (area only as a detail); tap to add or take off.
+- **Follow-ups for today join on their own**, marked "Follow-up today" (taking one off is remembered for the day). Fix: a follow-up date now stops counting as quiet on the day itself (it used to hide the person that day).
+- **Plan a visit**: a calendar icon in the contact's top bar (filled while they're on today's list) opens a sheet: Today (adds to the list), Tomorrow, Pick a date (both set the follow-up date), Take off today's list, Clear follow-up. It replaces "Follow up on…" in the ⋯ menu (now "Plan a visit…"). The visit sheet keeps its optional Follow up on date.
+- **Could visit today** replaces "If you see them" and "N people to see today": up to three people likely home today or with today as their best day, not on the list and not seen today, each with + Add; rows show only when they're likely home.
+
+**Other decisions**
+- A study record hides a Discuss next time written before its first study session (it stays in the timeline).
+- Timeline: the newest visit isn't repeated (Last visit shows it); a row opens its edit sheet, where Delete now lives.
+- Contacts with nobody yet opens on List with Add a contact and the two import rows; nothing is sent to the map service.
+- A backup card on Today when there's no backup and 5+ contacts, or the last backup (Drive or a downloaded file) is 14+ days old; Not now hides it for 14 days. The menu foot shows "Backed up Nov 3" or "Not backed up".
+- The first tab is named Today.
+- Stuck in stage is dropped (its Customize setting too); Worth reconsidering moves to the foot of each area as "Not home 3 or more times", with the days tried.
+
+Tests: smoke 383 (the gate, can sheet, recap, plan field, timeline, Today's list, Plan a visit, follow-up on the day, Could visit today, areas), garden 45 (kept growth, weeks recorded, plans today, welcome back), screens 60, others unchanged. VERSION 2.51.0, cache rvapp-v111.

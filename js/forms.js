@@ -549,7 +549,9 @@
     const stage = select(sc.options, sc.value);
     const tags = h('input', { type: 'text', placeholder: 'Tags', list: 'tag-list-v' });
     const tagList = h('datalist', { id: 'tag-list-v' }, ST.allTags().map((t) => h('option', { value: t })));
-    const whatsNext = h('textarea', { value: rv.whatsNext || '', placeholder: 'Discuss next time', style: { minHeight: '60px' } });
+    // v2.51: the field starts empty with last time's plan shown faintly inside it; only what is written here (or a
+    // topic's linking question picked) counts as a plan. Left empty, last time's plan stays on the record.
+    const whatsNext = h('textarea', { value: '', 'aria-label': 'Discuss next time', placeholder: rv.whatsNext ? 'Last time: ' + rv.whatsNext : 'Discuss next time', style: { minHeight: '60px' } });
     // Follow up on <date>: optional; quiets the record until then and holds the chain
     const follow = h('input', { type: 'date', 'aria-label': 'Follow up on', min: U.toDateStr(U.addDays(new Date(), 1)) });
     const camp = ST.activeCampaign();
@@ -577,28 +579,7 @@
         }),
         h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
     const topicBox = topicChips(text, whatsNext, (t) => { pickedTopic = t.id; });
-    // plan nudge (v2.22): a plan left on each visit is what makes a plant lush; say where this one stands
-    const nudge = h('div', { class: 'plannudge', 'aria-live': 'polite' });
-    const G = RV.garden, gOn = S.settings.garden !== false && G;
-    const gForm = gOn ? G.formOf(S.settings, rv.stage) : 0;
-    const runBefore = gOn ? G.lushRun(rv, ST.itemFor(rvId) ? ST.itemFor(rvId).entries : [], S.settings, new Date()) : 0;
-    let hadPlan = null;
-    const paintNudge = () => {
-      if (!gOn) { nudge.hidden = true; return; }
-      const has = !!whatsNext.value.trim();
-      nudge.replaceChildren();
-      if (has) {
-        const n = Math.min(G.LUSH_RUN, runBefore + 1);
-        nudge.append(icon('sparkle', 16), h('span', null, gForm <= 2 ? 'Plan set' : n >= G.LUSH_RUN ? 'Plan set · lush' : 'Plan set · ' + n + ' of ' + G.LUSH_RUN + ' toward lush'));
-      } else if (gForm > 2) nudge.append(h('span', null, 'A plan each visit grows it lush'));
-      nudge.classList.toggle('on', has);
-      if (has && hadPlan === false) { nudge.classList.remove('pop'); void nudge.offsetWidth; nudge.classList.add('pop'); }
-      nudge.hidden = !nudge.childNodes.length;
-      hadPlan = has;
-    };
-    whatsNext.addEventListener('input', paintNudge);
-    paintNudge();
-    const nextBox = h('div', null, field('Discuss next time', whatsNext), nudge);
+    const nextBox = h('div', null, field('Discuss next time', whatsNext)); // v2.51: no game words in the sheet
     const campBox = camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null;
     // no study session for Potential (no real conversation yet)
     const isFirst = (S.settings.stages.find((x) => !x.closed) || {}).id === rv.stage;
@@ -631,7 +612,8 @@
           const d = UI.parseLocalDT(when.value);
           const res = ST.logVisit(rvId, {
             text: text.value,
-            whatsNext: study ? undefined : whatsNext.value,
+            whatsNext: study || !whatsNext.value.trim() ? undefined : whatsNext.value,
+            plan: study ? undefined : !!whatsNext.value.trim(),
             topic: !study && pickedTopic ? pickedTopic : undefined,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
             study: study || undefined,

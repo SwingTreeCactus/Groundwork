@@ -233,7 +233,11 @@
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
-          h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
+          h('button', { class: 'btn primary', type: 'submit' }, 'Save')),
+        // v2.51: Delete lives here now; the timeline rows open this sheet
+        isStage ? null : h('button', { class: 'link delentry', type: 'button', onclick: async () => {
+          if (await confirmDialog({ title: 'Delete this entry?', confirmText: 'Delete', danger: true })) { RV.store.deleteEntry(entryId); close(); }
+        } }, 'Delete this entry')));
   }
 
   // ---------- picker wheel ----------

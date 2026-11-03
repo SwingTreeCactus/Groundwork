@@ -283,7 +283,8 @@
     const before = S.entries.filter((e) => e.rvId === rvId);
     const careBefore = G && !o.imported ? G.care(rv, before, S.settings, new Date()) : 0;
     if (G && G.heldLink(rv, before, S.settings, entry.at)) entry.chainHeld = true;
-    entry.plan = entry.study ? !!entry.nextStart : !!String(typeof o.whatsNext === 'string' ? o.whatsNext : rv.whatsNext || '').trim();
+    // v2.51: a plan counts only when one was written in this visit (o.plan from the sheet); older callers keep the old rule
+    entry.plan = entry.study ? !!entry.nextStart : typeof o.plan === 'boolean' ? o.plan : !!String(typeof o.whatsNext === 'string' ? o.whatsNext : rv.whatsNext || '').trim();
     // revived: this conversation lifted a Thirsty or Wilting plant back to health
     if (G && careBefore && careBefore <= G.CARE.DRY && G.care(rv, before.concat([entry]), S.settings, new Date()) >= G.CARE.HEALTHY) entry.revived = true;
     S.entries.push(entry);

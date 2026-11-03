@@ -449,23 +449,159 @@
     return [camp].concat(groups, other).filter((g) => g.items.length);
   }
   // a few people likely home today, each with what you planned to bring (or the next lesson)
-  function ifYouSee(now) {
-    const items = ST.items();
-    const list = L.likelyHomeNow(items, now).filter((o) => o.item.rv.whatsNext || o.item.rv.nextStart).slice(0, 3);
-    if (!list.length) return null;
-    // v2.41: small cards in a row you can swipe
-    return section('If you see them', h('div', { class: 'seecar seeit' }, list.map((o) => {
-      const rv = o.item.rv;
-      return h('a', { class: 'seec', href: '#/rv/' + rv.id },
-        h('div', { class: 'pt' }, rv.name),
-        h('div', { class: 'pw' }, o.why),
-        h('div', { class: 'pd' }, rv.nextStart && !rv.whatsNext ? 'Next lesson: ' + rv.nextStart : 'Bring up: ' + rv.whatsNext));
-    })));
+  // ---------- v2.51 a quiet backup card on Today ----------
+  // When there's no backup and 5+ contacts, or the last backup (Drive or a downloaded file) is 14+ days old.
+  // Not now hides it for 14 days.
+  const BK_LATER = 'rvapp.bkLater';
+  function backupCard(now) {
+    const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+    const last = get('rvapp.lastBackup'), later = get(BK_LATER);
+    const n = S.rvs.filter((r) => !r.deletedAt).length;
+    const old = last ? U.daysBetween(U.startOfDay(now), U.parseDateStr(last)) >= 14 : n >= 5;
+    if (!old || (later && U.daysBetween(U.startOfDay(now), U.parseDateStr(later)) < 14)) return null;
+    const D = RV.drive, ds = D ? D.status() : {};
+    const act = ds.connected ? (ds.tokenOk ? ['Back up now', () => D.backupNow().then((ok) => { if (ok) UI.toast('Saved to Google Drive'); })] : ['Reconnect', () => D.connect()])
+      : ds.configured ? ['Back up to Google Drive', () => D.connect()] : ['Back up', () => { location.hash = '#/settings/data'; }];
+    const el = h('section', { class: 'card bknudge' },
+      h('div', { class: 'bkn' }, h('span', { class: 'bkni', 'aria-hidden': 'true' }, icon('download', 18)),
+        h('div', null, h('b', null, last ? 'Last backup ' + U.fmtDate(last) : 'Your records are only on this phone'),
+          h('div', { class: 'muted small' }, ds.configured ? 'A backup to your own Google Drive keeps them safe if the phone is lost or its browser is cleared.' : 'A backup keeps them safe if the phone is lost or its browser is cleared.'))),
+      h('div', { class: 'bknb' }, h('button', { class: 'btn primary sm', type: 'button', onclick: act[1] }, act[0]),
+        h('button', { class: 'link', type: 'button', onclick: () => { try { localStorage.setItem(BK_LATER, U.toDateStr(now)); } catch (e) { /* ignore */ } el.remove(); } }, 'Not now')));
+    return el;
   }
-  function seeLine(now) {
-    const n = L.todaySet(ST.items(), now).length;
-    if (!n) return null;
-    return h('a', { class: 'seeline', href: '#/rvs' }, icon('users', 18), h('span', null, n + (n === 1 ? ' person' : ' people') + ' to see today'), icon('right', 18));
+
+  // ---------- v2.51 Today's list ----------
+  // The people you mean to see today, in your order, with an optional note for the day. Follow-ups for today join
+  // on their own. A visit or Not Home ticks someone off; the heading counts what's done. Clears overnight.
+  const TL = () => RV.todayList;
+  const smallPlant = (it) => { const st = gardenOn() ? gstate(it) : null; return h('span', { class: 'tlpl' }, st && st.form ? plantOf(st, 'sm', { still: true }) : null); };
+  const hhmm = (iso) => U.fmtTime(new Date(iso));
+  function todayCard(now) {
+    const items = ST.items();
+    const rows = TL().rows(items, S.settings, now);
+    const st = TL().stateOf(S.settings, now);
+    const seen = rows.filter((r) => r.done).length;
+    const likely = new Map(L.likelyHomeNow(items, now).map((o) => [o.item.rv.id, o.why]));
+    const note = h('button', { class: 'tlnote' + (st.note ? '' : ' empty'), type: 'button',
+      onclick: async () => { const v = await UI.textPrompt({ title: 'Note for the day', value: st.note, placeholder: 'e.g. Car group at 9:30', okText: 'Save' }); if (v != null) TL().setNote(v); } },
+      st.note || 'Add a note for the day');
+    const body = h('div', { class: 'tlrows' });
+    rows.forEach((r) => {
+      const rv = r.it.rv;
+      const doneLine = r.done ? (r.done.type === 'nh' ? 'Not home ' : 'Visited ') + hhmm(r.done.at) : null;
+      const bring = rv.nextStart && L.isStudyStage(S.settings, rv.stage) ? 'Next: ' + rv.nextStart : rv.whatsNext ? 'Bring up: ' + rv.whatsNext : null;
+      const row = h('div', { class: 'tlrow' + (r.done ? ' done' : ''), 'data-id': rv.id },
+        h('span', { class: 'tltick', 'aria-hidden': 'true' }, r.done ? icon('check', 13) : null),
+        smallPlant(r.it),
+        h('a', { class: 'tlmain', href: '#/rv/' + rv.id },
+          h('span', { class: 'tlname' }, rv.name, r.followUp ? h('span', { class: 'tlfu' }, 'Follow-up today') : null, r.done ? h('span', { class: 'sr-only' }, ', done') : null),
+          h('span', { class: 'tlsub' }, doneLine || likely.get(rv.id) || rv.address || ''),
+          !r.done && bring ? h('span', { class: 'tlbring' }, bring) : null),
+        rows.length > 1 ? h('button', { class: 'tlgrip', type: 'button', 'aria-label': 'Move ' + rv.name }, icon('grip', 18)) : null);
+      body.appendChild(row);
+    });
+    if (rows.length > 1) dragSort(body, (ids) => TL().reorder(ids));
+    return h('section', { class: 'tlcard' },
+      h('div', { class: 'tlhead' }, h('h2', null, "Today's list", seen ? h('span', { class: 'tlseen' }, ' · ' + seen + ' seen') : null),
+        h('button', { class: 'tladd', type: 'button', onclick: () => todayAddSheet() }, icon('plus', 16), 'Add')),
+      note,
+      rows.length ? body : h('div', { class: 'tlempty' }, h('div', { class: 'muted small' }, 'Add people you want to see today.'),
+        h('button', { class: 'btn primary sm', type: 'button', onclick: () => todayAddSheet() }, icon('plus', 16), 'Add people')));
+  }
+  // Drag a row by its grip to reorder (touch and mouse). Calls done(ids) with the new order.
+  function dragSort(box, done) {
+    box.addEventListener('pointerdown', (e) => {
+      const grip = e.target.closest('.tlgrip');
+      if (!grip) return;
+      e.preventDefault();
+      const row = grip.closest('.tlrow');
+      const startY = e.clientY;
+      row.classList.add('drag');
+      grip.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        row.style.transform = 'translateY(' + (ev.clientY - startY) + 'px)';
+        const sibs = Array.from(box.children).filter((x) => x !== row);
+        const r = row.getBoundingClientRect(), mid = r.top + r.height / 2;
+        const before = sibs.find((x) => { const b = x.getBoundingClientRect(); return mid < b.top + b.height / 2; });
+        const want = before || null;
+        if (row.nextElementSibling !== want) { const top0 = row.getBoundingClientRect().top; box.insertBefore(row, want); const top1 = row.getBoundingClientRect().top; const cur = parseFloat((row.style.transform.match(/-?[\d.]+/) || [0])[0]); row.style.transform = 'translateY(' + (cur - (top1 - top0)) + 'px)'; }
+      };
+      const up = () => {
+        grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+        row.classList.remove('drag'); row.style.transform = '';
+        done(Array.from(box.children).map((x) => x.getAttribute('data-id')));
+      };
+      grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+    });
+  }
+  // Add people: everyone A to Z with a search; tap to add or take off. Nothing is sorted for you or pre-ticked.
+  function todayAddSheet() {
+    const now = new Date();
+    const items = ST.items().filter((it) => it.att.state !== 'closed').sort((a, b) => U.cmp(a.rv.name, b.rv.name));
+    const onList = new Set(TL().rows(ST.items(), S.settings, now).map((r) => r.it.rv.id));
+    const q = h('input', { type: 'search', placeholder: 'Search name, address, notes…', 'aria-label': 'Search contacts', autocomplete: 'off' });
+    const box = h('div', { class: 'tlpick' });
+    const paint = () => {
+      const t = q.value.trim().toLowerCase();
+      const hits = t ? items.filter((it) => [it.rv.name, it.rv.address, it.rv.notes, it.rv.neighborhood].some((x) => String(x || '').toLowerCase().includes(t))) : items;
+      box.replaceChildren(...hits.map((it) => {
+        const on = onList.has(it.rv.id);
+        const b = h('button', { class: 'tlpk' + (on ? ' on' : ''), type: 'button', 'aria-pressed': String(on), onclick: () => {
+          if (onList.has(it.rv.id)) { TL().remove(it.rv.id); onList.delete(it.rv.id); } else { TL().add(it.rv.id); onList.add(it.rv.id); }
+          paint();
+        } }, smallPlant(it),
+          h('span', { class: 'm' }, h('span', null, it.rv.name), h('span', { class: 'muted small' }, [it.rv.address, it.rv.neighborhood].filter(Boolean).join(' · '))),
+          h('span', { class: 'tlcb', 'aria-hidden': 'true' }, on ? icon('check', 14) : null));
+        return b;
+      }));
+      if (!hits.length) box.appendChild(h('div', { class: 'muted small', style: { padding: '12px 4px' } }, t ? 'Nobody matches that search.' : 'No contacts yet.'));
+    };
+    q.addEventListener('input', paint);
+    paint();
+    UI.sheet("Add to today's list", (close) => h('div', { class: 'tladdsheet' }, q, box,
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'))));
+  }
+  // Could visit today: up to three people likely home today or with today as their best day, not on the list and
+  // not seen today. Only when they're likely home; nothing is added for you.
+  function couldVisit(now) {
+    const items = ST.items();
+    const onList = new Set(TL().rows(items, S.settings, now).map((r) => r.it.rv.id));
+    const why = new Map(L.likelyHomeNow(items, now).map((o) => [o.item.rv.id, o.why]));
+    const dow = now.getDay();
+    const pool = L.likelyHomeToday(items, now).filter((it) => !onList.has(it.rv.id));
+    pool.sort((a, b) => (why.has(b.rv.id) - why.has(a.rv.id)) || U.cmp(a.rv.name, b.rv.name));
+    const list = pool.slice(0, 3);
+    if (!list.length) return null;
+    return h('section', { class: 'tlcard could' },
+      h('div', { class: 'tlhead' }, h('h2', null, 'Could visit today')),
+      h('div', { class: 'tlrows' }, list.map((it) => h('div', { class: 'tlrow' },
+        smallPlant(it),
+        h('a', { class: 'tlmain', href: '#/rv/' + it.rv.id }, h('span', { class: 'tlname' }, it.rv.name),
+          h('span', { class: 'tlsub' }, why.get(it.rv.id) || ((it.rv.bestDays || []).includes(dow) ? 'Best day ' + U.DAYS[dow] : 'Usually home ' + U.DAYS[dow] + 's'))),
+        h('button', { class: 'tladd', type: 'button', 'aria-label': 'Add ' + it.rv.name + " to today's list", onclick: () => TL().add(it.rv.id) }, icon('plus', 16), 'Add')))));
+  }
+  // The calendar in a contact's top bar: Today puts them on today's list; Tomorrow or a date sets the follow-up date.
+  function planSheet(rvId) {
+    const rv = ST.rvById(rvId);
+    if (!rv) return;
+    const now = new Date();
+    const on = TL().has(ST.items(), S.settings, rvId, now);
+    const tomorrow = U.toDateStr(U.addDays(now, 1));
+    const date = h('input', { type: 'date', value: rv.snoozedUntil && rv.snoozedUntil > U.toDateStr(now) ? rv.snoozedUntil : '', min: tomorrow, 'aria-label': 'Follow up on' });
+    const follow = (val) => {
+      const res = ST.snooze(rvId, val);
+      UI.toast(val ? 'Follow up on ' + U.fmtDate(val) : 'Follow-up date cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
+    };
+    const opt = (label, sub, fn) => h('button', { class: 'planopt', type: 'button', onclick: fn }, h('b', null, label), h('span', { class: 'muted small' }, sub));
+    UI.sheet('Plan a visit', (close) => h('div', { class: 'plansheet' },
+      h('div', { class: 'muted small', style: { marginTop: '-6px' } }, rv.name),
+      on ? opt("Take off today's list", '', () => { TL().remove(rvId); UI.toast("Taken off today's list", { actions: [{ label: 'Undo', fn: () => TL().add(rvId) }], seconds: 4 }); close(); })
+        : opt('Today', "Adds " + String(rv.name || '').split(' ')[0] + " to today's list", () => { TL().add(rvId); UI.toast("Added to today's list", { actions: [{ label: 'Undo', fn: () => TL().remove(rvId) }], seconds: 4 }); close(); }),
+      opt('Tomorrow', 'Follow up on ' + U.fmtDate(tomorrow), () => { follow(tomorrow); close(); }),
+      h('div', { class: 'planpick' }, h('label', null, h('b', null, 'Pick a date'), date),
+        h('button', { class: 'btn primary sm', type: 'button', onclick: () => { if (date.value) { follow(date.value); close(); } } }, 'Set')),
+      rv.snoozedUntil && rv.snoozedUntil > U.toDateStr(now) ? h('button', { class: 'link', type: 'button', onclick: () => { follow(null); close(); } }, 'Clear follow-up on ' + U.fmtDate(rv.snoozedUntil)) : null));
   }
   function home() {
     const items = ST.items();
@@ -491,7 +627,7 @@
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
       // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Schedule a campaign at the foot
       el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
-        return h('div', { class: 'home' }, intro, planOnly ? null : camp, welcome, conversations(), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
+        return h('div', { class: 'home' }, intro, planOnly ? null : camp, welcome, conversations(), hasPeople ? backupCard(d) : null, hasPeople ? todayCard(d) : null, hasPeople ? couldVisit(d) : null, planOnly ? camp : null); })(),
     };
   }
 
@@ -543,7 +679,13 @@
     const home = new Set(L.likelyHomeToday(all, now).filter(inArea).map((i) => i.rv.id));
     const top = live.filter((i) => home.has(i.rv.id)), rest = live.filter((i) => !home.has(i.rv.id));
     const sec = (title, arr) => arr.length ? [h('div', { class: 'ghead' }, h('span', null, title), h('span', null, String(arr.length))), listOf(arr, { hideArea: true })] : [];
-    return live.length ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest)) : [];
+    // v2.51: Worth reconsidering moved here from Insights: people often not home, with the days tried
+    const recon = L.reconsider(all, S.settings, now, new Set()).filter((r) => inArea(r.item));
+    const reconSec = recon.length ? [h('div', { class: 'ghead recon' }, h('span', null, 'Not home 3 or more times'), h('span', null, String(recon.length))),
+      h('div', { class: 'list' }, recon.slice(0, 8).map((r) => h('a', { class: 'row', href: '#/rv/' + r.item.rv.id },
+        h('div', { class: 'main' }, h('div', { class: 'name' }, r.item.rv.name), h('div', { class: 'line2', style: { whiteSpace: 'normal' } }, lbl('notHome') + ' ' + r.nh + ' times on ' + r.label)),
+        icon('right', 18))))] : [];
+    return live.length ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest), reconSec) : [];
   }
   function areaScreen(key) {
     const name = key === NO_AREA ? 'No ' + lbl('neighborhood').toLowerCase() : key;
@@ -655,8 +797,9 @@
     function paintAreas(all) {
       const live = all.filter((i) => i.att.state !== 'closed');
       const groups = areaGroups(live);
-      const showMap = view === 'map' && mapOk();
-      const cur = showMap ? 'map' : view === 'list' ? 'list' : 'folders';
+      // v2.51: with nobody yet, open on List (Add and the import rows); nothing goes to the map service
+      const showMap = view === 'map' && mapOk() && live.length > 0;
+      const cur = !live.length ? 'list' : showMap ? 'map' : view === 'list' ? 'list' : 'folders';
       const opts = (mapOk() ? [['map', 'Map']] : []).concat([['folders', lbl('neighborhood') + 's'], ['list', 'List']]);
       metaEl.replaceChildren(h('div', { class: 'seg2 vswitch' }, opts.map(([v, label]) =>
         h('button', { type: 'button', class: v === cur ? 'on' : '', 'aria-pressed': String(v === cur), onclick: () => { if (v === cur) return; view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ } refresh(); } }, label))));
@@ -667,7 +810,8 @@
       }
       dropMap();
       if (!live.length) {
-        listBox.replaceChildren(UI.emptyState('users', 'No contacts yet.'));
+        listBox.replaceChildren(h('section', { class: 'card welcome' }, h('b', null, 'No contacts yet'), h('div', { class: 'muted small' }, 'Everyone you add appears here, A to Z.'),
+          h('button', { class: 'btn primary', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add a contact'), importRows()));
         return;
       }
       if (cur === 'list') { listBox.replaceChildren(azList(live)); return; }
@@ -954,6 +1098,12 @@
     // v2.41: the topic last used with them, and the next part of its series
     const lastTopic = rv.lastTopic ? S.lib.find((y) => y.id === rv.lastTopic && !y.deletedAt) || null : null;
     const nextTopic = lastTopic ? nextInSeries(lastTopic) : null;
+    // v2.51: on a study record, a Discuss next time written before the first study session is left out (it stays in
+    // the timeline); one written after studies began still shows
+    const visitsLive = it.entries.filter((e) => !e.deletedAt && e.type === 'visit');
+    const firstStudy = visitsLive.filter((e) => e.study || e.progress || e.nextStart).reduce((m, e) => (!m || e.at < m.at ? e : m), null);
+    const lastPlan = visitsLive.filter((e) => e.plan === true && !(e.study || e.progress || e.nextStart)).reduce((m, e) => (!m || e.at > m.at ? e : m), null);
+    const stalePlan = study && rv.whatsNext && firstStudy && lastPlan && lastPlan.at < firstStudy.at;
     const snapshot = !closed || rv.whatsNext || lastVisit
       ? h('div', { class: 'snap' },
         showStudy
@@ -962,7 +1112,7 @@
             h('button', { class: 'snap-v sbtn' + (rv.publication ? ' pub' : ' empty'), type: 'button', 'aria-label': 'Publication: ' + (rv.publication || 'not set'), onclick: () => F.studyEdit(rv.id, 'pub') }, rv.publication || 'Choose a publication'),
             h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
           : null,
-        (!closed && !study) || rv.whatsNext
+        ((!closed && !study) || rv.whatsNext) && !stalePlan
           ? (rv.whatsNext || closed
             ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
               h('div', { class: 'snap-k' }, 'Discuss next time'), h('div', { class: 'snap-v' }, rv.whatsNext))
@@ -1043,23 +1193,21 @@
       tlBox.replaceChildren();
       if (!it.entries.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'No activity yet.')); return; }
       const ul = h('ul', { class: 'tl' });
-      it.entries.slice(0, tlShown).forEach((e) => {
-        ul.appendChild(h('li', { class: e.type },
-          h('div', { class: 'what' }, entryLabel(e)),
+      // v2.51: the newest visit is left out (Last visit above shows it); a row opens its edit sheet (Delete is inside)
+      const shown = it.entries.filter((e) => !(lastVisit && e.id === lastVisit.id));
+      if (!shown.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'Nothing earlier.')); return; }
+      shown.slice(0, tlShown).forEach((e) => {
+        const body = [h('div', { class: 'what' }, entryLabel(e)),
           h('div', { class: 'when' }, U.fmtDateTime(e.at)),
-          e.progress || e.nextStart ? h('div', { class: 'txt', style: { fontWeight: 500 } }, [e.publication, e.progress ? 'Covered ' + e.progress : null, e.nextStart ? 'next: ' + e.nextStart : null].filter(Boolean).join(' · ')) : null,
+          e.progress || e.nextStart ? h('div', { class: 'txt', style: { fontWeight: 500 } }, [e.publication, e.progress ? 'Covered ' + e.progress : null, e.nextStart ? 'next: ' + e.nextStart : null].filter(Boolean).join(' · ')) :
           e.text ? h('div', { class: 'txt' }, e.text) : null,
           (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
-          UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null,
-          e.type !== 'stage' || e.text ? h('div', { class: 'acts' },
-            e.type !== 'stage' ? h('button', { class: 'btn ghost sm', type: 'button', onclick: () => UI.editEntrySheet(e.id) }, 'Edit') : null,
-            e.type !== 'stage' ? h('button', {
-              class: 'btn ghost sm', type: 'button',
-              onclick: async () => { if (await confirmDialog({ title: 'Delete this entry?', confirmText: 'Delete', danger: true })) ST.deleteEntry(e.id); },
-            }, 'Delete') : null) : null));
+          UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null];
+        ul.appendChild(h('li', { class: e.type + (e.type !== 'stage' ? ' tap' : '') },
+          e.type !== 'stage' ? h('button', { class: 'tlopen', type: 'button', 'aria-label': 'Edit this entry', onclick: () => UI.editEntrySheet(e.id) }, ...body, h('span', { class: 'tlchev', 'aria-hidden': 'true' }, icon('right', 16))) : body));
       });
       tlBox.appendChild(ul);
-      if (it.entries.length > tlShown) tlBox.appendChild(h('button', { class: 'btn sm', type: 'button', style: { marginTop: '10px' }, onclick: () => { tlShown += 30; renderTl(); } }, 'Show more'));
+      if (shown.length > tlShown) tlBox.appendChild(h('button', { class: 'btn sm', type: 'button', style: { marginTop: '10px' }, onclick: () => { tlShown += 30; renderTl(); } }, 'Show more'));
     };
     renderTl();
     els.push(h('section', { class: 'card' },
@@ -1073,7 +1221,7 @@
         return h('div', null,
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Follow up on…', () => F.snoozeSheet(rv.id), rv.snoozedUntil ? U.fmtDate(rv.snoozedUntil) : 'Pick a date') : null,
+          !closed ? act('Plan a visit…', () => planSheet(rv.id), rv.snoozedUntil ? 'Follow up on ' + U.fmtDate(rv.snoozedUntil) : "Today's list or a date") : null,
           !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
           act('Delete this contact permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
@@ -1083,10 +1231,13 @@
     }, icon('more'));
     return {
       title: rv.name, back: '#/rvs', titleWatch: hero ? '.gperson' : null, // the bar shows the name once the big one scrolls away
-      actions: [h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Edit', onclick: () => F.rvForm(rv) }, icon('edit')), more],
+      // v2.51: the calendar plans a visit (today's list, or a follow-up date); it fills in while they're on today's list
+      actions: [!closed ? (() => { const on = RV.todayList.has(ST.items(), S.settings, rv.id, new Date());
+          return h('button', { class: 'iconbtn plancal' + (on ? ' on' : ''), type: 'button', 'aria-label': on ? "On today's list. Plan a visit" : 'Plan a visit', onclick: () => planSheet(rv.id) }, icon(on ? 'calcheck' : 'calplus')); })() : null,
+        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Edit', onclick: () => F.rvForm(rv) }, icon('edit')), more].filter(Boolean),
       el: h('div', null, els),
     };
   }
 
-  RV.screens = { playFill, coach, starterCard, introCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { playFill, coach, starterCard, introCard, planSheet, todayAddSheet, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

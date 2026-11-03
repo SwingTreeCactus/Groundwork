@@ -27,11 +27,6 @@
     const now = new Date();
     const fun = L.funnel(items, S.settings);
     const eff = L.effortSummary(items, S.settings, now);
-    // Pattern lists are additive: skip anyone already shown on Today.
-    const plan = L.todayPlan(items, now);
-    const shownOnToday = new Set(plan.overdue.concat(plan.scheduled, plan.tagged.map((t) => t.item)).map((i) => i.rv.id));
-    const recon = L.reconsider(items, S.settings, now, shownOnToday);
-    const stuck = L.stuckInStage(items, S.settings, now, new Set(Array.from(shownOnToday).concat(recon.map((r) => r.item.rv.id))));
 
     // funnel
     const max = Math.max(1, ...fun.rows.map((r) => r.count));
@@ -57,27 +52,13 @@
     const tiles = h('div', { class: 'tiles' },
       tile(c.newRvs, 'New contacts'), tile(c.visits, 'Visits'), tile(c.nh, lbl('notHome')), tile(c.advances, 'Moved forward'), tile(c.studies, 'Studies started'));
 
-    const rowFor = (it, line2, line3) =>
-      h('a', { class: 'row', href: '#/rv/' + it.rv.id },
-        h('div', { class: 'main' }, h('div', { class: 'name' }, it.rv.name), h('div', { class: 'line2', style: { whiteSpace: 'normal' } }, line2),
-          line3 ? h('div', { class: 'line3 hint-line' }, line3) : null),
-        icon('right', 18));
-
-    const reconBox = recon.length
-      ? h('div', { class: 'list' }, recon.slice(0, 8).map((r) => rowFor(r.item, lbl('notHome') + ' ' + r.nh + ' times on ' + r.label, r.suggest)))
-      : h('div', { class: 'muted small' }, 'Nothing right now');
-    const stuckBox = stuck.length
-      ? h('div', { class: 'list' }, stuck.slice(0, 8).map((x) => rowFor(x.item, x.days + ' days in ' + L.shownName(S.settings, x.stage.id))))
-      : h('div', { class: 'muted small' }, 'Nobody right now');
-
     return {
       title: 'Insights',
       el: h('div', null,
         sec('Funnel', funnelBox),
         sec('Effort', effortBox),
-        sec('Last 60 days', tiles),
-        sec('Worth reconsidering', reconBox),
-        sec('Stuck in stage', stuckBox)),
+        sec('Last 60 days', tiles)),
+      // v2.51: Stuck in stage is gone (the garden shows it); Worth reconsidering is at the foot of each area
     };
   }
 
@@ -87,27 +68,6 @@
   const pct = (x) => (x == null ? '–' : Math.round(x * 100) + '%');
   const areaKey = (name) => encodeURIComponent(name || '-');
 
-  function ringCard(sk) {
-    const r = sk.ring, C = 2 * Math.PI * 42;
-    const frac = r.due ? r.seen / r.due : 1;
-    const svg = '<svg viewBox="0 0 104 104" width="104" height="104" aria-hidden="true"><circle class="bg" cx="52" cy="52" r="42" fill="none" stroke-width="12"/>' +
-      (frac > 0 ? '<circle class="fg" cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') + '</svg>';
-    const rw = h('div', { class: 'rw', role: 'img', 'aria-label': r.seen + ' of ' + r.due + ' thirsty plants watered this week' }, h('div', { class: 'n' }, r.seen + '/' + r.due));
-    rw.insertAdjacentHTML('afterbegin', svg);
-    return h('section', { class: 'icard' },
-      h('div', { class: 'ring' }, rw,
-        h('div', null,
-          h('div', { class: 't1' }, 'To water this week'),
-          h('div', { class: 't2' }, r.left ? r.left + ' left to water' : 'All caught up'),
-          )),
-      h('div', { class: 'idiv' }),
-      h('div', { class: 'streak' },
-        h('div', { class: 'big' }, String(sk.streak)),
-        h('div', null,
-          h('div', { class: 't2' }, (sk.streak === 1 ? 'week' : 'weeks') + ', every thirsty plant watered'),
-          h('div', { class: 't3' }, 'Best: ' + sk.best + (sk.freezes ? ' · ' + sk.freezes + (sk.freezes === 1 ? ' freeze' : ' freezes') + ' saved' : '')))),
-      h('div', { class: 'wks', role: 'img', 'aria-label': 'Last 12 weeks' }, sk.weeks.map((w) => h('i', { class: w }))));
-  }
   // ---------- the garden scene ----------
   // One bed of soil per area, every plant standing in it, under a sky that follows the clock.
   // Butterflies visit lush plants; a bird sits on a lush study's tree. Tap a plant for its card.
@@ -207,41 +167,19 @@
     for (let i = 0; i < (t === 'night' ? 22 : 8); i++) box.appendChild(h('i', { style: { left: (rnd() * 96 + 2).toFixed(1) + '%', top: (rnd() * 92 + 4).toFixed(1) + '%', animationDelay: (-rnd() * 4).toFixed(2) + 's', animationDuration: (3 + rnd() * 3).toFixed(1) + 's' } }));
     return box;
   }
-  // v2.38: the game lives in the scene. At the gate: bunting on the fence (the streak), a watering can (this week),
+  // v2.38: the game lives in the scene. v2.51: at the gate, a watering can (what you watered this week) and a signpost (how it works).
   // a chalk slate (today's tending) and a signpost (how it works). Numbers only show when one is tapped.
-  const PENN = ['#C8473A', '#E5BF45', '#5C8C55', '#3D6B63', '#D9773E', '#EEB4C3'];
   function gateObjects(opt) {
-    const sk = opt.sk, tend = opt.tend;
+    const sk = opt.sk;
     const objBtn = (cls, label, html, on) => { const b = h('button', { class: 'gobt ' + cls, type: 'button', 'aria-label': label, onclick: (e) => { e.stopPropagation(); on(); } }); b.innerHTML = html; return b; };
     const els = [];
     if (sk) {
-      // one pennant per week (the last twelve): coloured for a good week, pale blue for a freeze, none for a miss
-      const wk = sk.weeks.slice(-12);
-      let bunt = '<svg viewBox="0 0 390 34" preserveAspectRatio="none" aria-hidden="true"><path d="M0 4 Q195 30 390 4" stroke="#8E5B34" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke"/>';
-      wk.forEach((w, i) => {
-        if (w !== 'ok' && w !== 'frz') return;
-        const x = 390 - 51 - (wk.length - 1 - i) * 29, y = 4 + 26 * (1 - Math.pow((x - 195) / 195, 2)) * 0.5;
-        bunt += '<path d="M' + (x - 8) + ' ' + y.toFixed(1) + ' L' + (x + 8) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 15).toFixed(1) + ' Z" fill="' + (w === 'frz' ? '#9DC3D8' : PENN[i % PENN.length]) + '"/>';
-      });
-      // this week's pennant, still to earn, hangs as an outline at the end of the string
-      { const x = 370, y = 4 + 26 * (1 - Math.pow((x - 195) / 195, 2)) * 0.5;
-        bunt += '<path class="pnext" d="M' + (x - 8) + ' ' + y.toFixed(1) + ' L' + (x + 8) + ' ' + y.toFixed(1) + ' L' + x + ' ' + (y + 15).toFixed(1) + ' Z" fill="#FFFFFF" fill-opacity=".35" stroke="#8E5B34" stroke-width="1" stroke-dasharray="2 2"/>'; }
-      els.push(objBtn('o-bunt', 'Streak: ' + sk.streak + (sk.streak === 1 ? ' week' : ' weeks') + ', every thirsty plant watered', bunt + '</svg>', () => UI.sheet('Streak', () => streakPart(sk))));
-      // the watering can: full at the start of the week, emptier as due plants are watered
-      const r = sk.ring, left = r.due ? Math.max(0, r.due - r.seen) / r.due : 0, wh = Math.round(14 * left);
-      els.push(objBtn('o-can', 'This week: ' + r.seen + ' of ' + r.due + ' watered',
+      // v2.51: no streak bunting. The watering can starts the week empty and fills as thirsty plants are
+      // watered (a quarter per plant, full at four): it shows what you did, never what is left.
+      const r = sk.ring, wh = Math.min(14, Math.round(3.5 * r.seen));
+      els.push(objBtn('o-can', 'This week: ' + r.seen + (r.seen === 1 ? ' thirsty plant' : ' thirsty plants') + ' watered',
         '<svg viewBox="0 0 72 60" aria-hidden="true"><ellipse cx="30" cy="54" rx="22" ry="4" class="osh"/><path d="M14 22 H44 L42 52 H16 Z" fill="#7C98A6"/><rect x="12" y="18" width="34" height="6" rx="3" fill="#5F7C8A"/><path d="M44 30 L60 18" stroke="#5F7C8A" stroke-width="5" stroke-linecap="round"/><ellipse cx="61" cy="17" rx="5" ry="3" fill="#5F7C8A" transform="rotate(-35 61 17)"/><path d="M18 18 C18 6 40 6 40 18" stroke="#5F7C8A" stroke-width="4" fill="none"/><rect x="18" y="34" width="22" height="14" rx="2" fill="#6D8A98"/>' +
         (wh ? '<rect x="19" y="' + (48 - wh) + '" width="20" height="' + wh + '" fill="#8FC6E3"/>' : '') + '</svg>', () => UI.sheet('This week', () => ringPart(sk))));
-    }
-    if (tend) {
-      const done = tend.goals.filter((g) => g.done).length;
-      let sl = '<svg viewBox="0 0 56 64" aria-hidden="true"><rect x="4" y="44" width="5" height="20" fill="#8E5B34"/><rect x="47" y="44" width="5" height="20" fill="#8E5B34"/><rect x="0" y="4" width="56" height="44" rx="5" fill="#A9733F"/><rect x="5" y="9" width="46" height="34" rx="3" fill="#3B4540"/>';
-      tend.goals.slice(0, 3).forEach((g, k) => {
-        const y = 19 + k * 10;
-        sl += g.done ? '<path d="M11 ' + y + ' l3 3 6-6" stroke="#F2EEE5" stroke-width="2" fill="none" stroke-linecap="round"/>' : '<rect x="11" y="' + (y - 3) + '" width="7" height="5" rx="1" stroke="#C9CDC5" stroke-width="1.4" fill="none"/>';
-        sl += '<path d="M24 ' + y + ' H' + (44 - k * 3) + '" stroke="#C9CDC5" stroke-width="1.6" stroke-linecap="round"/>';
-      });
-      els.push(objBtn('o-slate', "Today's tending: " + done + ' of ' + tend.goals.length + ' done', sl + '</svg>', () => UI.sheet("Today's tending", () => bare(tendCard(tend)))));
     }
     els.push(objBtn('o-sign', 'How your garden works', '<svg viewBox="0 0 42 62" aria-hidden="true"><rect x="15" y="20" width="5" height="40" fill="#8E5B34"/><path d="M2 6 H34 L40 14 L34 22 H2 Z" fill="#E9CBA3"/><text x="18" y="19" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#2A1D12">?</text></svg>', guideSheet));
     return h('div', { class: 'ggate' }, els);
@@ -263,8 +201,14 @@
     return out;
   }
   const sheetNote = (t) => h('p', { class: 'muted small onote' }, t);
-  function ringPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.ring'), sheetNote('The can empties as you water this week\u2019s thirsty plants.')); }
-  function streakPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.streak'), c.querySelector('.wks'), sheetNote('A pennant for every week you watered every thirsty plant. A pale blue one is a week a freeze kept your streak.')); }
+  // v2.51: what you have done, never what is left (Mark: updates on what you've accomplished, without guilt)
+  function ringPart(sk) {
+    const n = sk.ring.seen;
+    return h('div', { class: 'osheet' },
+      n ? h('div', { class: 'streak' }, h('div', { class: 'big' }, String(n)), h('div', null, h('div', { class: 't2' }, (n === 1 ? 'thirsty plant' : 'thirsty plants') + ' watered this week')))
+        : h('div', { class: 't2 oquiet' }, 'Each thirsty plant you water this week shows here.'),
+      sheetNote('A conversation or a knock both count. The can fills as you go and starts again on Sunday.'));
+  }
   // a card shown in a sheet drops its own heading (the sheet has one)
   const bare = (el) => { if (el) { const t = el.querySelector('.ih, h2'); if (t) t.remove(); el.classList.add('osheet'); } return el; };
   function gardenScene(plots, now, earned, opt) {
@@ -595,20 +539,6 @@
           m.need > 1 ? h('span', { class: 'mbar' }, h('i', { class: 'on', style: { width: Math.round((m.have / m.need) * 100) + '%' } })) : null,
           h('span', { class: 'muted small' }, m.need > 1 ? m.have + ' of ' + m.need : m.fam === 'area' ? 'An area with 3 or more plants, none thirsty' : 'Not yet')))));
   }
-  // today's three small goals
-  function tendCard(t) {
-    return h('section', { class: 'icard tend' + (t.all ? ' all' : '') },
-      h('div', { class: 'ih' }, h('h2', null, "Today's tending"), t.all ? h('span', { class: 'acc small' }, 'All done') : null),
-      t.goals.map((g) => {
-        const row = h(g.rvId ? 'a' : 'div', { class: 'tg' + (g.done ? ' done' : ''), href: g.rvId ? '#/rv/' + g.rvId : null },
-          h('span', { class: 'tck', 'aria-hidden': 'true' }, g.done ? icon('check', 14) : null),
-          h('div', { class: 'tgt' }, h('span', null, g.label),
-            g.need > 1 ? h('span', { class: 'tgb' }, Array.from({ length: g.need }, (_, i) => h('i', { class: i < g.have ? 'on' : '' }))) : null),
-          g.need > 1 ? h('span', { class: 'muted small' }, g.have + '/' + g.need) : null);
-        row.setAttribute('aria-label', g.label + (g.done ? ', done' : ', ' + g.have + ' of ' + g.need));
-        return row;
-      }));
-  }
   // How the garden works: one screen, mostly pictures.
   function guideSheet() {
     const pl = (f, c, label, sub) => h('div', { class: 'gdp' }, P.make(f, c, { size: 'sm', still: true, vid: 'guide' }), h('b', null, label), sub ? h('span', null, sub) : null);
@@ -617,14 +547,14 @@
       h('p', { class: 'gdlead' }, 'Everyone you visit is a plant. Your visits grow it.'),
       h('h3', null, 'It grows'),
       h('div', { class: 'gdrow' }, pl(1, 4, L.shownName(S.settings, (S.settings.stages.find((x) => !x.closed) || {}).id) || 'Potential'), pl(2, 4, 'Sprout'), pl(3, 4, 'Leafy'), pl(4, 4, 'Shrub'), pl(5, 4, 'Study')),
-      h('p', { class: 'muted small' }, 'Each conversation grows it. Keep them less than a month apart. A study grows a tree.'),
+      h('p', { class: 'muted small' }, 'Each conversation grows it, however far apart. A study grows a tree.'),
       h('h3', null, 'It shows how it is doing'),
       h('div', { class: 'gdrow four' }, pl(3, 5, 'Lush'), pl(3, 4, 'Healthy'), pl(3, 2, 'Thirsty'), pl(3, 1, 'Wilting')),
       line('sparkle', 'Leave a plan (Discuss next time) on each visit and it grows lush.'),
       line('clock', 'It goes thirsty when it is time for a visit. A conversation revives it; a knock keeps it from wilting.'),
       line('check', 'Nothing ever dies, and nothing you have grown is lost.'),
       h('h3', null, 'Your week and your garden'),
-      line('calendar', 'Water every thirsty plant each week, with a visit or a knock, to keep your streak.'),
+      line('calendar', 'The watering can fills as you water thirsty plants each week, with a visit or a knock.'),
       line('flag', 'Milestones stand in your garden as you reach them.'),
       line('sun', 'Rare visitors come when you have been out. Tap one to learn why it came.'),
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Got it'))));
@@ -663,20 +593,19 @@
       setTimeout(() => ST.saveSettings((s) => { s.exhibits = Object.assign({}, s.exhibits || {}, earned); }), 0);
     }
     const old = classic();
-    const keep = Array.from(old.el.children).filter((x, i) => i === 0 || i >= 3); // funnel, worth reconsidering, stuck in stage
-    const tend = G.tending(items, S.settings, now);
+    const keep = Array.from(old.el.children).filter((x, i) => i === 0); // the funnel (v2.51: the other lists moved or went)
     // v2.29: completed visitor sets, dated once and kept
     const setsDone = Object.assign({}, S.settings.setsDone || {}), comp = G.setsComplete(S.settings);
     const freshSets = Object.keys(comp).filter((id) => comp[id] && !setsDone[id]);
     if (freshSets.length) { const at = U.nowISO(); freshSets.forEach((id) => { setsDone[id] = at; }); setTimeout(() => ST.saveSettings((s) => { s.setsDone = Object.assign({}, s.setsDone || {}, setsDone); }), 0); }
-    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: tend.all && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus, sets: { done: setsDone, fresh: freshSets }, sk, tend, items, now }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
+    const opt = Object.assign({ campaign: !!ST.activeCampaign(now), rain: G.welcomeBack(items, now) && S.settings.tendDone !== U.toDateStr(now), here: settled.here, focus, sets: { done: setsDone, fresh: freshSets }, sk, items, now }, root.__RV_GARDEN_OPT || {}); // the hook is for tests
     if (opt.rain && !(root.__RV_GARDEN_OPT && root.__RV_GARDEN_OPT.rain)) setTimeout(() => ST.saveSettings((s) => { s.tendDone = U.toDateStr(now); }), 3200);
     // v2.25: the game first (how it works, this week, today, next, collections); field stats folded at the foot
     const stats = h('details', { class: 'fstats' }, h('summary', null, icon('down', 18), 'Field stats'), goingCard(items, now), keep);
     // v2.29: Getting started: seeing the garden is a step; its card replaces Today's tending until done
     const starter = G.starterOn(S.settings);
     if (starter && !(S.settings.starter || {}).garden) setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { garden: true }); }), 0);
-    const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap the watering can, the slate, the bunting or the signpost by the gate to see how you are doing.');
+    const gardenTip = SC.coach('garden', 'Each plant is someone you visit. Tap the watering can or the signpost by the gate.');
     // v2.27: nobody yet: an empty garden that explains itself
     if (!plots.length) return { title: 'My garden', immersive: G.skyOf(now), el: h('div', null, emptyGarden(now), h('button', { class: 'howbtn', type: 'button', onclick: guideSheet }, icon('help', 16), 'How your garden works'), gardenTip, starter ? SC.starterCard() : null) };
     // v2.38: the weekly ring, streak, tending, next milestones and collections are objects in the scene now
@@ -716,20 +645,13 @@
     const mk = (stageId, care, vid) => P.make(G.formOf(S.settings, stageId), care, { size: 'sm', still: true, vid });
     const fmt = (d) => U.MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
     const sat = U.addDays(r.ws, 6);
-    const ring = r.ring.due
-      ? (r.ring.perfect ? ['Ring closed', 'All ' + r.ring.due + ' thirsty plants got watered.'] : [r.ring.seen + ' of ' + r.ring.due + ' watered', r.ring.left + ' still thirsty.'])
-      : ['Nobody went thirsty', 'No plant needed water this week.'];
-    const C = 2 * Math.PI * 42, frac = r.ring.due ? r.ring.seen / r.ring.due : 1;
-    const ringSvg = '<svg aria-hidden="true" width="76" height="76" viewBox="0 0 104 104"><circle cx="52" cy="52" r="42" fill="none" stroke-width="12" class="rbg"/>' +
-      (frac > 0 ? '<circle cx="52" cy="52" r="42" fill="none" stroke-width="12" stroke-linecap="round" class="rfg" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 52 52)"/>' : '') +
-      (r.ring.perfect ? '<path d="M36 53 L47 64 L69 41" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" class="rck"/>' : '') + '</svg>';
-    const ringBox = h('div', { class: 'rring' }); ringBox.innerHTML = ringSvg;
     const names = Object.fromEntries(G.EXHIBITS.map(([id, , n]) => [id, n]));
     const ov = h('div', { class: 'recap', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your week' },
       h('div', { class: 'rin' },
         h('div', { class: 'rdate' }, 'Week of ' + fmt(r.ws) + ' to ' + fmt(sat)),
         h('h1', null, 'Your week'),
-        h('section', { class: 'rcard pop' }, ringBox, h('div', null, h('b', null, ring[0]), h('div', { class: 'muted' }, ring[1]))),
+        // v2.51: what was done, never what was left
+        r.ring.seen ? h('section', { class: 'rcard pop' }, h('div', { class: 'n acc' }, String(r.ring.seen)), h('div', null, h('b', null, 'Watered'), h('div', { class: 'muted' }, (r.ring.seen === 1 ? 'thirsty plant' : 'thirsty plants') + ' got a visit or a knock.'))) : null,
         r.revived ? h('section', { class: 'rcard pop', style: { animationDelay: '.1s' } }, h('div', { class: 'n acc' }, String(r.revived)),
           h('div', null, h('b', null, 'Revived'), h('div', { class: 'muted' }, (r.revived === 1 ? 'A plant' : 'Plants') + ' brought back from thirsty.'))) : null,
         r.grew.length ? h('section', { class: 'rcard col pop', style: { animationDelay: '.15s' } }, h('h2', null, 'Grew'),
@@ -739,7 +661,7 @@
           r.grew.length > 4 ? h('div', { class: 'muted small' }, '+' + (r.grew.length - 4) + ' more') : null) : null,
         h('div', { class: 'rtwo' },
           h('section', { class: 'rcard col pop', style: { animationDelay: '.3s' } }, svgEl(FLY, 'rfly'), h('div', { class: 'n' }, String(r.lush)), h('div', { class: 'small' }, r.lush === 1 ? 'lush plant drew visitors' : 'lush plants drew visitors')),
-          h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.streak)), h('div', { class: 'small' }, (r.streak === 1 ? 'week' : 'weeks') + ', every thirsty plant watered'))),
+          h('section', { class: 'rcard col pop', style: { animationDelay: '.45s' } }, h('div', { class: 'n acc', style: { paddingTop: '30px' } }, String(r.weeksOut)), h('div', { class: 'small' }, (r.weeksOut === 1 ? 'week' : 'weeks') + ' with visits recorded'))),
         r.exhibits.length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.6s' } }, h('div', { class: 'acc small' }, 'New milestone'), r.exhibits.map((id) => h('b', null, names[id] || id))) : null,
         (r.sets || []).length ? h('section', { class: 'rcard col pop new', style: { animationDelay: '.7s' } }, h('div', { class: 'acc small' }, 'Set complete'),
           r.sets.map((id) => { const st = G.SETS.find(([x]) => x === id); return h('b', null, st ? st[1] + ': ' + st[3].toLowerCase() + ' in your garden' : 'Every visitor found'); })) : null,

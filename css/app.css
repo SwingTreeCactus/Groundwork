@@ -2070,3 +2070,58 @@ body.aedit-open { overflow: hidden; }
 .azstrip { touch-action: none; }
 .azstrip button { min-width: 28px; min-height: 20px; padding: 2px 6px; }
 .gsign { padding: 8px 12px; }
+
+/* v2.51: Today's list, Could visit today, the Plan a visit sheet */
+.tlcard { background: var(--surface); border-radius: 20px; padding: 14px 16px; margin-bottom: 14px; }
+.tlhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.tlhead h2 { margin: 0; font-size: 1.1rem; }
+.tlseen { color: var(--green-t); font-weight: 600; }
+.tladd { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; color: var(--green-t); font: inherit; font-weight: 600; font-size: .92rem; padding: 6px 4px; cursor: pointer; min-height: 36px; }
+.tlnote { display: block; width: 100%; text-align: left; background: var(--surface2); border: 0; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: .92rem; color: var(--fg); cursor: pointer; margin: 2px 0 6px; white-space: pre-wrap; }
+.tlnote.empty { color: var(--muted); }
+.tlrows { display: flex; flex-direction: column; }
+.tlrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); background: var(--surface); position: relative; }
+.tlrow:first-child { border-top: 0; }
+.tlrow.drag { z-index: 5; box-shadow: 0 6px 18px rgba(0,0,0,.14); border-radius: 12px; transition: none; }
+.tltick { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-strong, #CFC7B8); display: grid; place-items: center; color: #fff; }
+.tlrow.done .tltick { background: var(--green); border-color: var(--green); }
+.tlpl { flex: none; width: 30px; height: 36px; display: grid; place-items: center; overflow: hidden; }
+.tlpl .pl { transform: scale(.62); transform-origin: center bottom; }
+.tlmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; color: inherit; text-decoration: none; }
+.tlname { font-weight: 600; font-size: .98rem; }
+.tlrow.done .tlname { color: var(--muted); }
+.tlfu { display: inline-block; margin-left: 6px; font-size: .72rem; font-weight: 600; color: var(--red); background: var(--accent-soft); padding: 1px 7px; border-radius: 8px; vertical-align: 1px; }
+.tlsub { font-size: .82rem; color: var(--muted); }
+.tlbring { font-size: .85rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tlgrip { flex: none; width: 36px; height: 40px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; cursor: grab; touch-action: none; padding: 0; }
+.tlempty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 0 2px; }
+.tladdsheet { display: flex; flex-direction: column; gap: 10px; }
+.tladdsheet input[type=search] { width: 100%; }
+.tlpick { display: flex; flex-direction: column; max-height: 56vh; overflow-y: auto; }
+.tlpk { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 2px; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 52px; }
+.tlpk:first-child { border-top: 0; }
+.tlpk .m { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tlcb { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--line-strong, #CFC7B8); display: grid; place-items: center; color: #fff; }
+.tlpk.on .tlcb { background: var(--green); border-color: var(--green); }
+.plansheet { display: flex; flex-direction: column; gap: 2px; }
+.planopt { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 14px 2px; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.planopt:first-of-type { border-top: 0; }
+.planpick { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 10px 2px; }
+.planpick label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.planpick input[type=date] { max-width: 170px; }
+.iconbtn.plancal.on { color: var(--green-t); }
+/* v2.51: timeline rows open their edit sheet; Delete is inside it */
+.tl li.tap .tlopen { display: block; width: 100%; background: none; border: 0; padding: 0 26px 0 0; text-align: left; font: inherit; color: inherit; position: relative; cursor: pointer; }
+.tl li.tap .tlchev { position: absolute; right: 0; top: 2px; color: var(--muted); }
+.delentry { display: block; margin: 14px auto 0; color: var(--muted); }
+/* v2.51: the backup card on Today, and the last backup at the foot of the menu */
+.bknudge { display: flex; flex-direction: column; gap: 10px; }
+.bkn { display: flex; gap: 12px; align-items: flex-start; }
+.bkni { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--red); display: grid; place-items: center; }
+.bknb { display: flex; align-items: center; gap: 12px; }
+.drawer-foot { display: flex; justify-content: space-between; gap: 10px; }
+.drawer-foot a { color: inherit; text-decoration: none; }
+/* v2.51 fixes: plants at a readable size in Today's list and the add sheet; Not now as a plain link */
+.tlpl { width: 34px; height: 46px; display: flex; align-items: flex-end; justify-content: center; overflow: visible; }
+.tlpl .pl { transform: none; width: 32px; height: 46px; }
+.bknb .link { background: none; border: 0; padding: 6px 4px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font: inherit; font-size: .9rem; cursor: pointer; }

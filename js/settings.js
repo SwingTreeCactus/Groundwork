@@ -462,7 +462,6 @@
       mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days are marked as coming up.', 1, 60),
       mk('soonDays', 'Heads-up before due (days)', 'Flag as coming up this many days before a contact is due.', 0, 14),
       mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A contact with a best day is only marked due on that day. After this many times its usual timing, it is marked due on any day so nothing gets buried.', 1, 10),
-      mk('stuckFactor', 'Stuck in stage (times the usual timing)', 'Insights lists contacts that have stayed in one stage this many times the stage\'s timing.', 2, 20),
       h('div', { class: 'card' },
         h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner')),
           UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
