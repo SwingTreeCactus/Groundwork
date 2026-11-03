@@ -556,17 +556,15 @@
     ['bees', 'Bees', 'You left plans on several visits in one area this week.', 'In spring or summer, leave a plan on 2 or more visits in one area in the same week.', 'Focused', 'day'],
     ['quail', 'California quail', 'Last week you had conversations in 3 or more areas.', 'In spring or summer, have conversations in 3 or more areas in a week.', 'Sociable', 'day'],
   ];
-  // v2.29 Getting started: five first steps, each ticked from what has actually happened
+  // v2.29 Getting started; v2.50.1: three setup steps a new user can finish in one sitting at home
+  // (a visit or Not Home can't be done until they go back to someone, so those are taught on the contact instead)
   function starterSteps(items, settings, driveOn) {
     const live = items.filter((it) => !it.rv.deletedAt);
-    const any = (t) => live.some((it) => it.entries.some((e) => !e.deletedAt && e.type === t));
     const st = settings.starter || {};
     const steps = [
-      { key: 'contact', label: 'Add your first contact', done: live.length > 0 },
-      { key: 'visit', label: 'Record a visit', done: any('visit') },
-      { key: 'nh', label: 'Record a Not Home', done: any('nh') },
-      { key: 'garden', label: 'See your garden', done: !!st.garden },
-      { key: 'drive', label: 'Connect Drive backup', done: !!driveOn },
+      { key: 'contact', label: 'Add your contacts', done: live.length > 0 },
+      { key: 'topics', label: 'Choose your conversation topics', done: !!st.topics },
+      { key: 'drive', label: 'Back up to Google Drive', done: !!driveOn },
     ];
     const current = steps.find((x) => !x.done) || null;
     return { steps, current, done: steps.filter((x) => x.done).length, all: !current };

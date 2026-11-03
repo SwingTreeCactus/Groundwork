@@ -2039,3 +2039,28 @@ body.aedit-open { overflow: hidden; }
 .ae-move .n > span { font-size: .88rem; color: var(--muted); }
 .ae-move .to { color: var(--fg); }
 .ae-left { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+
+/* v2.50.1: the first-view intro (what Groundwork is), folding to one row, and a slimmer Getting started */
+.intro { background: var(--surface); border-radius: 20px; padding: 18px 16px 16px; margin-bottom: 14px; }
+.intro.folded { padding: 10px 12px 10px 16px; cursor: pointer; }
+.intro .ibrand { display: flex; align-items: center; gap: 10px; }
+.intro .ipot { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.intro.folded .ipot { width: 30px; height: 30px; border-radius: 8px; }
+.intro .ibrand b { flex: 1; font-size: 1.2rem; letter-spacing: -.01em; }
+.intro.folded .ibrand b { font-size: 1.05rem; }
+.intro .ifold { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--surface2); color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.intro .ihead { font-size: 1.2rem; font-weight: 700; line-height: 1.22; letter-spacing: -.015em; margin: 12px 0; text-wrap: balance; }
+.intro .ipts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.intro .ipts li { display: flex; gap: 10px; line-height: 1.38; font-size: .95rem; }
+.intro .ipts svg { flex: none; margin-top: 2px; color: var(--green-t); }
+.st .sttap { display: flex; align-items: center; gap: 12px; width: calc(100% + 16px); box-sizing: border-box; background: none; border: 0; padding: 6px 8px; margin: -6px -8px; border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.st .sttap:active { background: var(--surface2); }
+.st .sttap .stck { margin-top: 0; }
+.st .sttap > svg:last-child { flex: none; color: var(--muted); }
+.bring2 { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.bringrow { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--surface2); border: 0; border-radius: 14px; padding: 11px 12px; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.bringrow .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bringrow .bt { font-weight: 500; }
+.bringrow .bs { font-size: .8rem; color: var(--muted); }
+.bringrow > svg:last-child { flex: none; color: var(--muted); }
+.card.welcome { display: flex; flex-direction: column; gap: 4px; }

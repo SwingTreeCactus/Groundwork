@@ -1,15 +1,15 @@
-# Groundwork handover (2026-11-01, after v2.50.0)
+# Groundwork handover (2026-11-03, after v2.50.1)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–54) for detail. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–63) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.50.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v107` (sw.js).
+- Current release: v2.50.1 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v108` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.1 / rvapp-v108), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.2 / rvapp-v109), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
@@ -60,8 +60,8 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.50.0)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (365; needs /tmp/out to exist)
+## Tests (all passing at v2.50.1)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (375; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (55)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23), `python3 -I tests/areas_ui.py . /tmp/out/ar` (42)
@@ -76,11 +76,13 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - `RV.gmap._view()` and `RV.gmap._forget()` are there for tests.
   - smoke's "map shows plants as pins" can fail once on timing; rerun before digging in. It also fails every time if an earlier step opened the Contacts map while nominatim was stubbed empty (every address gets remembered as not found); the Witness Work step clears `rv.approx` for that reason.
   - Contacts in the study stage bring the owl at night, whose arrival redraws the garden and can close a sheet a later step opened; test-added contacts are deleted again after their checks.
+  - Getting started (v2.50.1): the smoke context sets `__RV_STARTER = "off"`, so an empty install shows the unfoldable intro and the Welcome card; the Getting started block uses its own context with "on".
   - Sheets don't focus text fields on open (v2.49): tests that type after opening a sheet must click or fill the field.
   - Area editor tests (areas_ui): MapLibre's zoom uses 512 px tiles, so zoom 13 fits a ~0.02° square on a 390 px phone; `.aedit.aeditApi` exposes map(), _draft(), _mode().
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.50.1: first view says what Groundwork is (intro on Today, folds to one row, gone once any step is done; also on About); Getting started is three setup steps, each tappable in any order; imports are two rows (Import from another app, Restore); visit and Not Home tips on the contact outlive the checklist. Design-doc 63.
 - v2.50.0: area shapes: Edit areas on the Contacts map opens a full-screen editor (js/areaedit.js; geometry js/areas.js; polygon-clipping in vendor/). Draw by Tap or Crosshair, snapping, overlaps trimmed, one shape per area, sort contacts in, auto-assign from geotag or address. Design-doc 62.
 - v2.49.0: New contact has a Potential / RV quick stage (two buttons) and no Clean up under the note; sheets don't pop the keyboard until a field is tapped (`data-autofocus="tap"` keeps it for the Studying sheet). Design-doc 61.
 - v2.21–v2.29: garden game (flowers, rounds, tending, milestones, 15 visitors with rare coats, visitor sets, seasons, Getting started quests), visitor announcements, empty-garden tutorial, menu regrouped with a Customize page, "conversations" wording, address tap edits the address. Details in design-doc sections 33–41.
@@ -124,7 +126,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Garden scene redesign built in v2.36.0 (design-doc 49). The draft generator claude/garden-scene-draft.js is now history; the live scene is in js/insights.js (`skySvg`, `stonePath`, `fireflies`, `gardenScene`) and the v2.36 block of css/app.css.
 - New icon shipped in v2.42.0. To check on Mark's phone: remove and re-add Groundwork on iPhone to see it; Android updates on its own.
 - v2.37.0 shipped the study track, held growth/reveal moments and the cleanup meaning check. To watch: whether Fast catches dictation swaps well enough on real notes (Careful is the fallback default); Mario's plant should grow at his next study if he has three study sessions logged.
-- Big layout update: release 1 built as v2.38.0 (design-doc 51), release 2 as v2.39.0 (design-doc 52). Next: the 15-second text tutorial, four cards (Home/Today, Contacts, My garden, record screen), drafted with Mark before building. To watch: whether the likely-home estimate feels right on real data (thresholds LIKELY_P 0.6, LIKELY_N 0.3 in js/logic.js) and whether cleanup's availability suggestion fires sensibly on real notes (untested against the live model).
+- Big layout update: release 1 built as v2.38.0 (design-doc 51), release 2 as v2.39.0 (design-doc 52). Replaced (2026-11-03): no tutorial or slideshow; built as v2.50.1 instead (design-doc 63): a first-view intro that folds, and Getting started cut to three setup steps (Add your contacts, Choose your conversation topics, Back up to Google Drive). Mockup: https://claude.ai/artifact/9dWPQDmRaZHQF4tgJXbeGP. Copy rules: don't call it a game in the opener; no campaign line until central campaign publishing ships; tracts and topics are one thing; Today has no per-person plan. To watch: whether the likely-home estimate feels right on real data (thresholds LIKELY_P 0.6, LIKELY_N 0.3 in js/logic.js) and whether cleanup's availability suggestion fires sensibly on real notes (untested against the live model).
 - Today redesign built as v2.40.0 (design-doc 53), carousel and series in v2.41.0 (design-doc 54). To check on Mark's phone: verse links (jw.org finder `bible=` codes) open JW Library at the right verse; workbook video links (`pub-mwbv_...`) open the right video (59 of 60 found; patterns verified on 31 weekly pages, not every link opened). Library data: js/library.js, source list in claude/sample-conversations-library.json.
 - Known, not fixing (Mark, 2026-10-30): an app update reloads the page when the app comes back to the foreground, which can wipe an in-progress notes import (held in memory). Rare; the fixes (hold the reload during an import, save import progress, lighter screenshot memory) are on file if it comes up again.
 - Handing a call to someone: built in v2.47.0 as a file (design-doc 59). Problem found 2026-10-31: on Mark's phone the received .json said "unsupported" and offered JW Library (a home-screen web app can't register to open files). Workaround meanwhile: save the file, then Import contacts › From another publisher.

@@ -118,6 +118,8 @@
   }
   function lib() {
     const SC = RV.screens, TP = RV.topics;
+    // v2.50.1: opening Topics ticks Getting started's "Choose your conversation topics"
+    if (RV.garden && RV.garden.starterOn(S.settings) && !(S.settings.starter || {}).topics) setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { topics: true }); }), 0);
     let q = '';
     // v2.41: By theme or By series (remembered on this device)
     let mode = 'theme';
@@ -1305,6 +1307,7 @@
 
   function about() {
     return page('About', [
+      RV.screens.introCard(false),
       h('div', { class: 'card stack' },
         h('div', { style: { fontWeight: 600 } }, 'Groundwork · version ' + RV.VERSION),
         h('div', { class: 'muted small' }, 'Android: Chrome menu > Install app. iPhone: Safari Share > Add to Home Screen.'),

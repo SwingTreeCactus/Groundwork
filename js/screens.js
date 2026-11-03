@@ -232,39 +232,68 @@
   // ---------- Getting started (v2.29) ----------
   // A one-time tip, shown inline while Getting started is on, until "Got it".
   function coach(id, text) {
-    if (!RV.garden || !RV.garden.starterOn(S.settings) || (S.settings.tips || {})[id]) return null;
+    // v2.50.1: tips outlive the checklist (it can be finished in one sitting); not shown if it was skipped
+    const sst = (S.settings.starter || {}).state;
+    if (!RV.garden || !(sst === 'on' || sst === 'done') || (S.settings.tips || {})[id]) return null;
     const el = h('div', { class: 'coach', role: 'note' }, h('span', { class: 'coachdot', 'aria-hidden': 'true' }),
       h('div', { class: 'coachtx' }, text),
       h('button', { class: 'link', type: 'button', onclick: () => { el.remove(); ST.saveSettings((s) => { s.tips = Object.assign({}, s.tips || {}, { [id]: true }); }); } }, 'Got it'));
     return el;
   }
-  const importRows = () => h('div', { class: 'imports' },
-    [['ministryAssistant', 'From Ministry Assistant', 'Its backup file, with visits'], ['witnessWork', 'From Witness Work', 'Its backup file, with conversations'], ['notes', 'From a notes app', 'Samsung Notes, Google Keep, Apple Notes'], ['spreadsheet', 'From a spreadsheet', 'A CSV from Excel or Google Sheets'], ['restore', 'Restore a Groundwork backup', 'From a file or Google Drive']]
-      .map(([k, t, sub]) => h('button', { class: 'setrow', type: 'button', onclick: () => RV.importers && RV.importers[k]() }, icon('upload', 20),
-        h('div', { class: 'main' }, h('div', null, t), h('div', { class: 'sub' }, sub)), icon('right', 18))));
+  // v2.50.1: two compact rows instead of five: another app (the Import contacts page) or a Groundwork backup
+  const importRows = () => h('div', { class: 'imports bring2' },
+    [['upload', 'Import from another app', 'Ministry Assistant, Witness Work, notes, a spreadsheet', () => { location.hash = '#/settings/import'; }],
+      ['download', 'Restore a Groundwork backup', 'From Google Drive or a file', () => RV.importers && RV.importers.restore()]]
+      .map(([ic, t, sub, fn]) => h('button', { class: 'bringrow', type: 'button', onclick: fn }, icon(ic, 20),
+        h('span', { class: 'main' }, h('span', { class: 'bt' }, t), h('span', { class: 'bs' }, sub)), icon('right', 16))));
+  // v2.50.1: what Groundwork is, for a new user. Folds to one row (remembered on this device);
+  // gone for good once any Getting started step is done.
+  const INTRO_KEY = 'rvapp.introFolded';
+  const potSvg = () => { const t = document.createElement('template');
+    t.innerHTML = '<svg class="ipot" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#3F6B48"/><g transform="translate(50 50) scale(0.92) translate(-50 -50)"><path d="M50 39 V22" stroke="#A9D08E" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M50 30 C39 30 32 24 31 14 C42 14 50 20 50 30 Z" fill="#A9D08E"/><path d="M50 25 C61 25 68 19 69 9 C58 9 50 15 50 25 Z" fill="#CFE6B4"/><rect x="20" y="37" width="60" height="13" rx="5.5" fill="#9C4A30"/><path d="M24.5 48 H75.5 L69.8 85 Q69 89.5 64.5 89.5 H35.5 Q31 89.5 30.2 85 Z" fill="#B4583A"/><path d="M35 64 Q38.5 59 42 64" stroke="#1F1D1A" stroke-width="3.6" stroke-linecap="round" fill="none"/><path d="M58 64 Q61.5 59 65 64" stroke="#1F1D1A" stroke-width="3.6" stroke-linecap="round" fill="none"/><path d="M43.5 72 Q50 78 56.5 72" stroke="#1F1D1A" stroke-width="3.6" stroke-linecap="round" fill="none"/><circle cx="32" cy="71" r="3.4" fill="#D9775B"/><circle cx="68" cy="71" r="3.4" fill="#D9775B"/></g></svg>';
+    return t.content.firstChild; };
+  const INTRO_LINES = [['sprout', 'Everyone you talk with grows as a plant. Your visits keep it watered.'],
+    ['note', 'Your conversation topics are ready for the day.'],
+    ['lock', 'Your records stay private on your phone, and can be backed up to your own Google Drive.']];
+  const INTRO_HEAD = 'A garden that keeps your return visits from falling through the cracks.';
+  function introCard(foldable) {
+    let folded = false;
+    if (foldable) { try { folded = localStorage.getItem(INTRO_KEY) === '1'; } catch (e) { /* ignore */ } }
+    const el = h('section', { class: 'intro' });
+    const draw = () => {
+      el.classList.toggle('folded', folded);
+      const tog = foldable ? h('button', { class: 'ifold', type: 'button', 'aria-expanded': String(!folded), 'aria-label': folded ? 'Show what Groundwork is' : 'Fold', onclick: (e) => { e.stopPropagation(); set(!folded); } }, icon(folded ? 'down' : 'up', 16)) : null;
+      const brand = h('div', { class: 'ibrand' }, potSvg(), h('b', null, 'Groundwork'), tog);
+      el.onclick = folded ? () => set(false) : null;
+      el.replaceChildren(...(folded ? [brand] : [brand, h('p', { class: 'ihead' }, INTRO_HEAD),
+        h('ul', { class: 'ipts' }, INTRO_LINES.map(([ic, t]) => h('li', null, icon(ic, 18), h('span', null, t))))]));
+    };
+    const set = (v) => { folded = v; try { localStorage.setItem(INTRO_KEY, v ? '1' : '0'); } catch (e) { /* ignore */ } draw(); };
+    draw();
+    return el;
+  }
   function starterCard() {
     const G = RV.garden;
     const r = G.starterSteps(ST.items(), S.settings, !!(RV.drive && RV.drive.status().connected));
-    const firstId = () => { const it = ST.items().find((i) => i.att.state !== 'closed'); return it && it.rv.id; };
     const go = {
       contact: () => F.quickAdd(),
-      visit: () => { const id = firstId(); if (id) location.hash = '#/rv/' + id; },
-      nh: () => { const id = firstId(); if (id) location.hash = '#/rv/' + id; },
-      garden: () => { location.hash = '#/insights'; },
-      drive: () => { location.hash = '#/settings/data'; },
+      topics: () => { location.hash = '#/settings/lib/topic'; },
+      drive: () => { if (RV.drive && RV.drive.configured && RV.drive.configured()) RV.drive.connect(); else location.hash = '#/settings/data'; },
     };
-    const hint = { contact: 'Someone you met at the door, or anyone you want to keep visiting.', visit: 'After a conversation, write a line about it.', nh: 'Knocking counts toward your week, even when nobody answers.', garden: 'Everyone you add grows there as a plant.', drive: 'Your records stay on this phone. A Drive backup keeps them safe.' };
+    const hint = { contact: 'The people you’ll go back to. Add them one by one, or bring them in below.', topics: 'The nine tracts are on. Switch on any other topics you use.', drive: 'Your records live on this phone. A Drive backup keeps them safe.' };
+    const btnText = { contact: 'Add a contact', topics: 'Choose topics', drive: 'Back up' };
     return h('section', { class: 'card starter' },
       h('div', { class: 'sthead' }, h('h2', null, 'Getting started'), h('span', { class: 'muted small' }, r.done + ' of ' + r.steps.length)),
       h('ol', { class: 'stlist' }, r.steps.map((x) => {
         const cur = r.current && r.current.key === x.key;
-        return h('li', { class: 'st' + (x.done ? ' done' : '') + (cur ? ' cur' : '') },
-          h('span', { class: 'stck', 'aria-hidden': 'true' }, x.done ? icon('check', 14) : null),
-          h('div', { class: 'stmain' }, h('div', { class: 'stl' }, x.label, x.done ? h('span', { class: 'sr-only' }, ', done') : null),
-            cur ? h('div', { class: 'muted small' }, hint[x.key]) : null,
-            cur ? h('button', { class: 'btn primary sm', type: 'button', onclick: go[x.key] }, x.key === 'contact' ? 'Add a contact' : 'Show me') : null,
-            cur && x.key === 'contact' ? h('div', { class: 'stimp' }, h('div', { class: 'muted small' }, 'Or bring in what you have'), importRows()) : null));
+        const mark = h('span', { class: 'stck', 'aria-hidden': 'true' }, x.done ? icon('check', 14) : null);
+        const label = h('div', { class: 'stl' }, x.label, x.done ? h('span', { class: 'sr-only' }, ', done') : null);
+        // v2.50.1: every step opens its own workflow, in any order; it ticks only when it is actually done
+        if (cur) return h('li', { class: 'st cur' }, mark, h('div', { class: 'stmain' }, label, h('div', { class: 'muted small' }, hint[x.key]),
+          h('button', { class: 'btn primary sm', type: 'button', onclick: go[x.key] }, btnText[x.key])));
+        return h('li', { class: 'st' + (x.done ? ' done' : '') }, h('button', { class: 'sttap', type: 'button', onclick: go[x.key] }, mark, h('div', { class: 'stmain' }, label), icon('right', 16)));
       })),
+      !r.steps[0].done ? importRows() : null,
       h('button', { class: 'link stskip', type: 'button', onclick: () => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { state: 'off' }); }) }, 'Skip getting started'));
   }
 
@@ -440,11 +469,21 @@
   }
   function home() {
     const items = ST.items();
-    const welcome = RV.garden && RV.garden.starterOn(S.settings) ? starterCard() : !S.rvs.some((r) => !r.deletedAt)
-      ? card('Welcome', h('div', { class: 'stack' },
+    // v2.50.1: a new user first sees what Groundwork is, then Getting started (or, if that was skipped, Add and the import rows)
+    const starter = RV.garden && RV.garden.starterOn(S.settings);
+    const noPeople = !S.rvs.some((r) => !r.deletedAt);
+    let intro = null;
+    if (starter) {
+      const sst = S.settings.starter || {};
+      if (!sst.introGone) {
+        if (RV.garden.starterSteps(ST.items(), S.settings, !!(RV.drive && RV.drive.status().connected)).done === 0) intro = introCard(true);
+        else setTimeout(() => ST.saveSettings((s) => { s.starter = Object.assign({}, s.starter, { introGone: true }); }), 0);
+      }
+    } else if (noPeople) intro = introCard(false);
+    const welcome = starter ? starterCard() : noPeople
+      ? h('section', { class: 'card welcome' },
         h('button', { class: 'btn primary block', type: 'button', onclick: () => F.quickAdd() }, icon('plus', 18), 'Add your first ' + lbl('rv')),
-        h('div', { class: 'muted small', style: { marginTop: '6px' } }, 'Or bring in what you have'),
-        importRows()))
+        importRows())
       : null;
     const d = new Date();
     const hasPeople = S.rvs.some((r) => !r.deletedAt);
@@ -452,7 +491,7 @@
       title: lbl('today'), sub: U.DAYS[d.getDay()] + ', ' + U.MONTHS[d.getMonth()] + ' ' + d.getDate(), fab: true,
       // v2.40: the campaign, then Conversations, If you see them and a line to Contacts; Schedule a campaign at the foot
       el: (() => { const camp = campaignBar(), planOnly = camp && camp.classList.contains('plan-camp');
-        return h('div', { class: 'home' }, planOnly ? null : camp, welcome, conversations(), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
+        return h('div', { class: 'home' }, intro, planOnly ? null : camp, welcome, conversations(), hasPeople ? ifYouSee(d) : null, hasPeople ? seeLine(d) : null, planOnly ? camp : null); })(),
     };
   }
 
@@ -961,10 +1000,11 @@
             h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
             h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), lbl('recordVisit'))),
           // v2.29: Getting started tips
-          (() => { const G = RV.garden; if (!G || !G.starterOn(S.settings)) return null; const cur = G.starterSteps(ST.items(), S.settings, false).current;
-            const first = String(rv.name || '').split(' ')[0];
-            if (cur && cur.key === 'visit') return coach('visit', 'This is ' + first + '\u2019s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
-            if (cur && cur.key === 'nh') return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
+          (() => { const first = String(rv.name || '').split(' ')[0];
+            // v2.50.1: taught here, on the contact, not as checklist steps; one tip at a time, each until Got it
+            const t = S.settings.tips || {};
+            if (!t.visit) return coach('visit', 'This is ' + first + '\u2019s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
+            if (!t.nh) return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
             return null; })())
         : null);
     els.push(head);
@@ -1040,5 +1080,5 @@
     };
   }
 
-  RV.screens = { playFill, coach, starterCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  RV.screens = { playFill, coach, starterCard, introCard, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);
