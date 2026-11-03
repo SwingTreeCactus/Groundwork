@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v111';
+const CACHE = 'rvapp-v112';
 const ASSETS = [
   './',
   './index.html',
@@ -33,6 +33,7 @@ const ASSETS = [
   './js/ui-core.js',
   './js/forms.js',
   './js/todaylist.js',
+  './js/reminders.js',
   './js/screens.js',
   './js/critters.js',
   './js/insights.js',
@@ -96,4 +97,51 @@ self.addEventListener('fetch', (event) => {
       return fetch(req).catch(() => (req.mode === 'navigate' ? caches.match('./index.html') : Response.error()));
     })
   );
+});
+
+// v2.52: follow-up reminders. The push carries no names; this reads them from the phone's own records.
+function followUpsToday() {
+  return new Promise((resolve) => {
+    let req;
+    try { req = indexedDB.open('rvapp'); } catch (e) { return resolve([]); }
+    req.onerror = () => resolve([]);
+    req.onsuccess = () => {
+      const db = req.result;
+      try {
+        const d = new Date(), today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const tx = db.transaction(['rvs', 'entries'], 'readonly');
+        const rq = tx.objectStore('rvs').getAll(), eq = tx.objectStore('entries').getAll();
+        tx.oncomplete = () => {
+          const done = new Set((eq.result || []).filter((e) => !e.deletedAt && (e.type === 'visit' || e.type === 'nh') && new Date(e.at).getTime() >= t0).map((e) => e.rvId));
+          resolve((rq.result || []).filter((r) => !r.deletedAt && !r.archiveReason && r.snoozedUntil === today && !done.has(r.id)).map((r) => r.name || 'Someone').sort());
+          db.close();
+        };
+        tx.onerror = () => { resolve([]); db.close(); };
+      } catch (e) { resolve([]); }
+    };
+  });
+}
+function reminderText(names) { // the same words as RV.reminders.message
+  const first = (n) => String(n || '').split(' ')[0];
+  if (!names.length) return { title: 'Follow-ups today', body: 'Open Groundwork to see who.' };
+  if (names.length === 1) return { title: 'Follow-up today', body: names[0] };
+  if (names.length === 2) return { title: 'Follow-ups today', body: names[0] + ' and ' + names[1] };
+  const f = names.map(first);
+  return { title: names.length + ' follow-ups today', body: f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] };
+}
+self.addEventListener('push', (event) => {
+  event.waitUntil(followUpsToday().then((names) => {
+    const m = reminderText(names);
+    return self.registration.showNotification(m.title, { body: m.body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'followups', data: { url: './#/home' } });
+  }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || './#/home', self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+    const c = cs.find((x) => x.url.startsWith(self.registration.scope));
+    if (c) { c.navigate(url).catch(() => {}); return c.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

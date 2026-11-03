@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.51.0';
+  RV.VERSION = '2.52.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -94,7 +94,7 @@
     // v2.39: Prepare (topics and campaigns) leads the menu
     const groups = [
       ['Prepare', [['lib/topic', lbl('topics'), 'note'], ['campaigns', lbl('campaign') + 's', 'calendar']]],
-      ['App', [['display', 'Display', 'sliders'], ['data', 'Backup and import', 'download'], ['ai', 'Note cleanup', 'sparkle'], ['security', 'Security', 'lock']]],
+      ['App', [['display', 'Display', 'sliders'], ['data', 'Backup and import', 'download'], ['ai', 'Note cleanup', 'sparkle'], ['notify', 'Notifications', 'bell'], ['security', 'Security', 'lock']]],
       [null, [['customize', 'Customize', 'edit']]],
     ];
     // v2.50.3: Escape or any change of page (the phone's Back included) closes the menu too
@@ -264,6 +264,8 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });
     registerSW();
     RV.drive.start();
+    // v2.52: keep the reminders helper's dates current (only while reminders are on), and refresh them once on open
+    if (RV.reminders) { RV.reminders.watch(); if (RV.reminders.state().on) setTimeout(() => RV.reminders.sync().catch(() => {}), 3000); }
     if (signIn && signIn.retrying) {
       // the silent reconnect needs Google to ask: already on the way there
     } else if (signIn && signIn.ok) {

@@ -855,3 +855,14 @@ Mark's rule from the UX audit (claude/ux-audit.md): show what was accomplished, 
 - Stuck in stage is dropped (its Customize setting too); Worth reconsidering moves to the foot of each area as "Not home 3 or more times", with the days tried.
 
 Tests: smoke 383 (the gate, can sheet, recap, plan field, timeline, Today's list, Plan a visit, follow-up on the day, Could visit today, areas), garden 45 (kept growth, weeks recorded, plans today, welcome back), screens 60, others unchanged. VERSION 2.51.0, cache rvapp-v111.
+
+## 66. v2.52.0 Follow-up reminders (built 2026-11-03)
+
+Agreed with Mark 2026-11-03: a push notification on mornings when you have a follow-up, and never otherwise.
+- **Menu › Notifications** (`#/settings/notify`): Follow-up reminders on/off and a time (default 8:00), with what is sent. On an iPhone browser tab it explains Add to Home Screen first. Off until turned on; the phone asks for notification permission once.
+- **App** (js/reminders.js, `RV.reminders`): sends the helper only `{ id, sub, tz, time, dates }`: a separate anonymous ID (`rvapp.remindId`, not the cleanup one), the browser's push subscription, the time zone, the time, and the follow-up dates from today on (`datesToSend`: open contacts only; today drops off once everyone due today has had a visit or Not Home). It re-sends a few seconds after any change while on, and once when the app opens. Turning off unsubscribes and calls `/unsubscribe`. State in localStorage `rvapp.remind`.
+- **Service worker**: on a push it reads the phone's own records (IndexedDB) and shows "Follow-up today: Maria Lopez", "Follow-ups today: Maria Lopez and James Carter" or "3 follow-ups today: Maria, James and Linda"; tapping opens Today.
+- **Helper** (worker/reminders.js, Cloudflare Worker `groundwork-reminders`): `/subscribe` and `/unsubscribe` from ALLOWED_ORIGIN only, strict validation, KV `REMINDERS`. A Cron Trigger every 15 minutes sends each subscription its reminder when today is one of its dates, the local time has reached its time, and today's hasn't gone yet; a re-sync never re-sends. Pushes are encrypted (RFC 8291, aes128gcm) and signed with VAPID (RFC 8292) using Web Crypto; a 404/410 from the push service deletes the subscription. Nothing about contacts is stored or logged.
+- `RV.config.reminders` and `RV.config.vapidPublic` ship empty, so the page says reminders aren't set up yet until Mark deploys the helper.
+- Privacy page: a Follow-up reminders section.
+- Tests: reminders 6 (node: validation, timing, encryption decrypted with the browser's keys, VAPID signature, cron once a day, gone subscriptions), reminders-app 4 (node: dates, words, the service worker's words match), reminders_ui 12 (browser: the page, what is sent and never names, time change, a Not Home taking today off, a push delivered to the service worker, turning off). Menu has Notifications (smoke 383). VERSION 2.52.0, cache rvapp-v112.

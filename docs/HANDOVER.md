@@ -1,15 +1,15 @@
-# Groundwork handover (2026-11-03, after v2.51.0)
+# Groundwork handover (2026-11-03, after v2.52.0)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–65) for detail. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–66) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.51.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v111` (sw.js).
+- Current release: v2.52.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v112` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.51.1 / rvapp-v112; 2.52.0 for the reminders), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.52.1 / rvapp-v113), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
@@ -63,11 +63,12 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.51.0)
+## Tests (all passing at v2.52.0)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (383; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (55)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23), `python3 -I tests/areas_ui.py . /tmp/out/ar` (42)
+- `node tests/reminders.test.mjs` (6), `node tests/reminders-app.test.js` (4), `python3 -I tests/reminders_ui.py` (12)
 - `node tests/garden.test.js` (45), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (7), `node tests/handoff.test.js` (8), `node tests/ww.test.js` (7), `node tests/areas.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - Growth and reveal moments wait for a tap (v2.37); browser tests use `through_moment` (smoke) or click `.grow-ov` / `.evo-ov` (the evolution reveal, v2.38).
@@ -86,6 +87,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.52.0: follow-up reminders: Menu › Notifications, the app sends only dates/time/time zone under an anonymous ID, the service worker writes the names, and worker/reminders.js (not deployed yet; config empty). Design-doc 66.
 - v2.51.0: motivation without guilt (no streak, no chalkboard, the can fills, sundials count weeks with visits recorded, growth kept through gaps, a plan counts only when written), Today's list (day note, follow-ups join on the day, Plan a visit calendar on a contact, Could visit today), and the audit decisions (study plan, timeline, empty Contacts, backup card, Today tab, Not home 3+ in areas). Design-doc 65.
 - v2.50.3: audit cleanups: "contact" for the person everywhere (RV only as the stage), local dates for evening entries, carousel cards sized to content, menu closes on Back/Escape, test screenshots and /rv-app/ removed from the site, privacy page updated, Areas' last visit, bigger A to Z and bed-sign targets. Design-doc 64.
 - v2.50.2: topic groups are "categories", not "themes" (Theme means light/dark in Display); creating on the Topics page says New (New topic, New category). Stored field names unchanged.
@@ -128,7 +130,15 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 
 ## Pending
 - UX audit (2026-11-03, claude/ux-audit.md): easy items shipped in v2.50.3; the decisions and Today's list in v2.51.0 (design-doc 65). To watch on Mark's phone: dragging rows on Today's list by the grip; whether "Could visit today" suggests sensible people; the backup card's timing.
-- Follow-up reminder (agreed 2026-11-03, next: v2.52.0): opt-in Menu > Notifications, a time (default 8:00). A third Cloudflare Worker with KV and a cron sends a blank Web Push only on days with a follow-up at that time; the phone sends only follow-up dates, time and time zone under an anonymous ID, and writes the names itself ("Follow-up today: Maria Lopez and James Carter"). Clearing the date or recording a visit first cancels that day. No push on days without follow-ups. iPhone needs the app on the home screen. Mark sets VAPID keys as Secrets.
+- Follow-up reminders: built in v2.52.0 (design-doc 66), shipped switched off (`RV.config.reminders` and `vapidPublic` empty). **Mark's steps:**
+  1. Make the VAPID keys: on a computer, open https://mygroundwork.app, open the browser console, and run:
+     `crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign']).then(async k=>{const j=await crypto.subtle.exportKey('jwk',k.privateKey),r=new Uint8Array(await crypto.subtle.exportKey('raw',k.publicKey)),b=x=>btoa(String.fromCharCode(...x)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');console.log('PUBLIC:',b(r));console.log('PRIVATE:',j.d)})`
+     The public key is safe to share; the private one goes only into Cloudflare as a Secret.
+  2. Cloudflare › Storage › KV › create `groundwork-reminders`.
+  3. Workers › Create `groundwork-reminders`, paste worker/reminders.js, Deploy.
+  4. Its Bindings › KV namespace, variable name `REMINDERS`. Variables: `VAPID_PUBLIC_KEY` (Text), `VAPID_PRIVATE_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app. Settings › Triggers › Cron Triggers: every 15 minutes. Deploy.
+  5. Send Claude the Worker URL and the PUBLIC key.
+  - **Next action when Mark sends them:** set `reminders` and `vapidPublic` in js/config.js, release v2.52.1, then Mark turns it on in Menu › Notifications (iPhone: from the home-screen app).
 - Witness Work import (v2.45.0): built from a single sample backup. Watch for fields the sample didn't use (phone, email, custom fields, contact `customFieldDefs`, conversation field defs, non-US addresses) once more users' files come in.
 - Plant kinds (v2.34.0, built 2026-10-28): watch for look-alike pairs in real gardens (apple and cherry trees share a round crown; lemon and cherry leafy share a column shape; colour separates them). The canvas "Groundwork plant kinds" holds the mockups; claude/plant-kinds-draft.js is the pre-build draft (js/kinds.js is the live code).
 - Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.

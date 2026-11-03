@@ -833,7 +833,7 @@ with sync_playwright() as p:
     page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab'); time.sleep(0.4)
     ev("document.querySelectorAll('.overlay, .recap, .vann').forEach(e => e.remove())"); time.sleep(0.2)
     page.click('.menubtn'); page.wait_for_selector('.drawer')
-    check(page.locator('a.drawer-item').count() == 7 and page.locator('.drawer-switch').count() == 1 and page.locator('.drawer-sub').first.inner_text() == 'Prepare' and 'Groundwork' in page.locator('.drawer-foot').inner_text(), 'menu: Prepare first, Dark mode switch, App and Customize, version at the foot')
+    check(page.locator('a.drawer-item').count() == 8 and page.locator('.drawer-switch').count() == 1 and page.locator('.drawer-sub').first.inner_text() == 'Prepare' and 'Groundwork' in page.locator('.drawer-foot').inner_text(), 'menu: Prepare first, Dark mode switch, App and Customize, version at the foot')
     page.click('.drawer-item:has-text("Customize")'); page.wait_for_selector('.setrow')
     check(page.locator('.setrow').count() == 5 and 'Lead stages' in page.locator('.view').inner_text(), 'Customize: one page with the five setup pages')
     page.goto(URL + '#/settings/display'); page.wait_for_selector('.seg')

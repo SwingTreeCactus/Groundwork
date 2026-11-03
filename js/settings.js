@@ -25,7 +25,7 @@
     return [
       ['Prepare', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
       ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
-        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
+        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['notify', 'Notifications', RV.reminders && RV.reminders.state().on ? 'Follow-up reminders at ' + RV.reminders.state().time : 'Off', 'bell'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
       [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],
     ];
   };
@@ -520,6 +520,33 @@
   }
 
   // ---------- security ----------
+  // v2.52: follow-up reminders (js/reminders.js, worker/reminders.js)
+  function notify() {
+    const R = RV.reminders, box = h('div');
+    function paint() {
+      const st = R.state(), sup = R.support();
+      const time = h('input', { type: 'time', value: st.time, 'aria-label': 'Reminder time', onchange: (e) => { if (e.target.value) R.setTime(e.target.value).then(paint); } });
+      const sw = UI.toggle(st.on && sup === 'ok', async (on) => {
+        if (!on) { await R.disable(); paint(); return; }
+        const res = await R.enable(time.value || st.time);
+        if (res === 'denied') toast('Notifications are blocked for Groundwork. Allow them in your phone’s settings, then try again.');
+        else if (res === 'error') toast('Couldn’t turn on reminders right now. Try again in a moment.');
+        paint();
+      }, 'Follow-up reminders');
+      const note = sup === 'off' ? 'Reminders aren’t set up yet.' : sup === 'ios-browser' ? 'On iPhone, reminders work once Groundwork is on your home screen: in Safari, Share › Add to Home Screen, then open it from there.'
+        : sup === 'unsupported' ? 'This browser can’t show reminders.' : null;
+      box.replaceChildren(
+        h('div', { class: 'card' },
+          h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Follow-up reminders'), h('div', { class: 'muted small' }, 'A notification in the morning on days you set a follow-up for.')), sup === 'ok' ? sw : null),
+          h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, 'Time'), time)),
+        note ? h('p', { class: 'muted small' }, note) : null,
+        h('p', { class: 'muted small' }, 'Only the dates of your follow-ups, the time and your time zone are sent, under an anonymous ID, so the reminder arrives on time. Names and notes stay on this phone.'),
+        h('p', { class: 'muted small' }, 'Nothing is sent on days without a follow-up, or once everyone due that day has had a visit or a Not Home.'));
+    }
+    paint();
+    return page('Notifications', [box], { noRerender: true });
+  }
+
   function security() {
     const box = h('div');
     function pinSheet(title, onDone) {
@@ -1314,5 +1341,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, customize, display, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport, import: importPage };
+  RV.settingsScreens = { index, customize, display, notify, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport, import: importPage };
 })(window);

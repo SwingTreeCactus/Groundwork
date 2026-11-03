@@ -30,6 +30,9 @@
 <p>Ideas for next time: on a record with nothing under Discuss next time, an Ideas button can suggest three topics from your topic list. Only when you tap it, that record's household notes, its five most recent visit notes, its stage and the last topic used (not the name, address or phone), together with your topic list, are sent to Anthropic's API the same way as Note cleanup. The three suggestions are kept on that record, on your device and in your own backups, until the next visit.</p>
 <p>Import from a notes app, and Fill from a note when adding someone: when you choose notes (text you paste, screenshots you pick, files, or notes you share to Groundwork) and tap Make contacts or Paste, their text or the screenshots (shrunk first) are sent to Anthropic's API the same way as Note cleanup, so Claude can find the people, addresses and visits in them. Screenshots are not stored by Groundwork or its helper. The suggested contacts come back to your device for you to check; nothing is saved until you tap Import. Notes shared to Groundwork from another app wait on your device until the import screen opens, then are removed from that waiting place.</p>
 
+<h2>Follow-up reminders (optional)</h2>
+<p>If you turn on follow-up reminders (Menu &gt; Notifications), your phone sends Groundwork's small reminders helper (a Cloudflare Worker) the dates on which you have a follow-up, the reminder time and your time zone, under an anonymous random ID made on your phone, together with the push address your browser gives it. No names, addresses or notes are sent. On those days the helper sends a push with no names in it; your phone then writes the reminder ("Follow-up today: Maria Lopez") from its own records. Turning reminders off deletes your entry from the helper.</p>
+
 <h2>Imports</h2>
 <p>Importing from Ministry Assistant, Witness Work, a spreadsheet or a Groundwork backup reads the file on your device only; nothing is sent anywhere.</p>
 
