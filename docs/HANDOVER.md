@@ -122,6 +122,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 
 ## Pending
+- UX audit (2026-11-03, claude/ux-audit.md): review only. Mark to choose what to build; mock up first.
 - Witness Work import (v2.45.0): built from a single sample backup. Watch for fields the sample didn't use (phone, email, custom fields, contact `customFieldDefs`, conversation field defs, non-US addresses) once more users' files come in.
 - Plant kinds (v2.34.0, built 2026-10-28): watch for look-alike pairs in real gardens (apple and cherry trees share a round crown; lemon and cherry leafy share a column shape; colour separates them). The canvas "Groundwork plant kinds" holds the mockups; claude/plant-kinds-draft.js is the pre-build draft (js/kinds.js is the live code).
 - Notes import: v2.31.0, reworked in v2.32.0 (design-doc 44–45). **Mark must paste the new worker/ai-proxy.js into groundwork-ai** (body cap raised for screenshots). Then: test with real notes (likely his wife's Samsung Notes) and tune `RV.ai.IMPORT_SYSTEM`. Android share target: Groundwork wasn't in Keep's share menu; Mark to check it was installed from Chrome and reinstall to pick up the manifest.
@@ -144,6 +145,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Optional later: anonymous user count (Worker ping or Cloudflare Web Analytics, plus privacy page); act from the garden (long-press a bed); visitors using garden objects, keepsakes; monthly personal challenge; push reminders; rotate the Google client secret (Mark chose not to); refresh the Garden visitors design canvas.
 
 ## Related project docs
+- claude/ux-audit.md (docs/UX-AUDIT-2026-11-03.md): UX and workflow audit at v2.50.2 against the mission and the model games; nothing built yet. Top items: name who needs water in the watering can sheet with a Today line to it, count a plan only when written, local dates for evening entries.
 - claude/area-shapes.md (docs/AREA-SHAPES.md): design for drawing areas on the map, not built.
 - claude/campaign-publishing.md (docs/CAMPAIGN-PUBLISHING.md): design for publishing campaigns to every user, not built.
 - claude/app-audit.md (docs/AUDIT-2026-10-31.md): full app audit at v2.45.0, issues ranked, nothing built yet.
