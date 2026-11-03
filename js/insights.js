@@ -229,7 +229,7 @@
       els.push(objBtn('o-bunt', 'Streak: ' + sk.streak + (sk.streak === 1 ? ' week' : ' weeks') + ', every thirsty plant watered', bunt + '</svg>', () => UI.sheet('Streak', () => streakPart(sk))));
       // the watering can: full at the start of the week, emptier as due plants are watered
       const r = sk.ring, left = r.due ? Math.max(0, r.due - r.seen) / r.due : 0, wh = Math.round(14 * left);
-      els.push(objBtn('o-can', 'This week: ' + r.seen + ' of ' + r.due + ' watered',
+      els.push(objBtn('o-can', 'This week: ' + r.seen + (r.seen === 1 ? ' thirsty plant' : ' thirsty plants') + ' watered',
         '<svg viewBox="0 0 72 60" aria-hidden="true"><ellipse cx="30" cy="54" rx="22" ry="4" class="osh"/><path d="M14 22 H44 L42 52 H16 Z" fill="#7C98A6"/><rect x="12" y="18" width="34" height="6" rx="3" fill="#5F7C8A"/><path d="M44 30 L60 18" stroke="#5F7C8A" stroke-width="5" stroke-linecap="round"/><ellipse cx="61" cy="17" rx="5" ry="3" fill="#5F7C8A" transform="rotate(-35 61 17)"/><path d="M18 18 C18 6 40 6 40 18" stroke="#5F7C8A" stroke-width="4" fill="none"/><rect x="18" y="34" width="22" height="14" rx="2" fill="#6D8A98"/>' +
         (wh ? '<rect x="19" y="' + (48 - wh) + '" width="20" height="' + wh + '" fill="#8FC6E3"/>' : '') + '</svg>', () => UI.sheet('This week', () => ringPart(sk))));
     }
@@ -263,8 +263,21 @@
     return out;
   }
   const sheetNote = (t) => h('p', { class: 'muted small onote' }, t);
-  function ringPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.ring'), sheetNote('The can empties as you water this week\u2019s thirsty plants.')); }
-  function streakPart(sk) { const c = ringCard(sk); return h('div', { class: 'osheet' }, c.querySelector('.streak'), c.querySelector('.wks'), sheetNote('A pennant for every week you watered every thirsty plant. A pale blue one is a week a freeze kept your streak.')); }
+  // v2.50.3: what you have done, never what is left (Mark: updates on what you've accomplished, without guilt)
+  function ringPart(sk) {
+    const n = sk.ring.seen;
+    return h('div', { class: 'osheet' },
+      n ? h('div', { class: 'streak' }, h('div', { class: 'big' }, String(n)), h('div', null, h('div', { class: 't2' }, (n === 1 ? 'thirsty plant' : 'thirsty plants') + ' watered this week')))
+        : h('div', { class: 't2 oquiet' }, 'Each thirsty plant you water this week shows here.'),
+      sheetNote('A conversation or a knock both count.'));
+  }
+  function streakPart(sk) {
+    const c = ringCard(sk);
+    const head = sk.streak ? c.querySelector('.streak')
+      : h('div', { class: 'streak' }, h('div', null, h('div', { class: 't2' }, 'Your first full week will hang a pennant here.'), sk.best ? h('div', { class: 't3' }, 'Best: ' + sk.best + (sk.best === 1 ? ' week' : ' weeks')) : null));
+    return h('div', { class: 'osheet' }, head, c.querySelector('.wks'), sheetNote('A pennant for every week you watered every thirsty plant. A pale blue one is a week a freeze kept your streak.'));
+  }
+
   // a card shown in a sheet drops its own heading (the sheet has one)
   const bare = (el) => { if (el) { const t = el.querySelector('.ih, h2'); if (t) t.remove(); el.classList.add('osheet'); } return el; };
   function gardenScene(plots, now, earned, opt) {
