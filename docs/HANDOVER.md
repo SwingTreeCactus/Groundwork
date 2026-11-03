@@ -1,17 +1,18 @@
-# Groundwork handover (2026-11-03, after v2.50.1)
+# Groundwork handover (2026-11-03, after v2.50.2)
 
 Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–63) for detail. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.50.1 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v108` (sw.js).
+- Current release: v2.50.2 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v109` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.2 / rvapp-v109), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.50.3 / rvapp-v110), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
+- Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
 - Commit messages end with the Co-Authored-By and Claude-Session lines from the session's attribution reminder.
 - Answers: concise, direct, plain prose. Minimal on-screen text in the app.
@@ -60,7 +61,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.50.1)
+## Tests (all passing at v2.50.2)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (375; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (55)
@@ -82,6 +83,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.50.2: topic groups are "categories", not "themes" (Theme means light/dark in Display); creating on the Topics page says New (New topic, New category). Stored field names unchanged.
 - v2.50.1: first view says what Groundwork is (intro on Today, folds to one row, gone once any step is done; also on About); Getting started is three setup steps, each tappable in any order; imports are two rows (Import from another app, Restore); visit and Not Home tips on the contact outlive the checklist. Design-doc 63.
 - v2.50.0: area shapes: Edit areas on the Contacts map opens a full-screen editor (js/areaedit.js; geometry js/areas.js; polygon-clipping in vendor/). Draw by Tap or Crosshair, snapping, overlaps trimmed, one shape per area, sort contacts in, auto-assign from geotag or address. Design-doc 62.
 - v2.49.0: New contact has a Potential / RV quick stage (two buttons) and no Clean up under the note; sheets don't pop the keyboard until a field is tapped (`data-autofocus="tap"` keeps it for the Studying sheet). Design-doc 61.

@@ -136,7 +136,7 @@
     const next = h('input', { type: 'text', value: item ? item.next || '' : '', autocomplete: 'off', placeholder: 'A question to come back with next time' });
     const text = h('textarea', { value: item ? item.text || '' : '', placeholder: 'Notes, more scriptures, key points', style: { minHeight: '84px' } });
     const video = h('input', { type: 'url', value: item ? item.video || '' : '', autocomplete: 'off', placeholder: 'A jw.org link (optional)' });
-    const theme = h('select', null, ST.themes().map((t) => h('option', { value: t.id }, t.name)).concat(h('option', { value: '' }, 'No theme')));
+    const theme = h('select', null, ST.themes().map((t) => h('option', { value: t.id }, t.name)).concat(h('option', { value: '' }, 'No category')));
     theme.value = item ? (ST.themes().some((t) => t.id === item.theme) ? item.theme : '') : (opts.theme != null ? opts.theme : (ST.themes()[0] || { id: '' }).id);
     const on = h('input', { type: 'checkbox', checked: item ? !!item.showOnHome : true });
     sheet(item ? 'Edit topic' : 'New topic', (close) =>
@@ -151,7 +151,7 @@
         },
       },
         field('Topic', title), field('Question', question), field('Scriptures', scripture), field('Linking question', next), field('Notes', text),
-        field('Video or article link', video), field('Theme', theme),
+        field('Video or article link', video), field('Category', theme),
         h('label', { class: 'check' }, on, 'Show on Today and in Record a visit'),
         item && item.builtin ? h('button', { class: 'link-quiet treset', type: 'button', onclick: async () => {
           if (await confirmDialog({ title: 'Reset to original?', message: 'Your changes to "' + item.title + '" will be replaced with the library version.', confirmText: 'Reset' })) { ST.resetTopic(item.id); close(); }
@@ -415,7 +415,7 @@
         part ? h('span', { class: 'tpart' }, part) : null,
         x.scripture ? h('span', { class: 'chip' }, TP.parseRefs(x.scripture).map((r) => r.label)[0] || x.scripture) : null);
       const paint = () => {
-        seg.replaceChildren(...[['theme', 'By theme'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; paint(); } }, l)));
+        seg.replaceChildren(...[['theme', 'By category'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; paint(); } }, l)));
         const items = q.trim() ? TP.search(list, q, themeName) : list;
         if (q.trim()) { body.replaceChildren(...items.map((x) => row(x))); return; }
         if (mode === 'theme') {

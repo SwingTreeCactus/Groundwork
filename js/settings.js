@@ -104,14 +104,14 @@
     const name = h('input', { type: 'text', value: t.name, 'data-autofocus': true, autocomplete: 'off' });
     const list = ST.themes(), i = list.findIndex((x) => x.id === t.id);
     const to = list[i + 1] || list[i - 1];
-    sheet('Theme', (close) => h('form', { onsubmit: (e) => { e.preventDefault(); const n = name.value.trim(); if (n) ST.renameTheme(t.id, n); close(); } },
+    sheet('Category', (close) => h('form', { onsubmit: (e) => { e.preventDefault(); const n = name.value.trim(); if (n) ST.renameTheme(t.id, n); close(); } },
       field('Name', name),
       h('div', { class: 'two' },
         h('button', { class: 'btn', type: 'button', disabled: i <= 0, onclick: () => { ST.moveTheme(t.id, -1); close(); } }, icon('up', 18), 'Move up'),
         h('button', { class: 'btn', type: 'button', disabled: i >= list.length - 1, onclick: () => { ST.moveTheme(t.id, 1); close(); } }, icon('down', 18), 'Move down')),
       h('div', { class: 'actions' },
         h('button', { class: 'btn danger', type: 'button', onclick: async () => {
-          if (await confirmDialog({ title: 'Delete "' + t.name + '"?', message: to ? 'Its topics move to "' + to.name + '".' : 'Its topics stay, with no theme.', confirmText: 'Delete', danger: true })) { ST.deleteTheme(t.id); close(); }
+          if (await confirmDialog({ title: 'Delete "' + t.name + '"?', message: to ? 'Its topics move to "' + to.name + '".' : 'Its topics stay, with no category.', confirmText: 'Delete', danger: true })) { ST.deleteTheme(t.id); close(); }
         } }, 'Delete'),
         h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
         h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
@@ -137,7 +137,7 @@
       UI.toggle(!!x.showOnHome, (v) => ST.updateLib(x.id, { showOnHome: v }), 'Show on Today: ' + x.title));
     function paint() {
       const all = ST.libItems('topic');
-      seg.replaceChildren(...[['theme', 'By theme'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; try { localStorage.setItem('rvapp.topicsMode', v); } catch (e) { /* ignore */ } paint(); } }, l)));
+      seg.replaceChildren(...[['theme', 'By category'], ['series', 'By series']].map(([v, l]) => h('button', { type: 'button', class: v === mode ? 'on' : '', onclick: () => { mode = v; try { localStorage.setItem('rvapp.topicsMode', v); } catch (e) { /* ignore */ } paint(); } }, l)));
       if (q.trim()) {
         const hits = TP.search(all, q, SC.themeName);
         listBox.replaceChildren(hits.length ? h('div', { class: 'list' }, hits.map((x) => row(x, true))) : UI.emptyState('search', 'No topic matches that.'));
@@ -168,11 +168,11 @@
             h('div', { class: 'ahead' },
               h('button', { class: 't', type: 'button', 'aria-expanded': String(isOpen), onclick: () => { const o = openSet(); if (isOpen) o.delete(k); else o.add(k); saveOpen(o); paint(); } },
                 h('span', { class: 'nm' }, t.name), h('span', { class: 'sub' }, (items.length ? nOn + ' of ' + items.length + ' on' : 'Empty') + (t.ran ? ' \u00B7 first ran ' + t.ran : ''))),
-              t.id && !t.series ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Edit theme ' + t.name, onclick: () => themeSheet(t) }, icon('more', 18)) : null,
+              t.id && !t.series ? h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Edit category ' + t.name, onclick: () => themeSheet(t) }, icon('more', 18)) : null,
               items.length ? UI.toggle(allOn, (v) => { for (const x of items) if (!!x.showOnHome !== v) ST.updateLib(x.id, { showOnHome: v }); }, 'Show all of ' + t.name + ' on Today') : null),
             isOpen ? h('div', { class: 'abody' },
               items.length ? h('div', { class: 'list' }, items.map((x) => row(x, false, parts ? parts(x) : ''))) : null,
-              t.series ? null : h('button', { class: 'link-quiet tadd', type: 'button', onclick: () => SC.libSheet('topic', null, { theme: t.id }) }, icon('plus', 16), 'Add a topic here')) : null);
+              t.series ? null : h('button', { class: 'link-quiet tadd', type: 'button', onclick: () => SC.libSheet('topic', null, { theme: t.id }) }, icon('plus', 16), 'New topic in this category')) : null);
         }));
       }
       // every verse in the topics, Genesis to Revelation
@@ -186,8 +186,8 @@
     return page(lbl('topics'), [
       seg, search, listBox,
       h('div', { class: 'two', style: { marginTop: '14px' } },
-        saveBtn('Add topic', () => RV.screens.libSheet('topic'), 'primary'),
-        saveBtn('Add theme', async () => { const n = await UI.textPrompt({ title: 'New theme', placeholder: 'e.g. Science and creation' }); if (n && n.trim()) ST.addTheme(n.trim()); })),
+        saveBtn('New topic', () => RV.screens.libSheet('topic'), 'primary'),
+        saveBtn('New category', async () => { const n = await UI.textPrompt({ title: 'New category', placeholder: 'e.g. Science and creation' }); if (n && n.trim()) ST.addTheme(n.trim()); })),
       indexBox,
     ], { update: paint });
   }

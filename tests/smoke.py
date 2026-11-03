@@ -1253,7 +1253,7 @@ with sync_playwright() as p:
     check(page.locator('.tlib .tfold').count() >= 27 and 'first ran' in page.locator('.tlib .tfold:has(.nm:text-is("Prayer")) .sub').inner_text(), 'v2.41: the Topics page by series, with when each first ran')
     page.locator('.tlib .tfold:has(.nm:text-is("Prayer")) .ahead .t').click(); time.sleep(0.2)
     check(page.locator('.tlib .tfold.open .trow .tpart').first.inner_text() == 'Part 1', 'rows show their part')
-    page.click('.vseg button:has-text("By theme")'); time.sleep(0.2)
+    page.click('.vseg button:has-text("By category")'); time.sleep(0.2)
     # edit a built-in topic, then reset it
     tid = 'lib-does-god-hear-prayers'
     ev("RV.screens.libSheet('topic', RV.store.S.lib.find(x => x.id === '%s'))" % tid); page.wait_for_selector('.sheet .treset')
