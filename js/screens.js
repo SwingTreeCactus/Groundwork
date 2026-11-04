@@ -506,8 +506,8 @@
       h('div', { class: 'tlhead' }, h('h2', null, "Today's list", seen ? h('span', { class: 'tlseen' }, ' · ' + seen + ' seen') : null),
         h('button', { class: 'tladd', type: 'button', onclick: () => todayAddSheet() }, icon('plus', 16), 'Add')),
       note,
-      rows.length ? body : h('div', { class: 'tlempty' }, h('div', { class: 'muted small' }, 'Add people you want to see today.'),
-        h('button', { class: 'btn primary sm', type: 'button', onclick: () => todayAddSheet() }, icon('plus', 16), 'Add people')));
+      // v2.52.1: one way to add (+ Add in the heading), empty or not
+      rows.length ? body : h('div', { class: 'tlempty' }, h('div', { class: 'muted small' }, 'Add people you want to see today.')));
   }
   // Drag a row by its grip to reorder (touch and mouse). Calls done(ids) with the new order.
   function dragSort(box, done) {

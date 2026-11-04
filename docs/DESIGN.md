@@ -866,3 +866,4 @@ Agreed with Mark 2026-11-03: a push notification on mornings when you have a fol
 - `RV.config.reminders` and `RV.config.vapidPublic` ship empty, so the page says reminders aren't set up yet until Mark deploys the helper.
 - Privacy page: a Follow-up reminders section.
 - Tests: reminders 6 (node: validation, timing, encryption decrypted with the browser's keys, VAPID signature, cron once a day, gone subscriptions), reminders-app 4 (node: dates, words, the service worker's words match), reminders_ui 12 (browser: the page, what is sent and never names, time change, a Not Home taking today off, a push delivered to the service worker, turning off). Menu has Notifications (smoke 383). VERSION 2.52.0, cache rvapp-v112.
+- v2.52.1: Today's list has one way to add, the + Add in its heading; the empty list no longer repeats it as an Add people button (Mark). Cache rvapp-v113.
