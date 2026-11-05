@@ -35,6 +35,8 @@ def api(route):
     if mode['status'] != 200:
         return route.fulfill(status=mode['status'], headers=cors, body=json.dumps({'type': 'error', 'error': {'type': 'x', 'message': 'nope'}}))
     text = mode['reply'] if mode['reply'] is not None else 'OK'
+    if callable(text): text = text(body)
+    if mode.get('queue'): text = mode['queue'].pop(0)
     return route.fulfill(status=200, headers=cors, body=json.dumps({'content': [{'type': 'text', 'text': text}]}))
 
 errors = []
@@ -242,7 +244,8 @@ with sync_playwright() as p:
     check(p2.locator('.sheet .btn.cleanup').count() == 2, 'Edit contact: Clean up under Household notes and under Discuss next time (%d)' % p2.locator('.sheet .btn.cleanup').count())
     p2.locator('.sheet .field:has-text("Household notes") textarea').fill('has two kids works nights')
     mode.update(status=200, reply=json.dumps({'note': 'Has two kids. Works nights.', 'discussNext': ''}))
-    p2.locator('.sheet .note-tools .btn.cleanup').first.click(); p2.wait_for_selector('.toast:has-text("Cleaned up")')
+    p2.locator('.sheet .note-tools .btn.cleanup').first.click()
+    p2.wait_for_function("[...document.querySelectorAll('.sheet .field')].some(f => /Household notes/.test(f.textContent) && f.querySelector('textarea').value === 'Has two kids. Works nights.')", timeout=5000)
     check(p2.locator('.sheet .field:has-text("Household notes") textarea').input_value() == 'Has two kids. Works nights.', 'household notes are cleaned in place')
     p2.click('.sheet button:has-text("Cancel")'); time.sleep(0.3)
     eid = p2.evaluate(f'RV.store.itemFor("{r2}").entries.find(e => e.type === "visit").id')
@@ -258,18 +261,39 @@ with sync_playwright() as p:
     p2.evaluate(f'RV.store.updateRv("{r2}", {{ whatsNext: "", notes: "Worried about her son. Prays every night." }})'); time.sleep(0.3)
     p2.wait_for_selector('.snap-row.next.add1 .ideasbtn')
     n0 = len(seen)
-    mode.update(status=200, reply=json.dumps({'picks': [{'id': 'lib-does-god-hear-prayers', 'why': 'She prays every night'}, {'id': 'not-a-topic', 'why': 'x'}, {'id': 'lib-why-people-suffer', 'why': 'Worried about her son'}]}))
+    def num(body, title):
+        # v2.52.2: topics go out numbered; find a topic's number in what was sent
+        for line in body['messages'][0]['content'].split('\n'):
+            parts = line.split(' | ')
+            if len(parts) > 1 and parts[1].replace('[tract] ', '') == title: return int(parts[0])
+        return 0
+    # an empty reply first: shown, not kept, and the next tap asks again
+    mode.update(status=200, reply=json.dumps({'picks': []}))
     check(len(seen) == n0, 'nothing is sent until Ideas is tapped')
-    p2.click('.ideasbtn'); p2.wait_for_selector('.ideas .idea')
+    p2.click('.ideasbtn'); p2.wait_for_selector('.toast:has-text("No ideas this time")')
+    check(len(seen) == n0 + 2, 'a reply with no usable picks is retried once (%d calls)' % (len(seen) - n0))
+    check(p2.evaluate(f'!RV.store.rvById("{r2}").ideas'), 'an empty result is not kept on the record')
     body = seen[-1]['body']
+    msg = body['messages'][0]['content']
+    check('lib-' not in msg and '\n1 | ' in msg and 'number' in body['system'], 'topics go out numbered, without their ids')
     check('Prays every night' in json.dumps(body) and 'Cara' not in json.dumps(body.get('messages')) and body.get('model') == 'claude-haiku-5-5', 'sends the notes (not the name) to the fast model')
+    # unreadable, then numbered picks (one by title, one unknown number): the retry gets them
+    n1 = len(seen)
+    mode.update(reply=lambda body: json.dumps({'picks': [{'n': num(body, 'Does God hear prayers?'), 'why': 'She prays every night'}, {'n': 999, 'why': 'x'}, {'title': 'why people suffer', 'why': 'Worried about her son'}]}), queue=['Sorry, here you go: {picks: oops'])
+    p2.wait_for_selector('.ideasbtn:not([disabled])'); p2.click('.ideasbtn'); p2.wait_for_selector('.ideas .idea')
+    check(len(seen) == n1 + 2, 'an unreadable reply is retried once')
     titles = p2.locator('.ideas .idea b').all_inner_texts()
-    check(len(titles) == 2 and 'Does God hear prayers?' in titles, 'unknown ids are dropped; the picks show with their reason (%s)' % titles)
+    check(len(titles) == 2 and 'Does God hear prayers?' in titles and 'Why people suffer' in titles, 'picks match by number or title; unknown ones are dropped (%s)' % titles)
+    mode.update(reply=None)
     p2.reload(); p2.wait_for_selector('.ideas .idea')
-    check(len(seen) == n0 + 1, 'kept on the record: no second call after reopening')
+    check(len(seen) == n1 + 2, 'kept on the record: no second call after reopening')
     p2.locator('.ideas .idea').first.click(); time.sleep(0.3)
     check(p2.evaluate(f'RV.store.rvById("{r2}").whatsNext').startswith('Does God hear prayers?'), 'tapping an idea fills Discuss next time')
     check(p2.locator('.ideas .idea').count() == 0 and p2.locator('.ideasbtn').count() == 0, 'and the ideas step aside')
+    # an empty result saved before v2.52.2 doesn't block Ideas
+    p2.evaluate(f'RV.store.updateRv("{r2}", {{ whatsNext: "", ideas: {{ after: RV.store.itemFor("{r2}").entries.find(e => e.type === "visit").id, picks: [] }} }})'); time.sleep(0.3)
+    p2.reload(); p2.wait_for_selector('.ideasbtn')
+    check(p2.locator('.ideas .idea').count() == 0 and 'No ideas' not in p2.locator('.ideas').inner_text(), 'an old saved empty result is ignored')
     ctx2.close()
 
     check(not errors, 'no console errors' + ('' if not errors else ': ' + '; '.join(errors[:3])))

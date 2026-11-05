@@ -867,3 +867,12 @@ Agreed with Mark 2026-11-03: a push notification on mornings when you have a fol
 - Privacy page: a Follow-up reminders section.
 - Tests: reminders 6 (node: validation, timing, encryption decrypted with the browser's keys, VAPID signature, cron once a day, gone subscriptions), reminders-app 4 (node: dates, words, the service worker's words match), reminders_ui 12 (browser: the page, what is sent and never names, time change, a Not Home taking today off, a push delivered to the service worker, turning off). Menu has Notifications (smoke 383). VERSION 2.52.0, cache rvapp-v112.
 - v2.52.1: Today's list has one way to add, the + Add in its heading; the empty list no longer repeats it as an Add people button (Mark). Cache rvapp-v113.
+
+## 67. v2.52.2 Ideas for next time stops coming back empty (built 2026-11-05)
+
+Mark: Ideas often said "No ideas this time". The instructions weren't strict (always three picks, broad openers when the notes say little); the empty result came from matching. Topics were sent by their long ids (`lib-practical-guidance-for-everyday-life`, `[tract] lib-tract-life-forever`) and a pick was kept only if Claude copied its id back exactly. Haiku often dropped `lib-`, kept the `[tract]` marker or shortened a word, so all three picks were thrown away. An empty result was then saved on the contact until their next visit, so every later tap showed it again without asking.
+- Topics go out numbered (`1 | [tract] Life forever | question | next part: …`); Claude replies `{"picks": [{"n": 12, "why": "…"}]}` and the app maps numbers back (`ideaTopic`). A title or the real id is still accepted as a fallback. The ids never leave the app.
+- If the reply can't be read or nothing in it matches a topic, the app asks once more (`ideaPicks`, one quiet retry; worst case two calls, about $0.0008).
+- An empty result is never saved: the toast says "No ideas this time. Tap Ideas to try again." and the button is ready again. An empty result saved by an earlier version is ignored.
+- Test fix: ai_cleanup's household-notes check read the field while the previous step's "Cleaned up" toast was still showing; it now waits for the cleaned text.
+- Tests: ai_cleanup 60 (numbered topics, retry on no usable picks and on unreadable replies, matching by number or title, empty results not kept, old empty results ignored). Others unchanged. VERSION 2.52.2, cache rvapp-v114.

@@ -1062,7 +1062,7 @@
     // record until the next visit (never in the way of recording a visit)
     const latestVisit = it.entries.find((e) => e.type === 'visit');
     const ideasKey = latestVisit ? latestVisit.id : '';
-    const ideasCached = rv.ideas && rv.ideas.after === ideasKey && Array.isArray(rv.ideas.picks) ? rv.ideas.picks : null;
+    const ideasCached = rv.ideas && rv.ideas.after === ideasKey && Array.isArray(rv.ideas.picks) && rv.ideas.picks.length ? rv.ideas.picks : null; // an empty one saved before v2.52.2 is ignored
     const topicsAll = ST.libItems('topic');
     const canIdeas = !closed && !study && !rv.whatsNext && topicsAll.length && RV.ai && RV.ai.available();
     const ideasBox = h('div', { class: 'ideas' });
@@ -1087,8 +1087,12 @@
           visits: it.entries.filter((e) => e.type === 'visit' && e.text).slice(0, 5).map((e) => U.fmtDate(e.at) + ': ' + String(e.text).slice(0, 400)),
           topics: topicsAll.map((t) => ({ id: t.id, tract: !!t.tract, title: t.title, question: t.question || t.text || '', next: (nextInSeries(t) || {}).title || '' })),
         });
-        ST.updateRv(rv.id, { ideas: { after: ideasKey, at: U.nowISO(), picks } });
-        if (!picks.length) toast('No ideas this time.');
+        // v2.52.2: an empty result isn't kept, so the next tap asks again
+        if (picks.length) ST.updateRv(rv.id, { ideas: { after: ideasKey, at: U.nowISO(), picks } });
+        else {
+          toast('No ideas this time. Tap Ideas to try again.', { seconds: 4 });
+          ideasBtn.disabled = false; ideasBtn.classList.remove('busy'); ideasBtn.lastChild.textContent = 'Ideas';
+        }
       } catch (e) {
         toast('Couldn\u2019t get ideas right now.', { seconds: 4 });
         ideasBtn.disabled = false; ideasBtn.classList.remove('busy'); ideasBtn.lastChild.textContent = 'Ideas';

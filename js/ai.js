@@ -233,36 +233,61 @@
   // v2.46: topic ideas for the next visit. Sends what is known about the person (household notes, recent visit notes,
   // the last topic, never their name or address) and the topic list (id, title, question); three ids come back with a
   // short reason each. Always the fast model: it is a small choice, not writing.
+  // v2.52.2: topics go out numbered (1, 2, 3…) instead of by their long ids, which Haiku often copied back slightly
+  // wrong (a dropped "lib-", the [tract] marker kept), so every pick was dropped and Ideas came back empty
   const IDEAS_SYSTEM = [
     'You help a publisher in door-to-door Bible-based ministry choose what to discuss on their next visit with someone.',
-    'You get notes about the person (household notes and recent visits, newest first) and a list of conversation topics.',
+    'You get notes about the person (household notes and recent visits, newest first) and a numbered list of conversation topics.',
     'Pick the three topics from the list that best fit this person: what they said, asked, worried about or showed interest in.',
     'If a last topic is given and the list has the next part of its series, include that one.',
     'Topics marked [tract] are the current tracts publishers carry; when one fits, prefer it.',
-    'Never pick the last topic itself. Never invent topics; use only ids from the list.',
+    'Never pick the last topic itself. Never invent topics; use only numbers from the list.',
     'For each pick give "why": a few plain words (at most 12) pointing to what in the notes makes it fit, e.g. "She worries about her son".',
     'If the notes say almost nothing, pick broadly appealing topics and say "A good opener" or similar.',
-    'Reply with only a JSON object: {"picks": [{"id": "...", "why": "..."}]}. No other text.',
+    'Always give three picks.',
+    'Reply with only a JSON object: {"picks": [{"n": 12, "why": "..."}]}. No other text.',
   ].join('\n');
+  const normTitle = (x) => String(x || '').toLowerCase().replace(/\[tract\]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  // a pick back to a topic: by its number, else by its title, else by its real id
+  function ideaTopic(p, topics) {
+    if (!p || typeof p !== 'object') return null;
+    for (const v of [p.n, p.id, p.number]) {
+      const m = /^\s*#?(\d+)\s*$/.exec(String(v == null ? '' : v));
+      if (m && topics[+m[1] - 1]) return topics[+m[1] - 1];
+    }
+    for (const v of [p.title, p.id, p.n]) {
+      const k = normTitle(v);
+      if (!k) continue;
+      const t = topics.find((x) => normTitle(x.title) === k) || topics.find((x) => x.id === String(v).trim());
+      if (t) return t;
+    }
+    return null;
+  }
+  function ideaPicks(text, topics) {
+    const j = parseJson(text);
+    if (!j || !Array.isArray(j.picks)) return null;
+    const seen = new Set();
+    return j.picks.map((p) => ({ p, t: ideaTopic(p, topics) }))
+      .filter(({ t }) => t && !seen.has(t.id) && seen.add(t.id))
+      .slice(0, 3)
+      .map(({ p, t }) => ({ id: t.id, why: String(p.why || '').trim().slice(0, 90) }));
+  }
   async function suggestTopics(input) {
     const topics = (input.topics || []).filter((t) => t && t.id);
     if (!topics.length) return [];
-    const lines = topics.map((t) => (t.tract ? '[tract] ' : '') + t.id + ' | ' + String(t.title || '').trim() + (t.question ? ' | ' + String(t.question).trim().slice(0, 160) : '') + (t.next ? ' | next part: ' + t.next : ''));
+    const lines = topics.map((t, i) => (i + 1) + ' | ' + (t.tract ? '[tract] ' : '') + String(t.title || '').trim() + (t.question ? ' | ' + String(t.question).trim().slice(0, 160) : '') + (t.next ? ' | next part: ' + t.next : ''));
     const person = [
       input.stage ? 'Stage: ' + input.stage : '',
       input.notes ? 'Household notes: ' + input.notes : '',
       input.lastTopic ? 'Last topic: ' + input.lastTopic : '',
       (input.visits || []).length ? 'Recent visits (newest first):\n' + input.visits.map((v) => '- ' + v).join('\n') : 'No visit notes yet.',
     ].filter(Boolean).join('\n');
-    const out = await call({ model: 'claude-haiku-5-5', max_tokens: 600, system: IDEAS_SYSTEM,
-      messages: [{ role: 'user', content: 'About the person:\n' + person + '\n\nTopics (id | title | question):\n' + lines.join('\n') }] }, 30000);
-    const j = parseJson(out);
-    const ids = new Set(topics.map((t) => t.id));
-    const seen = new Set();
-    return (j && Array.isArray(j.picks) ? j.picks : [])
-      .filter((p) => p && ids.has(p.id) && !seen.has(p.id) && seen.add(p.id))
-      .slice(0, 3)
-      .map((p) => ({ id: p.id, why: String(p.why || '').trim().slice(0, 90) }));
+    const body = { model: 'claude-haiku-5-5', max_tokens: 600, system: IDEAS_SYSTEM,
+      messages: [{ role: 'user', content: 'About the person:\n' + person + '\n\nTopics (number | title | question):\n' + lines.join('\n') }] };
+    // one quiet retry when the reply can't be read or nothing in it matches a topic
+    let picks = ideaPicks(await call(body, 30000), topics);
+    if (!picks || !picks.length) picks = ideaPicks(await call(body, 30000), topics);
+    return picks || [];
   }
 
   RV.ai = { availabilityOf, suggestTopics, IDEAS_SYSTEM,
