@@ -87,7 +87,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
-- v2.52.2: Ideas for next time stops coming back empty: topics go to Claude numbered (ids were copied back wrong, so every pick was dropped), one quiet retry, and an empty result is never saved on the contact (an old saved one is ignored). Design-doc 67.
+- v2.52.2: Ideas for next time stops coming back empty: topics go to Claude numbered (ids were copied back wrong, so every pick was dropped), one quiet retry, and an empty result is never saved on the contact (an old saved one is ignored). Design-doc 67. Confirmed working on Mark's phone 2026-11-05.
 - v2.52.1: Today's list adds only from + Add in its heading (the empty list's Add people button is gone).
 - v2.52.0: follow-up reminders: Menu › Notifications, the app sends only dates/time/time zone under an anonymous ID, the service worker writes the names, and worker/reminders.js (not deployed yet; config empty). Design-doc 66.
 - v2.51.0: motivation without guilt (no streak, no chalkboard, the can fills, sundials count weeks with visits recorded, growth kept through gaps, a plan counts only when written), Today's list (day note, follow-ups join on the day, Plan a visit calendar on a contact, Could visit today), and the audit decisions (study plan, timeline, empty Contacts, backup card, Today tab, Not home 3+ in areas). Design-doc 65.
@@ -132,7 +132,6 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 
 ## Pending
 - UX audit (2026-11-03, claude/ux-audit.md): easy items shipped in v2.50.3; the decisions and Today's list in v2.51.0 (design-doc 65). To watch on Mark's phone: dragging rows on Today's list by the grip; whether "Could visit today" suggests sensible people; the backup card's timing.
-- Ideas for next time (v2.52.2): to watch on Mark's phone whether picks now come back on the first tap; numbered matching wasn't tested against the live model.
 - Follow-up reminders: built in v2.52.0 (design-doc 66), shipped switched off (`RV.config.reminders` and `vapidPublic` empty). **Mark's steps:**
   1. Make the VAPID keys: on a computer, open https://mygroundwork.app, open the browser console, and run:
      `crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign']).then(async k=>{const j=await crypto.subtle.exportKey('jwk',k.privateKey),r=new Uint8Array(await crypto.subtle.exportKey('raw',k.publicKey)),b=x=>btoa(String.fromCharCode(...x)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');console.log('PUBLIC:',b(r));console.log('PRIVATE:',j.d)})`
