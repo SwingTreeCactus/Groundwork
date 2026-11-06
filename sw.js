@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v116';
+const CACHE = 'rvapp-v117';
 const ASSETS = [
   './',
   './index.html',
@@ -128,7 +128,21 @@ function pushInfo() {
           const went = ents.some((e) => !e.imported && inY(e.at)) || rvs.some((r) => !r.deletedAt && !r.imported && r.createdAt && inY(r.createdAt));
           const timed = (lq.result || []).some((x) => x.kind === 'time' && !x.deletedAt && x.date === yday);
           const st = mq.result && mq.result.value, cleared = !!(st && st.service && st.service.cleared && st.service.cleared[yday]);
-          resolve({ names, missed: went && !timed && !cleared ? yday : null });
+          // v2.54.1: the year in review, once, the morning after August's report was ticked Sent
+          let review = null;
+          try {
+            const svm = (m) => (lq.result || []).find((x) => x.id === 'svm-' + m && !x.deletedAt);
+            const y0s = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
+            for (const y of [y0s, y0s - 1]) {
+              const aug = svm((y + 1) + '-08'), sep = svm((y + 1) + '-09');
+              if (!aug || !aug.sent || (sep && sep.sent)) continue;
+              const rs = (st && st.service && st.service.review && st.service.review[y + '-09']) || {};
+              const after = new Date(aug.sentAt || 0); after.setDate(after.getDate() + 1);
+              if (!rs.watched && !rs.dismissed && aug.sentAt && dstr(after) === today) review = { s0: y + '-09', label: y + '–' + String(y + 1).slice(2) };
+              break;
+            }
+          } catch (e) { review = null; }
+          resolve({ names, missed: went && !timed && !cleared ? yday : null, review });
           db.close();
         };
         tx.onerror = () => { resolve({ names: [], missed: null }); db.close(); };
@@ -145,11 +159,15 @@ function reminderText(names) { // the same words as RV.reminders.message
   return { title: names.length + ' follow-ups today', body: f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] };
 }
 self.addEventListener('push', (event) => {
-  event.waitUntil(pushInfo().then(({ names, missed }) => {
+  event.waitUntil(pushInfo().then(({ names, missed, review }) => {
     const ask = 'Any time from yesterday to add?';
     let m, url = './#/home';
     if (missed && !names.length) { m = { title: 'Service time', body: ask }; url = './#/calendar'; }
     else { m = reminderText(names); if (missed) m.body += ' · ' + ask; }
+    if (review) {
+      const line = 'Your ' + review.label + ' year in review is ready.';
+      if (!names.length && !missed) { m = { title: 'Groundwork', body: line }; url = './#/calendar/review/' + review.s0; } else m.body += ' · ' + line;
+    }
     return self.registration.showNotification(m.title, { body: m.body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'followups', data: { url } });
   }));
 });

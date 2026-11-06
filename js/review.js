@@ -188,6 +188,7 @@
   function open(s0) {
     if (openNow) return;
     const R = V.yearReview(V.data(), s0);
+    if (V.reviewStatus(V.data(), s0).available) V.markReview(s0, 'watched'); // a preview before August is Sent doesn't count
     const list = cards(R);
     let i = 0;
     const music = player();
@@ -250,21 +251,45 @@
     return openNow;
   }
 
-  // Once, on the first open after the service year ends, for a year Groundwork's calendar was in use.
+  // ---------- finishing the service year (v2.54.1) ----------
+  const today = () => U.toDateStr(new Date());
+  let quietUntilNextOpen = false; // "Later" on the celebration: don't ask again in the same session
+  const potEl = (px) => { const t = document.createElement('template'); t.innerHTML = POT; const s = t.content.firstChild; s.setAttribute('width', String(px)); s.setAttribute('height', String(px)); return s; };
+  // After August's report is ticked Sent: once per service year.
+  function yearDone(s0) {
+    const D = V.data(), st = V.reviewStatus(D, s0);
+    if (st.done || openNow) return false;
+    V.markReview(s0, 'done');
+    quietUntilNextOpen = true;
+    const lab = V.yearLabel(s0);
+    const t = document.createElement('template'); t.innerHTML = FIREFLIES; const flies = t.content.firstChild;
+    UI.sheet('Service year complete', (close) => h('div', { class: 'yrdone' },
+      h('div', { class: 'ydhero' }, flies, h('span', { class: 'ydpot' }, potEl(96)),
+        h('span', { class: 'ydk' }, 'Service year complete'),
+        h('b', null, 'You finished ', h('span', { class: 'nowrap' }, lab + '!')),
+        h('span', { class: 'yds' }, 'Your August report is in. Your year in review is ready.')),
+      h('button', { class: 'btn primary block', type: 'button', onclick: () => { close(); open(s0); } }, 'See your year in review'),
+      h('button', { class: 'link', type: 'button', onclick: () => close() }, 'Later')), { noFocus: true });
+    return true;
+  }
+  // On opening the app, until it's watched, dismissed, or September's report is ticked Sent. At most once a day.
   function maybe() {
     const C = RV.calendar;
-    if (!C || C.quietSurprises() || document.querySelector('.overlay, .yr') || !S.ready) return false;
-    const svc = V.svc();
-    if (!svc.setup || !svc.since) return false;
-    const prev = V.addMonths(V.yearStart(V.ym(new Date())), -12);
-    if (svc.reviewSeen && svc.reviewSeen >= prev) return false;
-    if (V.monthOf(U.toDateStr(new Date(svc.since))) > V.addMonths(prev, 11)) return false;
-    const R = V.yearReview(V.data(), prev);
-    V.saveSvc((v) => { v.reviewSeen = prev; });
-    if (!R.any) return false;
-    open(prev);
+    if (!C || C.quietSurprises() || quietUntilNextOpen || openNow || document.querySelector('.overlay, .yr') || !S.ready) return false;
+    const D = V.data(), y = V.reviewYear(D, new Date());
+    if (!y) return false;
+    const st = V.reviewStatus(D, y);
+    if (!st.pending || st.asked === today()) return false;
+    V.markReview(y, 'asked', today());
+    UI.sheet('Your ' + V.yearLabel(y) + ' year in review is ready', (close) => h('div', { class: 'yrask' },
+      h('div', { class: 'yahero' }, h('span', { class: 'yapot' }, potEl(64)),
+        h('div', null, h('b', null, 'Your ' + V.yearLabel(y) + ' year in review is ready'), h('span', null, 'A look back at your service year.'))),
+      h('button', { class: 'btn primary block', type: 'button', onclick: () => { close(); open(y); } }, 'Watch now'),
+      h('div', { class: 'yabtns' },
+        h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Watch later'),
+        h('button', { class: 'link', type: 'button', onclick: () => { V.markReview(y, 'dismissed'); close(); } }, 'Dismiss'))), { noFocus: true });
     return true;
   }
 
-  RV.review = { open, maybe, cards, drawCard, summaryCard, get isOpen() { return !!openNow; } };
+  RV.review = { open, maybe, yearDone, pot: potEl, cards, drawCard, summaryCard, get isOpen() { return !!openNow; } };
 })(window);

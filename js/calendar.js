@@ -322,8 +322,6 @@
         x.nth ? h('span', { class: 'cnth' }, V.ordinal(x.nth) + ' study') : h('span', { class: 'muted small' }, x.month + ' this month'))));
   }
   // ---------- the service year (v2.54) ----------
-  const yearOpen = () => { try { return localStorage.getItem('rvapp.yearOpen') === '1'; } catch (e) { return false; } };
-  const setYearOpen = (on) => { try { localStorage.setItem('rvapp.yearOpen', on ? '1' : '0'); } catch (e) { /* ignore */ } };
   // A ring: recorded solid green, the plan light green behind it, on the track.
   function yearRing(recMins, paceMins, goalH) {
     const r = 70, c = 2 * Math.PI * r, g = goalH * 60;
@@ -367,9 +365,7 @@
     const y = V.yearOf(D, m, now()), ym1 = V.yearMonths(D, m, now()), cur = curMonth();
     const goalH = y.goalH;
     const inYear = cur >= y.start && cur <= V.addMonths(y.start, 11);
-    const sum = Math.floor(y.mins / 60) + ' h' + (inYear && y.paceMins > y.mins ? ' · on pace for ' + Math.floor(y.paceMins / 60) + ' h' : '');
-    const det = h('details', { class: 'ccard cyear', open: yearOpen() });
-    det.addEventListener('toggle', () => setYearOpen(det.open));
+    const det = h('section', { class: 'ccard cyear' });
     const goalMonth = V.goalOf(p) ? V.goalOf(p) * 60 : 0;
     const top = Math.max(goalMonth * 1.25, ...ym1.months.map((x) => x.rec + x.plan), 60);
     const bars = h('div', { class: 'ybars' }, ym1.months.map((x) => {
@@ -380,9 +376,9 @@
         h('span', { class: 'yml' }, V.monthName(x.m).slice(0, 3)));
     }));
     const li = (a, b) => h('div', { class: 'yli' }, h('span', { class: 'muted' }, a), h('b', null, b));
-    const prev = V.addMonths(y.start, -12), pr = V.yearReview(D, prev);
+    const ry = V.reviewYear(D, now()); // v2.54.1: from August's Sent until September's
     det.append(
-      h('summary', { class: 'ysum' }, h('div', { class: 'cm' }, h('b', null, 'Service year ' + y.label), h('span', { class: 'muted small ysub' }, sum)), h('span', { class: 'ychev', 'aria-hidden': 'true' }, icon('right', 18))),
+      h('h3', { class: 'yhead' }, 'Service year ' + y.label),
       h('div', { class: 'ybody' },
         goalH ? h('div', { class: 'yhero' }, yearRing(y.mins, inYear ? y.paceMins : y.mins, goalH), inYear && y.paceMins > y.mins ? h('span', { class: 'cgood' }, 'On pace for ' + Math.floor(y.paceMins / 60) + ' h') : y.mins >= goalH * 60 ? h('span', { class: 'cgood' }, leaf(), 'Goal reached') : null)
           : h('div', { class: 'cbig' }, h('b', null, Math.floor(y.mins / 60) + ' h'), h('span', { class: 'muted' }, 'this service year')),
@@ -393,7 +389,8 @@
           ym1.credit ? li('Credit', Math.floor(ym1.credit / 60) + ' h') : null,
           inYear && ym1.carry ? li('Carried into ' + V.monthName(cur), V.fmtDur(ym1.carry)) : null),
         h('p', { class: 'muted small ynote' }, 'Tap a month to open it. The pace uses My schedule, so change days on the calendar for assemblies or time away.'),
-        pr.any && RV.review ? h('button', { class: 'btn block yrev', type: 'button', onclick: () => RV.review.open(prev) }, 'Your ' + pr.label + ' in review') : null));
+        ry && RV.review ? h('button', { class: 'yrev', type: 'button', onclick: () => RV.review.open(ry) },
+          h('span', { class: 'yrevpot', 'aria-hidden': 'true' }, RV.review.pot(40)), h('b', null, 'Your ' + V.yearLabel(ry) + ' in review'), icon('right', 18)) : null));
     return det;
   }
 

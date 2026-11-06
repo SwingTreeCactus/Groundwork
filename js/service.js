@@ -4,7 +4,7 @@
    Where things live:
    - settings.service: { setup, since, profiles: [{ from: 'YYYY-MM', kind: 'pioneer'|'caux'|'publisher'|'other',
      track, goal }], aux: { 'YYYY-MM': 15|30 }, pattern: { 0..6: [plan session] }, overrides: { date: [sessions] },
-     cleared: { date: true }, seenMonth, reviewSeen (v2.54: the service year whose review was shown) }
+     cleared: { date: true }, seenMonth, review (v2.54.1: { 'YYYY-09': { done, watched, dismissed, asked } }) }
    - lib items kind 'time' (one per recorded session: date, mode 'total'|'range', mins, start, end, brk, credit)
    - lib items kind 'svmonth', id 'svm-YYYY-MM' (month adjustments, Sent, comments, history)
    Lib items merge record by record with Drive and backups. The pure part takes a data bundle D and runs in Node. */
@@ -38,7 +38,7 @@
 
   // ---------- profiles ----------
   const KIND = { pioneer: 'Regular pioneer', caux: 'Continuous auxiliary', publisher: 'Publisher', other: 'Other goal' };
-  function defaultSvc() { return { setup: false, since: null, profiles: [], aux: {}, pattern: {}, overrides: {}, cleared: {}, seenMonth: null, reviewSeen: null }; }
+  function defaultSvc() { return { setup: false, since: null, profiles: [], aux: {}, pattern: {}, overrides: {}, cleared: {}, seenMonth: null, review: {} }; }
   const svcOf = (settings) => Object.assign(defaultSvc(), (settings && settings.service) || {});
   // The profile for a month: the newest one set on or before it; auxiliary months sit on top of a Publisher base.
   function profileFor(svc, m) {
@@ -325,6 +325,32 @@
     return { months: out, credit, carry };
   }
 
+  // v2.54.1: a year's review becomes available when its August report is ticked Sent, and stays until September's is.
+  // svc.review[s0] = { done (celebrated), watched, dismissed, asked (YYYY-MM-DD, the last day it asked on open) }.
+  function reviewStatus(D, s0) {
+    const aug = monthRec(D, addMonths(s0, 11)), sep = monthRec(D, addMonths(s0, 12));
+    const st = (svcOf(D.settings).review || {})[s0] || {};
+    const available = !!(aug && aug.sent) && !(sep && sep.sent);
+    return { s0, available, done: !!st.done, watched: !!st.watched, dismissed: !!st.dismissed, asked: st.asked || null,
+      pending: available && !st.watched && !st.dismissed, sentAt: aug && aug.sent ? aug.sentAt || null : null };
+  }
+  // The year whose review is available now (this service year once August is Sent, else last year's), or null.
+  function reviewYear(D, now) {
+    const s0 = yearStart(ym(now));
+    for (const y of [s0, addMonths(s0, -12)]) if (reviewStatus(D, y).available) return y;
+    return null;
+  }
+  // One push, the morning after August was ticked Sent, while the review is unwatched and not dismissed.
+  function reviewPushDate(D, now) {
+    const y = reviewYear(D, now);
+    if (!y) return null;
+    const st = reviewStatus(D, y);
+    if (!st.pending || !st.sentAt) return null;
+    const d = U.parseDateStr(localDay(st.sentAt)); d.setDate(d.getDate() + 1);
+    const ds = U.toDateStr(d);
+    return ds >= U.toDateStr(now) ? ds : null;
+  }
+
   // v2.54: the service year in review. Only what was done, never what wasn't; no names. Each part is null when
   // there's nothing worth a card. s0: 'YYYY-09'.
   function yearReview(D, s0) {
@@ -369,7 +395,7 @@
 
   const pure = { pad2, monthOf, ym, addMonths, daysIn, dayStr, monthName, monthLabel, toMin, fromMin, fmtDur, fmtClock, KIND, defaultSvc, svcOf,
     profileFor, goalOf, tracks, hoursReported, badge, sessionMins, dayTotals, fixOverlap, dayMap, monthRec, isStudy, monthRaw, monthStats,
-    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf, yearLabel, yearMonths, yearReview };
+    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf, yearLabel, yearMonths, yearReview, reviewStatus, reviewYear, reviewPushDate };
 
   // ---------- the store side (browser) ----------
   const ST = () => RV.store;
@@ -425,10 +451,15 @@
   function setSent(m, on) {
     patchMonth(m, { sent: !!on, sentAt: on ? U.nowISO() : null });
     addHistory(m, (on ? 'Report marked sent · ' : 'Sent unticked · ') + summaryLine(m));
+    // v2.54.1: August's report finishes the service year
+    if (on && m.slice(5) === '08' && root.RV && root.RV.review) setTimeout(() => root.RV.review.yearDone(addMonths(m, -11)), 250);
+  }
+  function markReview(s0, key, val) {
+    saveSvc((v) => { v.review = Object.assign({}, v.review); v.review[s0] = Object.assign({}, v.review[s0], { [key]: val == null ? U.nowISO() : val }); });
   }
   function setPattern(day, list) { saveSvc((v) => { v.pattern = Object.assign({}, v.pattern); v.pattern[day] = list; }); }
   function setOverride(date, list) { saveSvc((v) => { v.overrides = Object.assign({}, v.overrides); if (list == null) delete v.overrides[date]; else v.overrides[date] = list; }); }
 
-  RV.service = Object.assign({}, pure, { data, svc, saveSvc, setProfile, setAux, times, saveDay, clearDay, patchMonth, addHistory, summaryLine, setSent, setPattern, setOverride });
+  RV.service = Object.assign({}, pure, { data, svc, saveSvc, setProfile, setAux, times, saveDay, clearDay, patchMonth, addHistory, summaryLine, setSent, markReview, setPattern, setOverride });
   if (typeof module !== 'undefined' && module.exports) module.exports = RV.service;
 })(typeof window !== 'undefined' ? window : globalThis);

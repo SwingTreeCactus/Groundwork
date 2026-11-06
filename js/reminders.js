@@ -78,7 +78,8 @@
     const now = new Date();
     const fu = s.fu !== false ? datesToSend(RV.store.items(), now) : [];
     const sv = s.svc && RV.service ? RV.service.remindDates(RV.service.data(), now) : [];
-    return Array.from(new Set(fu.concat(sv))).sort();
+    const rv = RV.service ? [RV.service.reviewPushDate(RV.service.data(), now)].filter(Boolean) : []; // v2.54.1: once, either switch
+    return Array.from(new Set(fu.concat(sv, rv))).sort();
   }
   // Send the current dates (and time) to the helper. Quietly does nothing when reminders are off.
   async function sync() {

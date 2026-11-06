@@ -180,4 +180,22 @@ test('year in review: the goal is mentioned only when reached; a quiet year stil
   assert.equal(E.any, false);
 });
 
+test('year in review availability: from August Sent until September Sent; one push the morning after', () => {
+  const sent = (m, at) => ({ id: 'svm-' + m, kind: 'svmonth', month: m, sent: true, sentAt: at });
+  let D = bundle({});
+  assert.equal(V.reviewYear(D, NOW), null, 'nothing before August is Sent');
+  D = bundle({ months: [sent('2026-08', local('2026-11-05'))] });
+  assert.equal(V.reviewYear(D, NOW), '2025-09');
+  const st = V.reviewStatus(D, '2025-09');
+  assert.equal(st.available, true); assert.equal(st.pending, true);
+  assert.equal(V.reviewPushDate(D, NOW), '2026-11-06', 'the morning after (today, Nov 6, still counts)');
+  D = bundle({ months: [sent('2026-08', local('2026-11-01'))] });
+  assert.equal(V.reviewPushDate(D, NOW), null, 'a past morning is never sent');
+  D = bundle({ months: [sent('2026-08', local('2026-11-05'))] }); D.settings.service.review = { '2025-09': { dismissed: 'x' } };
+  assert.equal(V.reviewStatus(D, '2025-09').pending, false); assert.equal(V.reviewPushDate(D, NOW), null, 'dismissed: no push');
+  assert.equal(V.reviewYear(D, NOW), '2025-09', 'still available for the year view');
+  D = bundle({ months: [sent('2026-08', local('2026-09-02')), sent('2026-09', local('2026-10-02'))] });
+  assert.equal(V.reviewYear(D, NOW), null, 'September Sent: gone');
+});
+
 console.log(passed + ' passed');

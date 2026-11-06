@@ -2271,11 +2271,6 @@ body.aedit-open { overflow: hidden; }
 /* v2.54: the service year, unfolded (ring, month bars, a sheet of wheels for months before Groundwork), and the
    year in review: full-screen story cards in garden colours, one big number each. */
 .cyear { padding: 0; }
-.cyear > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; min-height: 48px; }
-.cyear > summary::-webkit-details-marker { display: none; }
-.cyear .ychev { color: var(--muted); display: inline-flex; transition: transform .25s ease; transform: rotate(90deg); }
-.cyear[open] .ychev { transform: rotate(-90deg); }
-.cyear[open] .ysub { display: none; }
 .ybody { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 14px; }
 .yhero { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .yringw { position: relative; width: 168px; height: 168px; }
@@ -2350,3 +2345,29 @@ body.aedit-open { overflow: hidden; }
 @media (max-height: 640px) { .yrbig { font-size: 6rem; } .yr h1 { font-size: 2.3rem; } .yrpot { width: 110px; height: 110px; } }
 @media (prefers-reduced-motion: reduce) { .yr, .yr.out, .yrbody, .yrdeco.flies circle { animation: none; } }
 .yrnote { align-self: flex-start; margin-top: 12px; background: var(--yr-fg); color: var(--yr-bg); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 1rem; }
+
+/* v2.54.1: the year view is always open; finishing the service year (celebration after August is Sent, the ask on
+   opening the app, the review button at the foot of the year view). */
+.cyear .yhead { margin: 0; padding: 16px 16px 14px; font-size: 1rem; font-weight: 700; }
+.yrev { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; border-radius: 16px; padding: 12px 14px; background: #2F5236; color: #F2EEE5; font: inherit; text-align: left; cursor: pointer; min-height: 64px; }
+.yrev b { flex: 1; font-size: .95rem; }
+.yrev .yrevpot { width: 40px; height: 40px; flex: none; display: inline-flex; }
+.yrev .ic, .yrev svg:last-child { color: #CFE0C4; }
+.overlay .sheet:has(.yrdone) .sheet-head h2, .overlay .sheet:has(.yrask) .sheet-head h2 { visibility: hidden; }
+.yrdone, .yrask { display: flex; flex-direction: column; gap: 12px; }
+.ydhero { position: relative; overflow: hidden; background: #2F5236; color: #F2EEE5; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+.ydhero .yrdeco.flies { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ydhero > span, .ydhero > b { position: relative; }
+.ydhero .ydk { font-size: .92rem; font-weight: 600; color: #CFE0C4; }
+.ydhero b { font-size: 2.1rem; font-weight: 700; letter-spacing: -.035em; line-height: 1.04; }
+.ydhero .yds { font-size: 1rem; line-height: 1.4; color: #CFE0C4; }
+.yrdone .link { align-self: center; min-height: 44px; }
+.yahero { display: flex; align-items: center; gap: 14px; background: var(--mead); border-radius: 18px; padding: 16px; }
+.yahero .yapot { flex: none; display: inline-flex; }
+.yahero div { display: flex; flex-direction: column; gap: 4px; }
+.yahero b { font-size: 1.2rem; letter-spacing: -.02em; line-height: 1.15; }
+.yahero div span { font-size: .88rem; color: var(--green-t, var(--green)); }
+.yabtns { display: flex; gap: 10px; }
+.yabtns > * { flex: 1; min-height: 48px; }
+.yrdone .link, .yrask .link { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 500; font-size: .95rem; cursor: pointer; padding: 0 12px; }
+.ydhero .nowrap { white-space: nowrap; }

@@ -61,14 +61,14 @@ Mockups (design canvas "Groundwork Calendar"): https://claude.ai/artifact/Ugp6FJ
 - Everyone with a study session that month; people with three or more show "N this month", anyone with fewer than three in all shows "1st study" / "2nd study" in green. Imported study sessions count here (the garden still ignores them). Archived or handed-over contacts count for months they studied.
 - A +/- adjustment beside the count for studies that aren't Groundwork contacts or households with more than one student; stored as a month adjustment, shown as "Includes 1 added by hand".
 
-## Year view (folded, pioneers)
+## Year view (always open; pioneers, continuous auxiliary, other goal)
 - Continuous auxiliary (no yearly goal): the year view shows the year's total, monthly average and month bars, with no ring and no year pace.
 - Unfolded: a progress ring (recorded solid green, planned light green, track; "131 h · of 600" in the middle) with "On pace for 467 h" under it; no "where you should be today" marker. Then a bar per month Sep–Aug (recorded solid, My schedule light), Monthly average (finished months), Credit, Carried into this month, and one line: tap a month to open it; the pace uses My schedule, so change days for assemblies or time away. No "hours needed per month".
 - Tapping a month opens it. A month with no days recorded in Groundwork (before you started using it) opens straight onto Hours and Credit wheels for the month's total (no tap-to-edit, no hint line), each 0–150 h (day sessions stay capped at 24 h). A typed total is stored as a month adjustment on top of any day sessions, so the two never conflict.
 - Why the ring: budgeting apps use monthly amounts needed (YNAB) or ahead/behind a straight line (Strava, Goodreads); both read as pressure under the no-guilt rule. Done next to planned fits.
 
 ## Service year in review (approved 2026-11-06, Wrapped-style; mockups 14–17)
-- Celebratory, with personality, like Spotify Wrapped; always positive. Shows once on the first open after September 1; reopen from the year view. Full-screen cards tapped through like stories (segment bar at the top, ×), one big number or fact each, garden-palette colours.
+- Celebratory, with personality, like Spotify Wrapped; always positive. Available from when August's report is ticked Sent until September's is (v2.54.1, Mark): ticking August Sent shows a celebration once ("Service year complete", "You finished 2026–27!", See your year in review / Later); until it's watched or dismissed, opening the app asks once a day (Watch now / Watch later / Dismiss) and one push comes the morning after; the year view's foot has a button for it the whole time (watched or dismissed). Mockups 19–22. Full-screen cards tapped through like stories (segment bar at the top, ×), one big number or fact each, garden-palette colours.
 - Cards: opening (happy pot, "Your 2025–26 service year"); hours ("You gave 612 hours. That's more than 25 full days, spent on other people."; publishers without time get days first); days out ("Saturdays were your thing"); people ("31 of them were new"); studies ("You studied with 7 people. Two of them had their very first study this year."); go-to tract or topic; your area ("Lakeview saw you most"); the garden (only with the garden on); close ("Every hour counted. Here's to the year ahead." with Share and Done).
 - The goal is never mentioned unless reached ("600 hours. You did it." appears only then). Nothing compares the year with the one before.
 - No names anywhere in the year in review (Mark 2026-11-06). Share saves a card as an image (Mark: yes).
@@ -101,5 +101,6 @@ Mockups (design canvas "Groundwork Calendar"): https://claude.ai/artifact/Ugp6FJ
 ## Status
 - Release 1 built as v2.53.0 (2026-11-06, design-doc 68): the Calendar tab, day sheets, sessions and wheels, My schedule, profiles, pace, studies, report with Sent and comments, month look back, update card, service time reminder (off until the reminders helper is deployed). The year row on the Calendar is a one-line summary for now.
 - Release 2 built as v2.54.0 (2026-11-06, design-doc 69): the year view (ring, month bars, tapping a month, Hours and Credit wheels for months with no days, 0–150 h), the service year in review with music ("They Say", Unminus; audio/year-review-they-say.m4a). Before September, `#/calendar/review/YYYY-09` opens a year's review.
+- v2.54.1 (2026-11-06): finishing the service year as above; the year view always open (no fold).
 - Release 3 (next): game toggles (Display › Garden) and the Ideas for next time switch.
 - Not yet: importing service time from Witness Work.
