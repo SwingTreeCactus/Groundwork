@@ -4,7 +4,7 @@
    Where things live:
    - settings.service: { setup, since, profiles: [{ from: 'YYYY-MM', kind: 'pioneer'|'caux'|'publisher'|'other',
      track, goal }], aux: { 'YYYY-MM': 15|30 }, pattern: { 0..6: [plan session] }, overrides: { date: [sessions] },
-     cleared: { date: true }, seenMonth }
+     cleared: { date: true }, seenMonth, reviewSeen (v2.54: the service year whose review was shown) }
    - lib items kind 'time' (one per recorded session: date, mode 'total'|'range', mins, start, end, brk, credit)
    - lib items kind 'svmonth', id 'svm-YYYY-MM' (month adjustments, Sent, comments, history)
    Lib items merge record by record with Drive and backups. The pure part takes a data bundle D and runs in Node. */
@@ -38,7 +38,7 @@
 
   // ---------- profiles ----------
   const KIND = { pioneer: 'Regular pioneer', caux: 'Continuous auxiliary', publisher: 'Publisher', other: 'Other goal' };
-  function defaultSvc() { return { setup: false, since: null, profiles: [], aux: {}, pattern: {}, overrides: {}, cleared: {}, seenMonth: null }; }
+  function defaultSvc() { return { setup: false, since: null, profiles: [], aux: {}, pattern: {}, overrides: {}, cleared: {}, seenMonth: null, reviewSeen: null }; }
   const svcOf = (settings) => Object.assign(defaultSvc(), (settings && settings.service) || {});
   // The profile for a month: the newest one set on or before it; auxiliary months sit on top of a Publisher base.
   function profileFor(svc, m) {
@@ -305,10 +305,71 @@
     const p = profileFor(svc, cur);
     return { label, start: s0, mins, paceMins: mins + plan, avgMins: finished ? Math.round(finishedMins / finished) : null, goalH: p.kind === 'pioneer' ? 600 : null };
   }
+  const yearLabel = (s0) => s0.slice(0, 4) + '–' + String(+s0.slice(0, 4) + 1).slice(2);
+
+  // v2.54: the year view. One row per month, September to August: what was recorded (ministry and credit), what My
+  // schedule adds (the rest of this month and the months ahead), and whether any day has time in Groundwork.
+  function yearMonths(D, m, now) {
+    const svc = svcOf(D.settings), s0 = yearStart(m), cur = ym(now), today = U.toDateStr(now), days = dayMap(D.times);
+    const timed = new Set(); for (const d of days.keys()) timed.add(monthOf(d));
+    const out = [];
+    let credit = 0;
+    for (let i = 0; i < 12; i++) {
+      const x = addMonths(s0, i);
+      const r = x <= cur ? monthRaw(D, x, days) : { svc: 0, cr: 0 };
+      if (x <= cur) credit += r.cr;
+      const plan = x === cur ? Math.max(0, pace(D, x, now) - monthStats(D, x).shown) : x > cur ? plannedMonth(svc, x, today) : 0;
+      out.push({ m: x, rec: r.svc + r.cr, plan, hasDays: timed.has(x), past: x < cur, cur: x === cur });
+    }
+    const carry = cur >= s0 && cur <= addMonths(s0, 11) ? (() => { const st = monthStats(D, cur); return st.carryS + st.carryC; })() : 0;
+    return { months: out, credit, carry };
+  }
+
+  // v2.54: the service year in review. Only what was done, never what wasn't; no names. Each part is null when
+  // there's nothing worth a card. s0: 'YYYY-09'.
+  function yearReview(D, s0) {
+    const svc = svcOf(D.settings), end = addMonths(s0, 12), inYear = (ds) => ds >= s0 && ds < end;
+    const days = dayMap(D.times);
+    let mins = 0, tracked = false;
+    for (let i = 0; i < 12; i++) { const x = addMonths(s0, i); const r = monthRaw(D, x, days); mins += r.svc + r.cr; if (tracks(profileFor(svc, x))) tracked = true; }
+    const rvs = new Map((D.rvs || []).map((r) => [r.id, r]));
+    const out = new Set(), people = new Set(), areas = new Map(), topics = new Map(), studied = new Set(), firstStudy = new Map();
+    let grew = 0;
+    (D.entries || []).forEach((e) => {
+      if (e.deletedAt) return;
+      const ds = localDay(e.at);
+      if (e.type === 'stage' && e.grew && inYear(ds)) grew++;
+      if (e.type !== 'visit' && e.type !== 'nh') return;
+      const r = rvs.get(e.rvId);
+      if (!r || r.deletedAt) return;
+      if (isStudy(e) && (!firstStudy.has(e.rvId) || ds < firstStudy.get(e.rvId))) firstStudy.set(e.rvId, ds);
+      if (!inYear(ds)) return;
+      out.add(ds);
+      const a = String(r.neighborhood || '').trim();
+      if (a) areas.set(a, (areas.get(a) || 0) + 1);
+      if (e.type === 'visit') { people.add(e.rvId); if (e.topic) topics.set(e.topic, (topics.get(e.topic) || 0) + 1); if (isStudy(e)) studied.add(e.rvId); }
+    });
+    for (const [d, list] of days) if (inYear(d) && dayTotals(list).total) out.add(d);
+    const fresh = (D.rvs || []).filter((r) => !r.deletedAt && !r.imported && r.createdAt && inYear(localDay(r.createdAt))).length;
+    const top = (map, min) => { let best = null, n = 0; for (const [k, v] of map) if (v > n || (v === n && best != null && String(k) < String(best))) { best = k; n = v; } return n >= min ? { key: best, n } : null; };
+    const wk = new Map(); for (const ds of out) { const d = U.parseDateStr(ds).getDay(); wk.set(d, (wk.get(d) || 0) + 1); }
+    const day = out.size >= 4 ? top(wk, 2) : null;
+    let firsts = 0; for (const id of studied) if (inYear(firstStudy.get(id) || '')) firsts++;
+    const p = profileFor(svc, addMonths(s0, 11));
+    const hours = Math.floor(mins / 60);
+    return {
+      s0, label: yearLabel(s0), mins, hours, tracked: tracked || mins > 0,
+      goalReached: p.kind === 'pioneer' && hours >= 600 ? 600 : null,
+      daysOut: out.size, topDay: day ? { day: day.key, n: day.n } : null,
+      people: people.size, fresh, studies: studied.size, firstStudies: firsts,
+      topic: top(topics, 2), area: top(areas, 3), grew,
+      any: out.size > 0 || mins > 0,
+    };
+  }
 
   const pure = { pad2, monthOf, ym, addMonths, daysIn, dayStr, monthName, monthLabel, toMin, fromMin, fmtDur, fmtClock, KIND, defaultSvc, svcOf,
     profileFor, goalOf, tracks, hoursReported, badge, sessionMins, dayTotals, fixOverlap, dayMap, monthRec, isStudy, monthRaw, monthStats,
-    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf };
+    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf, yearLabel, yearMonths, yearReview };
 
   // ---------- the store side (browser) ----------
   const ST = () => RV.store;

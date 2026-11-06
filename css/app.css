@@ -2267,3 +2267,86 @@ body.aedit-open { overflow: hidden; }
 .news .nwl { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; line-height: 1.4; }
 .news .nwi { width: 38px; height: 38px; border-radius: 12px; background: var(--mead); color: var(--green-t); display: flex; align-items: center; justify-content: center; flex: none; }
 .news .nwq { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* v2.54: the service year, unfolded (ring, month bars, a sheet of wheels for months before Groundwork), and the
+   year in review: full-screen story cards in garden colours, one big number each. */
+.cyear { padding: 0; }
+.cyear > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; min-height: 48px; }
+.cyear > summary::-webkit-details-marker { display: none; }
+.cyear .ychev { color: var(--muted); display: inline-flex; transition: transform .25s ease; transform: rotate(90deg); }
+.cyear[open] .ychev { transform: rotate(-90deg); }
+.cyear[open] .ysub { display: none; }
+.ybody { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.yhero { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.yringw { position: relative; width: 168px; height: 168px; }
+.yring { width: 168px; height: 168px; display: block; }
+.yring circle { fill: none; stroke-width: 16; stroke-linecap: round; }
+.yring .trk { stroke: var(--line); }
+.yring .pl { stroke: var(--mead); }
+.yring .rec { stroke: var(--green); }
+.yrc { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.yrc b { font-size: 2rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
+.yrc span { font-size: .82rem; }
+.ybars { display: flex; justify-content: space-between; gap: 2px; padding-top: 4px; }
+.ycol { flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; font: inherit; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
+.ycol .yv { font-size: .64rem; height: 12px; font-variant-numeric: tabular-nums; }
+.ycol .ybar { width: 16px; height: 120px; border-radius: 5px; background: var(--surface2); display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.ycol .ybar i { display: block; width: 100%; }
+.ycol .ybar .rec { background: var(--green); }
+.ycol .ybar .pl { background: var(--mead); }
+.ycol .yml { font-size: .64rem; font-weight: 600; }
+.ycol.cur .yml { color: var(--fg); }
+.ykey { display: flex; gap: 16px; font-size: .76rem; color: var(--muted); }
+.ykey span { display: inline-flex; align-items: center; gap: 6px; }
+.ykey i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.ykey .rec { background: var(--green); } .ykey .pl { background: var(--mead); }
+.ylist .yli { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--line); }
+.ylist .yli:last-child { border-bottom: 1px solid var(--line); }
+.ynote { margin: 0; line-height: 1.4; }
+.pastm { display: flex; flex-direction: column; gap: 14px; }
+.pastm .pastrep { border-top: 1px solid var(--line); padding-top: 10px; }
+
+.yr { position: fixed; inset: 0; z-index: 75; background: var(--yr-bg); color: var(--yr-fg); font-family: var(--font-ui);
+  display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom));
+  transition: background-color .45s ease, color .45s ease; overflow: hidden; user-select: none; -webkit-user-select: none; animation: yrin .35s ease both; }
+.yr.out { animation: yrout .25s ease both; }
+@keyframes yrin { from { opacity: 0; } }
+@keyframes yrout { to { opacity: 0; } }
+.yrtop { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.yrsegs { display: flex; gap: 4px; }
+.yrsegs span { flex: 1; height: 3px; border-radius: 2px; background: var(--yr-bar); transition: background-color .3s ease; }
+.yrsegs span.on { background: var(--yr-fg); }
+.yrhead { display: flex; align-items: center; justify-content: space-between; }
+.yrlab { font-size: .82rem; font-weight: 600; }
+.yrbtns { display: flex; gap: 2px; }
+.yrbtn { width: 44px; height: 44px; border: 0; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; }
+.yrbtn[hidden] { display: none; }
+.yrstage { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+.yrdeco { position: absolute; pointer-events: none; }
+.yrdeco.sun { width: 220px; right: -82px; top: 70px; }
+.yrdeco.leaves { width: 260px; left: -52px; top: 70px; }
+.yrdeco.doors, .yrdeco.dots, .yrdeco.sprouts { width: 240px; right: -40px; top: 60px; opacity: .9; }
+.yrdeco.flies { inset: 0; width: 100%; height: 100%; }
+.yrdeco.flies circle { animation: yrfly 4s ease-in-out infinite alternate; }
+.yrdeco.flies circle:nth-child(3n) { animation-delay: -1.3s; } .yrdeco.flies circle:nth-child(3n+1) { animation-delay: -2.6s; }
+@keyframes yrfly { from { opacity: .25; } to { opacity: 1; } }
+.yrbody { position: relative; display: flex; flex-direction: column; gap: 6px; padding-bottom: 30px; animation: yrrise .5s ease both; }
+.yrbody.mid { flex: 1; justify-content: center; gap: 22px; padding-bottom: 0; }
+@keyframes yrrise { from { opacity: 0; transform: translateY(14px); } }
+.yrpot { width: 150px; height: 150px; }
+.yr h1 { margin: 0; font-size: 2.9rem; font-weight: 700; letter-spacing: -.035em; line-height: 1.02; }
+.yr h1.yrtitle { font-size: 2.6rem; }
+.yr h1.yrclose { font-size: 3.2rem; letter-spacing: -.04em; line-height: 1; }
+.yrk { font-size: 1.35rem; font-weight: 600; }
+.yrbig { font-size: 8.2rem; font-weight: 700; letter-spacing: -.06em; line-height: .9; font-variant-numeric: tabular-nums; }
+.yru { font-size: 2.1rem; font-weight: 700; letter-spacing: -.02em; }
+.yr p { margin: 10px 0 0; font-size: 1.18rem; line-height: 1.4; color: var(--yr-soft); }
+.yrfoot { position: relative; z-index: 2; text-align: center; min-height: 52px; display: flex; align-items: flex-end; justify-content: center; }
+.yrtap { font-size: .82rem; color: var(--yr-soft); }
+.yrend { display: flex; gap: 10px; width: 100%; }
+.yrend button { flex: 1; height: 52px; border: 0; border-radius: 14px; font: inherit; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.yrshare { background: var(--yr-fg); color: var(--yr-bg); }
+.yrdone { background: var(--yr-bar); color: var(--yr-fg); }
+@media (max-height: 640px) { .yrbig { font-size: 6rem; } .yr h1 { font-size: 2.3rem; } .yrpot { width: 110px; height: 110px; } }
+@media (prefers-reduced-motion: reduce) { .yr, .yr.out, .yrbody, .yrdeco.flies circle { animation: none; } }
+.yrnote { align-self: flex-start; margin-top: 12px; background: var(--yr-fg); color: var(--yr-bg); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 1rem; }

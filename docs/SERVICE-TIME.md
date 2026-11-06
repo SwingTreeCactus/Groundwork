@@ -100,6 +100,6 @@ Mockups (design canvas "Groundwork Calendar"): https://claude.ai/artifact/Ugp6FJ
 
 ## Status
 - Release 1 built as v2.53.0 (2026-11-06, design-doc 68): the Calendar tab, day sheets, sessions and wheels, My schedule, profiles, pace, studies, report with Sent and comments, month look back, update card, service time reminder (off until the reminders helper is deployed). The year row on the Calendar is a one-line summary for now.
-- Release 2 (next): the year view (ring, month bars, tapping a month, Hours and Credit wheels for months with no days, 0–150 h), the service year in review with music ("They Say", Unminus).
-- Release 3: game toggles (Display › Garden) and the Ideas for next time switch.
+- Release 2 built as v2.54.0 (2026-11-06, design-doc 69): the year view (ring, month bars, tapping a month, Hours and Credit wheels for months with no days, 0–150 h), the service year in review with music ("They Say", Unminus; audio/year-review-they-say.m4a). Before September, `#/calendar/review/YYYY-09` opens a year's review.
+- Release 3 (next): game toggles (Display › Garden) and the Ideas for next time switch.
 - Not yet: importing service time from Witness Work.

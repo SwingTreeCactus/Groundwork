@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v115';
+const CACHE = 'rvapp-v116';
 const ASSETS = [
   './',
   './index.html',
@@ -37,6 +37,7 @@ const ASSETS = [
   './js/reminders.js',
   './js/screens.js',
   './js/calendar.js',
+  './js/review.js',
   './js/critters.js',
   './js/insights.js',
   './js/gmap.js',
@@ -66,7 +67,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SHARE && k !== 'gw-audio').map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -74,6 +75,7 @@ self.addEventListener('activate', (event) => {
 // v2.31: notes shared to Groundwork from another app (Android share sheet). They wait in a cache until the
 // notes import screen opens and takes them.
 const SHARE = 'rvapp-share';
+// v2.54: the year in review's music lives in 'gw-audio' (filled by the page the first time it plays; kept across releases)
 async function takeShare(req) {
   try {
     const form = await req.formData();

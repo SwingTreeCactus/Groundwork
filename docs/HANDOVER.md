@@ -1,15 +1,15 @@
-# Groundwork handover (2026-11-06, after v2.53.0)
+# Groundwork handover (2026-11-06, after v2.54.0)
 
 Read this first in a new chat, then claude/design-doc.md (the design log's current part, sections 51 on) for detail; earlier sections are in claude/design-doc-1.md (1–27, the original spec) and claude/design-doc-2.md (28–50). Repo: docs/DESIGN.md, DESIGN-1.md, DESIGN-2.md. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.53.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v115` (sw.js).
+- Current release: v2.54.0 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v116` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.53.1 / rvapp-v116; release 2 of the Calendar would be 2.54.0), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 90 KB) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.54.1 / rvapp-v117; release 3 of the Calendar would be 2.55.0), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 90 KB) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
@@ -21,13 +21,13 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - Colour (v2.35): one palette, no brand colour. Warm paper and ink, the garden's natural colours, and a single clay accent (#B4583A, dark #E39271) from the terracotta pots, used sparingly. Mark found purple overwhelming and didn't like it as an accent; don't bring it back. No colour choice in Display. He dislikes transparency in the plant art.
 
 ## Architecture
-- Vanilla JS on a global `RV` namespace: util, logic, service (v2.53), store, garden, geo, plant, forms, screens, calendar (v2.53), ui (ui-core.js), insights, gmap, drive, settings, app. Data in IndexedDB. index.html loads the scripts; sw.js lists ASSETS.
+- Vanilla JS on a global `RV` namespace: util, logic, service (v2.53), store, garden, geo, plant, forms, screens, calendar (v2.53), review (v2.54, the year in review), ui (ui-core.js), insights, gmap, drive, settings, app. Data in IndexedDB. index.html loads the scripts; sw.js lists ASSETS.
 - Stages: internally Potential, Initial Call, Cultivating, Return Visit, Bible Study. Users see only Potential, RV (the three middle stages) and Bible Study (`L.shownStages / shownStage / shownName`). Growth moves people through the hidden stages.
 - Garden (js/garden.js): care levels shown are Lush 5, Healthy 4, Thirsty 2, Wilting 1 (3 is never returned). `G.forItem` is memoised. Exhibits, streaks, weekly recap.
 - Plants (js/plant.js, js/kinds.js): drawn procedurally by `plantSvg`; `P.make(form, care, opts)`. Seed and sprout (and plants not yet revealed) use today's drawings in green with a per-person variant from the record ID. From leafy up, a revealed plant draws as its kind (`rv.kind`, `opts.kind`, `st.pkind`): ten kinds in `RV.kinds`, natural palette. The kind is drawn at the first live conversation at leafy or above (`G.needsReveal`, `G.drawPlantKind`: shuffle bag of 8 in `settings.kindBag`, 2 rares at 4%); the reveal moment is `P.reveal` ("It’s an olive tree!" with the name).
 - Colour: warm neutral UI, natural garden, clay accent on UI marks only (v2.35). Pots are terracotta. Tokens: css/app.css v2.35 block; plant tokens `--pl-*` in js/plant.js.
 - Tabs: Today, Contacts (Map / Areas / List, remembered in localStorage `rvapp.rvsView`), My garden (Insights when the garden is off), Calendar (v2.53: service time, the report, scheduled visits; design in docs/SERVICE-TIME.md).
-- Service time (v2.53): profile, schedule, cleared days and look-back month in `settings.service`; recorded sessions are lib items kind `time`; month records (adjustments, Sent, comments, history) lib items kind `svmonth`, id `svm-YYYY-MM`. Pure logic in js/service.js.
+- Service time (v2.53): profile, schedule, cleared days and look-back month in `settings.service`; recorded sessions are lib items kind `time`; month records (adjustments, Sent, comments, history) lib items kind `svmonth`, id `svm-YYYY-MM`. Pure logic in js/service.js. v2.54: the year view (`yearMonths`) and the year in review (`yearReview`, js/review.js; music audio/year-review-they-say.m4a, kept in the `gw-audio` cache, which sw.js never deletes).
 - Record screen: Record NH, Record a visit, and Log study for every RV (not Potential). Last visit block and timeline Edit open the visit edit sheet, which has a Study session toggle (`ST.growNow`).
 - Map (js/gmap.js): bundled MapLibre 5.24.0 (vendor/maplibre), OpenFreeMap positron restyled by `restyle()`, potted-plant pins, missing coordinates from Nominatim (one per second), All / Today toggle, Locate button, card with Open / Directions. v2.20: a fresh open zooms to the user's location (zoom 15, You dot; falls back to all pins); returning from a contact restores the last view (module-level `lastView`, kept for the session).
 - Drive backup (js/drive.js): drive.file scope, Groundwork folder, current backup and 7 dated daily copies. Connection kept in localStorage `rvapp.drive` (not in backups).
@@ -64,13 +64,13 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - **Mark's steps:** Cloudflare › Workers › Create `groundwork-ai`, paste worker/ai-proxy.js, Deploy; Storage › KV › create `groundwork-ai-limits`; Worker › Bindings › KV namespace, variable name `LIMITS`; Variables: `ANTHROPIC_API_KEY` (Secret), `ALLOWED_ORIGIN` (Text) = https://mygroundwork.app; Deploy; set a monthly spend limit in the Claude Console. Then a console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
   - If his workers.dev subdomain differs, change `aiProxy` and release.
 
-## Tests (all passing at v2.53.0)
+## Tests (all passing at v2.54.0)
 - `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (383; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (60)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23), `python3 -I tests/areas_ui.py . /tmp/out/ar` (42)
 - `node tests/reminders.test.mjs` (6), `node tests/reminders-app.test.js` (4), `python3 -I tests/reminders_ui.py` (12)
-- `node tests/service.test.js` (15), `python3 -I tests/calendar_ui.py [shots dir]` (41)
+- `node tests/service.test.js` (18), `python3 -I tests/calendar_ui.py [shots dir]` (41), `python3 -I tests/year_ui.py [shots dir]` (36)
 - `node tests/garden.test.js` (45), `node tests/logic.test.js` (53), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (7), `node tests/handoff.test.js` (8), `node tests/ww.test.js` (7), `node tests/areas.test.js` (7), `python3 -I tests/notes_import.py` (39)
 - Gotchas:
   - Growth and reveal moments wait for a tap (v2.37); browser tests use `through_moment` (smoke) or click `.grow-ov` / `.evo-ov` (the evolution reveal, v2.38).
@@ -89,6 +89,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
   - Topic chips resize the note with a 'cleaned' event, not 'input' (input opens the full-screen writing view and hides the chips).
 
 ## Recent history
+- v2.54.0: Calendar release 2 (design-doc 69): the year view (folded summary; ring for pioneers, month bars with My schedule, average, credit, carry; tap a month), past months with no days on Hours and Credit wheels (0–150 h), and the service year in review (story cards, no names, Share as an image, music "They Say" off until tapped). The review shows once after the year ends; `#/calendar/review/YYYY-09` opens any year's. Also fixed a stray "null" on the Calendar when a card was missing.
 - v2.53.0: the Calendar tab, release 1 of 3 (design-doc 68, docs/SERVICE-TIME.md): profiles by month, days with visits but no time ringed (No service this day, ring to dot), sessions on wheels with overlaps counted once, carry-forward, pace, My schedule, follow-ups on the calendar, Bible study tally with adjustment, report with Copy and Sent (a change after Sent asks once and goes to the month's history), month look back, update card, service time reminder switch. Browser tests see the update card and look back only with `__RV_SVCCARD = 1`.
 - v2.52.2: Ideas for next time stops coming back empty: topics go to Claude numbered (ids were copied back wrong, so every pick was dropped), one quiet retry, and an empty result is never saved on the contact (an old saved one is ignored). Design-doc 67. Confirmed working on Mark's phone 2026-11-05.
 - v2.52.1: Today's list adds only from + Add in its heading (the empty list's Add people button is gone).
@@ -134,7 +135,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 
 ## Pending
-- Calendar release 2 (next, design in docs/SERVICE-TIME.md): the year view (ring, month bars, tap a month; months with no days get Hours and Credit wheels, 0–150 h), and the service year in review (Wrapped-style cards, no names, Share as an image, music "They Say" by Pipo & Wowa from Unminus: Mark has the file; attach it again when building, phone copy AAC 96 kbps ≈1.9 MB at audio/year-review-they-say.m4a). Then release 3: game toggles in Display › Garden and the Ideas for next time switch. To watch on Mark's phone for v2.53.0: the wheels' feel (scroll-snap), the update card on first open, and the ring card.
+- Calendar release 3 (next, docs/SERVICE-TIME.md): game toggles in Display › Garden (Garden, Visitors, Milestones, Growth moments, Thirsty and wilting) and the Ideas for next time switch on the Note cleanup page. To watch on Mark's phone: v2.53.0's wheels (scroll-snap feel), the update card on first open, the ring card; v2.54.0's year view and the review (this year's: https://mygroundwork.app/#/calendar/review/2026-09), the music on iPhone (Web Audio starts on the speaker tap; it asks iOS for playback audio, so it should play with the ringer switch on silent (Safari 16.4+)) and Share on iPhone and Android.
 - UX audit (2026-11-03, claude/ux-audit.md): easy items shipped in v2.50.3; the decisions and Today's list in v2.51.0 (design-doc 65). To watch on Mark's phone: dragging rows on Today's list by the grip; whether "Could visit today" suggests sensible people; the backup card's timing.
 - Follow-up reminders: built in v2.52.0 (design-doc 66), shipped switched off (`RV.config.reminders` and `vapidPublic` empty). **Mark's steps:**
   1. Make the VAPID keys: on a computer, open https://mygroundwork.app, open the browser console, and run:

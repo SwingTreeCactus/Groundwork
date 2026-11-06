@@ -321,11 +321,80 @@
       sd.people.map((x) => h('a', { class: 'crow cperson', href: '#/rv/' + x.rvId }, h('span', null, x.name),
         x.nth ? h('span', { class: 'cnth' }, V.ordinal(x.nth) + ' study') : h('span', { class: 'muted small' }, x.month + ' this month'))));
   }
-  function yearRow(D, m, p) {
+  // ---------- the service year (v2.54) ----------
+  const yearOpen = () => { try { return localStorage.getItem('rvapp.yearOpen') === '1'; } catch (e) { return false; } };
+  const setYearOpen = (on) => { try { localStorage.setItem('rvapp.yearOpen', on ? '1' : '0'); } catch (e) { /* ignore */ } };
+  // A ring: recorded solid green, the plan light green behind it, on the track.
+  function yearRing(recMins, paceMins, goalH) {
+    const r = 70, c = 2 * Math.PI * r, g = goalH * 60;
+    const a = Math.min(1, recMins / g) * c, b = Math.min(1, Math.max(recMins, paceMins) / g) * c;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 168 168'); svg.setAttribute('class', 'yring'); svg.setAttribute('aria-hidden', 'true');
+    const arc = (cls, len) => { const e = document.createElementNS(NS, 'circle'); e.setAttribute('cx', '84'); e.setAttribute('cy', '84'); e.setAttribute('r', String(r)); e.setAttribute('class', cls);
+      if (len != null) { e.setAttribute('stroke-dasharray', len.toFixed(1) + ' ' + c.toFixed(1)); e.setAttribute('transform', 'rotate(-90 84 84)'); if (len < 0.5) e.style.display = 'none'; } svg.appendChild(e); };
+    arc('trk'); arc('pl', b); arc('rec', a);
+    return h('div', { class: 'yringw', role: 'img', 'aria-label': Math.floor(recMins / 60) + ' of ' + goalH + ' hours recorded' + (paceMins > recMins ? ', on pace for ' + Math.floor(paceMins / 60) : '') }, svg,
+      h('div', { class: 'yrc' }, h('b', null, Math.floor(recMins / 60) + ' h'), h('span', { class: 'muted' }, 'of ' + goalH)));
+  }
+  function openMonth(x) {
+    const cur = curMonth();
+    const hasDays = V.dayMap(V.data().times); let any = false; for (const d of hasDays.keys()) if (V.monthOf(d) === x) { any = true; break; }
+    if (x < cur && !any) { pastMonthSheet(x); return; }
+    location.hash = '#/calendar/' + x;
+  }
+  // A month before Groundwork: its total on two wheels, stored as the month's adjustment (no days to conflict with).
+  const BIG = Array.from({ length: 151 }, (_, i) => ({ value: i, label: i + ' h' }));
+  function pastMonthSheet(x) {
+    const D = V.data(), r = V.monthRec(D, x);
+    const h0 = Math.floor(((r && +r.adjMins) || 0) / 60), c0 = Math.floor(((r && +r.adjCredit) || 0) / 60);
+    let hv = h0, cv = c0, saved = false;
+    const commit = async () => {
+      if (saved || (hv === h0 && cv === c0)) return true;
+      const ok = await guardSent(x, () => V.patchMonth(x, { adjMins: hv * 60, adjCredit: cv * 60 }));
+      if (ok) saved = true;
+      return ok;
+    };
+    const sent = h('input', { type: 'checkbox', checked: !!(r && r.sent), onchange: async (e) => { const on = e.target.checked; if (on) await commit(); V.setSent(x, on); } });
+    UI.sheet(V.monthLabel(x), () => h('div', { class: 'pastm' },
+      h('div', { class: 'muted small dsub' }, 'No days recorded in Groundwork'),
+      picker(['Hours', 'Credit'], [vwheel(BIG, h0, (v) => { hv = v; }, 'Hours'), vwheel(BIG, c0, (v) => { cv = v; }, 'Credit')]),
+      h('div', { class: 'crow pastrep' }, h('b', null, V.monthName(x) + ' report'), h('label', { class: 'sentbox' }, sent, 'Sent'))),
+    { noFocus: true, onClose: () => { commit(); } });
+  }
+  function yearCard(D, m, p) {
     if (p.kind === 'publisher' || p.kind === 'aux') return null;
-    const y = V.yearOf(D, m, now());
-    return h('section', { class: 'ccard cyear' }, h('div', { class: 'cm' }, h('b', null, 'Service year ' + y.label),
-      h('span', { class: 'muted small' }, Math.floor(y.mins / 60) + ' h' + (y.paceMins > y.mins ? ' · on pace for ' + Math.floor(y.paceMins / 60) + ' h' : ''))));
+    const y = V.yearOf(D, m, now()), ym1 = V.yearMonths(D, m, now()), cur = curMonth();
+    const goalH = y.goalH;
+    const inYear = cur >= y.start && cur <= V.addMonths(y.start, 11);
+    const sum = Math.floor(y.mins / 60) + ' h' + (inYear && y.paceMins > y.mins ? ' · on pace for ' + Math.floor(y.paceMins / 60) + ' h' : '');
+    const det = h('details', { class: 'ccard cyear', open: yearOpen() });
+    det.addEventListener('toggle', () => setYearOpen(det.open));
+    const goalMonth = V.goalOf(p) ? V.goalOf(p) * 60 : 0;
+    const top = Math.max(goalMonth * 1.25, ...ym1.months.map((x) => x.rec + x.plan), 60);
+    const bars = h('div', { class: 'ybars' }, ym1.months.map((x) => {
+      const rh = x.rec / top * 100, ph = x.plan / top * 100;
+      return h('button', { class: 'ycol' + (x.cur ? ' cur' : ''), type: 'button', 'aria-label': V.monthLabel(x.m) + ': ' + V.fmtDur(x.rec) + ' recorded' + (x.plan ? ', ' + V.fmtDur(x.plan) + ' from My schedule' : ''), onclick: () => openMonth(x.m) },
+        h('span', { class: 'yv' }, x.rec ? String(Math.floor(x.rec / 60)) : ''),
+        h('span', { class: 'ybar' }, ph > 0.5 ? h('i', { class: 'pl', style: { height: ph + '%' } }) : null, rh > 0.5 ? h('i', { class: 'rec', style: { height: rh + '%' } }) : null),
+        h('span', { class: 'yml' }, V.monthName(x.m).slice(0, 3)));
+    }));
+    const li = (a, b) => h('div', { class: 'yli' }, h('span', { class: 'muted' }, a), h('b', null, b));
+    const prev = V.addMonths(y.start, -12), pr = V.yearReview(D, prev);
+    det.append(
+      h('summary', { class: 'ysum' }, h('div', { class: 'cm' }, h('b', null, 'Service year ' + y.label), h('span', { class: 'muted small ysub' }, sum)), h('span', { class: 'ychev', 'aria-hidden': 'true' }, icon('right', 18))),
+      h('div', { class: 'ybody' },
+        goalH ? h('div', { class: 'yhero' }, yearRing(y.mins, inYear ? y.paceMins : y.mins, goalH), inYear && y.paceMins > y.mins ? h('span', { class: 'cgood' }, 'On pace for ' + Math.floor(y.paceMins / 60) + ' h') : y.mins >= goalH * 60 ? h('span', { class: 'cgood' }, leaf(), 'Goal reached') : null)
+          : h('div', { class: 'cbig' }, h('b', null, Math.floor(y.mins / 60) + ' h'), h('span', { class: 'muted' }, 'this service year')),
+        bars,
+        h('div', { class: 'ykey' }, h('span', null, h('i', { class: 'rec' }), 'Recorded'), h('span', null, h('i', { class: 'pl' }), 'From My schedule')),
+        h('div', { class: 'ylist' },
+          y.avgMins != null ? li('Monthly average', Math.round(y.avgMins / 60) + ' h') : null,
+          ym1.credit ? li('Credit', Math.floor(ym1.credit / 60) + ' h') : null,
+          inYear && ym1.carry ? li('Carried into ' + V.monthName(cur), V.fmtDur(ym1.carry)) : null),
+        h('p', { class: 'muted small ynote' }, 'Tap a month to open it. The pace uses My schedule, so change days on the calendar for assemblies or time away.'),
+        pr.any && RV.review ? h('button', { class: 'btn block yrev', type: 'button', onclick: () => RV.review.open(prev) }, 'Your ' + pr.label + ' in review') : null));
+    return det;
   }
 
   // ---------- profile ----------
@@ -442,9 +511,11 @@
   }
 
   // ---------- the Calendar screen ----------
-  function screen(sub) {
+  function screen(sub, sub2) {
     if (sub === 'profile') return profilePage();
     if (sub === 'schedule') return schedulePage();
+    // #/calendar/review/2026-09 opens that service year's review (handy before September comes round)
+    if (sub === 'review') { const y = /^\d{4}-09$/.test(sub2 || '') ? sub2 : V.addMonths(V.yearStart(curMonth()), -12); history.replaceState(null, '', '#/calendar'); if (RV.review) setTimeout(() => RV.review.open(y), 0); sub = ''; }
     const D = V.data(), svc = V.svcOf(D.settings);
     const m = /^\d{4}-\d{2}$/.test(sub || '') ? sub : curMonth();
     const p = V.profileFor(svc, m), keeps = V.tracks(p);
@@ -453,7 +524,7 @@
       el.append(setupCard(), monthCard(D, m));
       return { title: 'Calendar', el };
     }
-    el.append(
+    el.append(...[
       h('div', { class: 'cbadges' },
         h('button', { class: 'cbadge', type: 'button', onclick: profileSheet }, V.badge(p, m), icon('right', 14)),
         keeps ? h('a', { class: 'cschedb', href: '#/calendar/schedule' }, icon('calendar', 16), 'My schedule') : null),
@@ -462,7 +533,7 @@
       monthCard(D, m),
       studiesCard(D, m),
       m === curMonth() ? reportCard(V.addMonths(m, -1)) : m < curMonth() ? reportCard(m) : null,
-      keeps ? yearRow(D, m, p) : null);
+      keeps ? yearCard(D, m, p) : null].filter(Boolean)); // append() would write "null" for a missing card
     return { title: 'Calendar', el };
   }
 
@@ -516,5 +587,5 @@
     return true;
   }
 
-  RV.calendar = { screen, daySheet, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel };
+  RV.calendar = { screen, daySheet, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel, pastMonthSheet, openMonth, quietSurprises, leaf };
 })(window);

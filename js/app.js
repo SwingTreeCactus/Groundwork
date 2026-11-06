@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.53.0';
+  RV.VERSION = '2.54.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -59,7 +59,7 @@
       case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
-      case 'calendar': return RV.calendar.screen(p[1]); // v2.53
+      case 'calendar': return RV.calendar.screen(p[1], p[2]); // v2.53
       case 'settings':
         if (!p[1]) return SS.index();
         if (p[1] === 'lib') return p[2] === 'campaign' ? SS.campaigns() : SS.lib(p[2]);
@@ -265,7 +265,7 @@
     setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });
     // v2.53: once, the card that introduces the Calendar (it asks how you report); then, when a month turns, its look back
-    const calendarCards = () => { if (!RV.calendar) return; if (!RV.calendar.maybeNews()) RV.calendar.maybeLookBack(); };
+    const calendarCards = () => { if (!RV.calendar) return; if (RV.calendar.maybeNews()) return; if (RV.review && RV.review.maybe()) return; RV.calendar.maybeLookBack(); };
     setTimeout(calendarCards, 1400);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(calendarCards, 1400); });
     registerSW();

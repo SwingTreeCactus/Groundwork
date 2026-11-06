@@ -129,4 +129,55 @@ test('the service year runs September to August, with a pace from the plan', () 
   assert.equal(V.yearStart('2027-03'), '2026-09'); assert.equal(V.yearStart('2026-09'), '2026-09');
 });
 
+// ---------- v2.54: the year view and the year in review ----------
+test('year months: recorded, the plan ahead, which months have days, credit and the carry', () => {
+  const D = bundle({ times: [T('2026-10-03', tot(125)), T('2026-10-10', tot(60, true)), T('2026-11-02', tot(90))],
+    months: [{ id: 'svm-2026-09', kind: 'svmonth', month: '2026-09', adjMins: 3600, adjCredit: 0 }] });
+  D.settings.service.pattern = { 6: [{ mode: 'total', mins: 180 }] };
+  const y = V.yearMonths(D, '2026-11', NOW);
+  assert.equal(y.months.length, 12);
+  assert.equal(y.months[0].m, '2026-09'); assert.equal(y.months[0].rec, 3600); assert.equal(y.months[0].hasDays, false);
+  assert.equal(y.months[1].rec, 185); assert.equal(y.months[1].hasDays, true);
+  assert.equal(y.months[2].cur, true); assert.ok(y.months[2].plan > 0, 'the rest of November is planned');
+  assert.equal(y.months[3].rec, 0); assert.ok(y.months[3].plan >= 4 * 180, 'December from My schedule');
+  assert.equal(y.credit, 60);
+  assert.equal(y.carry, 5, 'October’s 3 h 5 m carries 5 minutes (September was whole hours)');
+});
+test('year in review: hours, days out, best weekday, people, new, studies and firsts, topic, area, growth', () => {
+  const rvs = [
+    { id: 'a', name: 'Ana', neighborhood: 'Lakeview', createdAt: local('2026-10-01') },
+    { id: 'b', name: 'Ben', neighborhood: 'Lakeview', createdAt: local('2025-05-01') },
+    { id: 'c', name: 'Cal', neighborhood: 'Oak Park', createdAt: local('2026-12-01'), imported: true },
+  ];
+  const sat = ['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24'];
+  const entries = [
+    ...sat.map((d, i) => ({ id: 'v' + i, rvId: 'a', type: 'visit', at: local(d), topic: 'top1' })),
+    { id: 'w1', rvId: 'b', type: 'visit', at: local('2026-10-06'), study: true },
+    { id: 'w0', rvId: 'b', type: 'visit', at: local('2026-03-06'), study: true }, // a study before the year: not a first
+    { id: 'w2', rvId: 'a', type: 'visit', at: local('2026-11-07'), study: true },
+    { id: 'n1', rvId: 'c', type: 'nh', at: local('2026-12-05') },
+    { id: 'g1', rvId: 'a', type: 'stage', at: local('2026-10-24'), grew: true },
+    { id: 'old', rvId: 'b', type: 'visit', at: local('2026-08-30') }, // last service year
+  ];
+  const D = bundle({ rvs, entries, times: [T('2026-10-03', tot(600)), T('2027-08-20', tot(60))], months: [{ id: 'svm-2026-09', kind: 'svmonth', month: '2026-09', adjMins: 36000 }] });
+  const R = V.yearReview(D, '2026-09');
+  assert.equal(R.label, '2026–27');
+  assert.equal(R.hours, 611); assert.equal(R.tracked, true); assert.equal(R.goalReached, 600);
+  assert.equal(R.daysOut, 8); // four Saturdays, Oct 6, Nov 7, Dec 5, Aug 20 (time only)
+  assert.equal(R.topDay.day, 6); assert.equal(R.topDay.n, 6); // Nov 7 and Dec 5 2026 are Saturdays too
+  assert.equal(R.people, 2, 'a Not Home is not a conversation');
+  assert.equal(R.fresh, 1, 'Ana was new; Cal was imported');
+  assert.equal(R.studies, 2); assert.equal(R.firstStudies, 1);
+  assert.equal(R.topic.key, 'top1'); assert.equal(R.topic.n, 4);
+  assert.equal(R.area.key, 'Lakeview');
+  assert.equal(R.grew, 1); assert.equal(R.any, true);
+});
+test('year in review: the goal is mentioned only when reached; a quiet year still has its numbers', () => {
+  const D = bundle({ months: [{ id: 'svm-2026-09', kind: 'svmonth', month: '2026-09', adjMins: 3000 }] });
+  const R = V.yearReview(D, '2026-09');
+  assert.equal(R.hours, 50); assert.equal(R.goalReached, null); assert.equal(R.topDay, null); assert.equal(R.area, null);
+  const E = V.yearReview(bundle({}), '2026-09');
+  assert.equal(E.any, false);
+});
+
 console.log(passed + ' passed');
