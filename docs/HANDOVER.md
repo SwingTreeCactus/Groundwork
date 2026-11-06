@@ -1,6 +1,6 @@
 # Groundwork handover (2026-11-06, after v2.53.0)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history, sections 1–68) for detail. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the full design history) for detail. Note: the project copy ends at section 67 (it has grown past the upload limit); section 68 (v2.53.0, the Calendar) is in the repo's docs/DESIGN.md and summarised in claude/service-time.md. Consider splitting the design doc by year of releases next time. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
