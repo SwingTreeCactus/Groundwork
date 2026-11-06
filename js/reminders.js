@@ -41,7 +41,8 @@
   function state() {
     let s = null;
     try { s = JSON.parse(get(KEY) || 'null'); } catch (e) { s = null; }
-    return Object.assign({ on: false, time: '08:00' }, s || {});
+    // on: subscribed; fu: follow-up reminders (the original switch); svc: the service time reminder (v2.53)
+    return Object.assign({ on: false, time: '08:00', fu: true, svc: false }, s || {});
   }
   const save = (s) => set(KEY, JSON.stringify(s));
   function remindId() {
@@ -72,6 +73,13 @@
     const r = await fetch(helper() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error('helper ' + r.status);
   }
+  // v2.53: the dates for whichever reminders are on: follow-ups, and the morning after a day with visits but no time
+  function dates(s) {
+    const now = new Date();
+    const fu = s.fu !== false ? datesToSend(RV.store.items(), now) : [];
+    const sv = s.svc && RV.service ? RV.service.remindDates(RV.service.data(), now) : [];
+    return Array.from(new Set(fu.concat(sv))).sort();
+  }
   // Send the current dates (and time) to the helper. Quietly does nothing when reminders are off.
   async function sync() {
     const s = state();
@@ -80,7 +88,7 @@
     if (!sub) return false;
     const j = sub.toJSON();
     await post('/subscribe', { id: remindId(), sub: { endpoint: j.endpoint, keys: j.keys }, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, time: s.time,
-      dates: datesToSend(RV.store.items(), new Date()) });
+      dates: dates(s) });
     s.synced = U.nowISO(); save(s);
     return true;
   }
@@ -112,13 +120,23 @@
       if (!state().on) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        const key = datesToSend(RV.store.items(), new Date()).join(',') + '|' + state().time;
+        const key = dates(state()).join(',') + '|' + state().time;
         if (key === lastSent) return;
         sync().then((ok) => { if (ok) lastSent = key; }).catch(() => { /* next change retries */ });
       }, 4000);
     });
   }
 
-  RV.reminders = { datesToSend, message, state, support, enable, disable, setTime, sync, watch };
+  // v2.53: two switches share one subscription; it goes when both are off
+  async function setKind(k, on, time) {
+    const s = state();
+    if (on && !s.on) { s.fu = k === 'fu'; s.svc = k === 'svc'; save(s); return enable(time); } // only the one switched on
+    s[k] = !!on; save(s);
+    const other = k === 'fu' ? !!s.svc : s.fu !== false;
+    if (!on && !other) { await disable(); return 'off'; }
+    try { await sync(); } catch (e) { /* next change retries */ }
+    return 'on';
+  }
+  RV.reminders = { datesToSend, dates, message, state, support, enable, disable, setTime, setKind, sync, watch };
   if (typeof module !== 'undefined') module.exports = RV.reminders;
 })(typeof window !== 'undefined' ? window : globalThis);

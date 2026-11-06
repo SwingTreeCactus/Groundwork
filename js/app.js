@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.52.2';
+  RV.VERSION = '2.53.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -59,6 +59,7 @@
       case 'insights': return SC.insights(p[1], p[2]);
       case 'rvs': return SC.list(p[1], p[2]);
       case 'rv': return SC.detail(p[1]);
+      case 'calendar': return RV.calendar.screen(p[1]); // v2.53
       case 'settings':
         if (!p[1]) return SS.index();
         if (p[1] === 'lib') return p[2] === 'campaign' ? SS.campaigns() : SS.lib(p[2]);
@@ -68,7 +69,7 @@
   }
   function activeTab() {
     const p = parts()[0];
-    return { undefined: 'home', home: 'home', today: 'home', insights: 'insights', rvs: 'rvs', rv: 'rvs', settings: 'settings' }[p] || 'home';
+    return { undefined: 'home', home: 'home', today: 'home', insights: 'insights', rvs: 'rvs', rv: 'rvs', calendar: 'calendar', settings: 'settings' }[p] || 'home';
   }
 
   function renderTabs() {
@@ -77,7 +78,8 @@
     const gOn = S.settings.garden !== false && RV.garden;
     let fresh = 0;
     if (gOn) { try { fresh = RV.garden.unseenHere(S.settings.visitorsHere).length; } catch (e) { fresh = 0; } }
-    const tabs = [['home', '#/home', 'home', 'Today'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', gOn ? 'sprout' : 'chart', gOn ? 'My garden' : 'Insights']];
+    // v2.53: a fourth tab, Calendar (service time, the report, scheduled visits)
+    const tabs = [['home', '#/home', 'home', 'Today'], ['rvs', '#/rvs', 'users', 'Contacts'], ['insights', '#/insights', gOn ? 'sprout' : 'chart', gOn ? 'My garden' : 'Insights'], ['calendar', '#/calendar', 'calendar', 'Calendar']];
     const cur = activeTab();
     tabbar.firstChild.replaceChildren(...tabs.map(([id, href, ic, label]) =>
       h('button', { class: 'tab', type: 'button', 'aria-current': id === cur ? 'page' : null, onclick: () => { if (location.hash !== href) location.hash = href; else window.scrollTo(0, 0); } },
@@ -262,6 +264,10 @@
     // the week's-end recap, once, after the Sunday-to-Saturday week ends (also when the app comes back on Sunday)
     setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => RV.gardenRecap && RV.gardenRecap.maybeShow(), 600); });
+    // v2.53: once, the card that introduces the Calendar (it asks how you report); then, when a month turns, its look back
+    const calendarCards = () => { if (!RV.calendar) return; if (!RV.calendar.maybeNews()) RV.calendar.maybeLookBack(); };
+    setTimeout(calendarCards, 1400);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(calendarCards, 1400); });
     registerSW();
     RV.drive.start();
     // v2.52: keep the reminders helper's dates current (only while reminders are on), and refresh them once on open

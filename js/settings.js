@@ -25,7 +25,7 @@
     return [
       ['Prepare', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
       ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
-        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['notify', 'Notifications', RV.reminders && RV.reminders.state().on ? 'Follow-up reminders at ' + RV.reminders.state().time : 'Off', 'bell'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
+        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['notify', 'Notifications', RV.reminders && RV.reminders.state().on ? 'Reminders at ' + RV.reminders.state().time : 'Off', 'bell'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
       [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],
     ];
   };
@@ -526,21 +526,25 @@
     function paint() {
       const st = R.state(), sup = R.support();
       const time = h('input', { type: 'time', value: st.time, 'aria-label': 'Reminder time', onchange: (e) => { if (e.target.value) R.setTime(e.target.value).then(paint); } });
-      const sw = UI.toggle(st.on && sup === 'ok', async (on) => {
-        if (!on) { await R.disable(); paint(); return; }
-        const res = await R.enable(time.value || st.time);
+      // v2.53: two switches (follow-ups, service time) share one subscription
+      const kindSw = (k, on, label) => UI.toggle(on && sup === 'ok', async (v) => {
+        const res = await R.setKind(k, v, time.value || st.time);
         if (res === 'denied') toast('Notifications are blocked for Groundwork. Allow them in your phone’s settings, then try again.');
         else if (res === 'error') toast('Couldn’t turn on reminders right now. Try again in a moment.');
         paint();
-      }, 'Follow-up reminders');
+      }, label);
+      const sw = kindSw('fu', st.on && st.fu !== false, 'Follow-up reminders');
+      const V = RV.service, keeps = V && V.tracks(V.profileFor(V.svc(), V.ym(new Date())));
+      const svcSw = keeps ? kindSw('svc', st.on && !!st.svc, 'Service time reminder') : null;
       const note = sup === 'off' ? 'Reminders aren’t set up yet.' : sup === 'ios-browser' ? 'On iPhone, reminders work once Groundwork is on your home screen: in Safari, Share › Add to Home Screen, then open it from there.'
         : sup === 'unsupported' ? 'This browser can’t show reminders.' : null;
       box.replaceChildren(
         h('div', { class: 'card' },
           h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Follow-up reminders'), h('div', { class: 'muted small' }, 'A notification in the morning on days you set a follow-up for.')), sup === 'ok' ? sw : null),
+          svcSw ? h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', null, 'Service time reminder'), h('div', { class: 'muted small' }, 'The morning after a day with visits recorded but no time.')), sup === 'ok' ? svcSw : null) : null,
           h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, 'Time'), time)),
         note ? h('p', { class: 'muted small' }, note) : null,
-        h('p', { class: 'muted small' }, 'Only the dates of your follow-ups, the time and your time zone are sent, under an anonymous ID, so the reminder arrives on time. Names and notes stay on this phone.'),
+        h('p', { class: 'muted small' }, 'Only the dates a reminder is due, the time and your time zone are sent, under an anonymous ID, so the reminder arrives on time. Names and notes stay on this phone.'),
         h('p', { class: 'muted small' }, 'Nothing is sent on days without a follow-up, or once everyone due that day has had a visit or a Not Home.'));
     }
     paint();
@@ -978,7 +982,15 @@
     sheet('Export', (close) => h('div', null,
       row('users', 'Contacts', 'A spreadsheet (CSV) for Excel or Google Sheets', () => { close(); UI.download('rvs-' + stamp() + '.csv', L.rvsToCsv(ST.items(), S.settings), 'text/csv'); }),
       row('calendar', 'Visit log', 'Every visit and ' + lbl('notHome').toLowerCase() + ', as a spreadsheet (CSV)', () => { close(); UI.download('visit-log-' + stamp() + '.csv', L.entriesToCsv(S.entries, S.rvs, S.settings), 'text/csv'); }),
+      // v2.53: service time, when there is any
+      RV.service && RV.service.data().times.length ? row('clock', 'Service time', 'Every session, with ministry and credit, as a spreadsheet (CSV)', () => { close(); UI.download('service-time-' + stamp() + '.csv', serviceCsv(), 'text/csv'); }) : null,
       row('lock', 'Backup file', 'Everything, to restore on another phone', () => { close(); downloadBackup(); })));
+  }
+  function serviceCsv() {
+    const V = RV.service, rows = [['Date', 'Kind', 'Start', 'Finish', 'Break (min)', 'Minutes']];
+    V.data().times.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.seq || 0) - (b.seq || 0)))
+      .forEach((t) => rows.push([t.date, t.credit ? 'Credit' : 'Ministry', t.mode === 'range' ? t.start : '', t.mode === 'range' ? t.end : '', t.mode === 'range' ? (t.brk || 0) : '', V.sessionMins(t)]));
+    return U.stringifyCSV(rows);
   }
 
   // The backup card: what's backed up and when, then the one or two things to do about it. Refreshes itself.

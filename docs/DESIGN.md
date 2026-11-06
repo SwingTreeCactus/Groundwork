@@ -145,7 +145,7 @@ record rather than overwrite one big file.
 3. Richer best-time statistics, optional AI note cleanup (user's own API key), monthly stats,
    shareable setup (libraries without RVs).
 
-Not planned: service time and monthly report tracking.
+Not planned: service time and monthly report tracking. (Reversed in v2.53: the Calendar tab, section 68.)
 
 ## 11. Decisions made on ambiguous answers (check these)
 
@@ -876,3 +876,24 @@ Mark: Ideas often said "No ideas this time". The instructions weren't strict (al
 - An empty result is never saved: the toast says "No ideas this time. Tap Ideas to try again." and the button is ready again. An empty result saved by an earlier version is ignored.
 - Test fix: ai_cleanup's household-notes check read the field while the previous step's "Cleaned up" toast was still showing; it now waits for the cleaned text.
 - Tests: ai_cleanup 60 (numbered topics, retry on no usable picks and on unreadable replies, matching by number or title, empty results not kept, old empty results ignored). Others unchanged. VERSION 2.52.2, cache rvapp-v114.
+
+## 68. v2.53.0 The Calendar: service time, the report, scheduled visits (built 2026-11-06)
+
+Release 1 of 3 agreed with Mark on 2026-11-06 (design: docs/SERVICE-TIME.md, project claude/service-time.md; mockups: design canvas "Groundwork Calendar", https://claude.ai/artifact/Ugp6FJpyAg6QPXNFjfiKdg). Release 2 is the year (year view, past months, the year in review with music); release 3 the game toggles and the Ideas switch.
+- **Fourth tab, Calendar** (`#/calendar`, `#/calendar/YYYY-MM`, `#/calendar/schedule`, `#/calendar/profile`; js/calendar.js, `RV.calendar`). Logic in js/service.js (`RV.service`, pure parts tested in Node).
+- **Profiles by month** (`settings.service.profiles`, each `{from: 'YYYY-MM', kind}`): Regular pioneer (50 h, 600 h a service year Sep–Aug), Continuous auxiliary (30 h, month to month), Publisher (time tracking on or off), Other goal (its own hours). Auxiliary months (15 or 30 h) sit on a Publisher base (`settings.service.aux`) and always keep time. Past months keep their profile; the first profile chosen also covers the months before it. Badge at the top (sheet with the goal, the year's hours and credit, Edit).
+- **The safety net:** a day with live visits, Not Homes or new contacts (no imports or handoffs) and no time has a clay ring, from the day tracking began, in this month and last month until its report is ticked Sent. A card lists those days (chips open them; × hides it). The day sheet lists what was recorded that day; Add session, or No service this day (grey dot, Undo). Adding time fills the ring into a green dot (`cring2dot`). No suggested spans; nothing on the tab or Today.
+- **Recording time:** sessions (lib items kind `time`), each Total or Start–finish (with Break), Ministry or Credit, on vertical wheels in 15-minute steps (`vwheel`, scroll-snap, a light tick on Android); the mode last used is remembered (`rvapp.timeMode`). Overlapping sessions count the shared minutes once (the earlier session keeps them), with "Overlaps … · Fix"; a day can't pass 24 hours.
+- **Totals:** a month's hours round down; leftover minutes carry into the next month, service and credit separately, worked out from the records each time. Credit counts toward the goal and shows on its own.
+- **Pace card:** "11 h 15 m this month", recorded and planned fill, "On pace for 41 h" · "Goal 50 h", "Includes … credit and … carried from October." Pace = recorded + the plan for the rest of the month (today counts the larger). Goal reached: a full bar with a leaf. No hours-to-go, no behind.
+- **My schedule:** one weekly pattern (`settings.service.pattern`), sessions repeating every week, every other week (from a chosen week) or chosen weeks of the month; any future day can be changed on the calendar (`overrides`). Planned hours show faintly on future days.
+- **Follow-ups** (follow-up dates) show as a small person on their day; a future day's sheet lists them, with Plan a visit (picks a contact, sets the follow-up date; today's adds to Today's list).
+- **Bible studies:** everyone with a study session that month; fewer than three in all shows "1st study" / "2nd study"; − and + adjust the count (studies not in Groundwork). Imported studies count here.
+- **Report:** last month's row (or the month viewed): Copy (text to the clipboard), Sent checkbox (stamp on the month), comments, history. Changing a month marked Sent asks once ("…’s report is marked sent. Changing it may not match your publisher record card." Change anyway) and writes the change to the month's history; nothing is flagged. Month records are lib items kind `svmonth`, id `svm-YYYY-MM`.
+- **Month look back:** the first open in a new month (after setup) shows last month: hours, days out, studies, people visited, comments, Copy report, Sent, Later.
+- **Update card** for existing users, once: "New: Calendar", three lines, "How do you report?" (four choices), the auxiliary line, Not now (Publisher, time off). New users get the question on the Calendar tab. Browser tests that set `__RV_SURPRISE` never see these cards unless they set `__RV_SVCCARD = 1`.
+- **Service time reminder** (Menu › Notifications, its own switch beside Follow-up reminders; one subscription, `RV.reminders.setKind`): the morning after a day with visits and no time; the service worker checks the phone's records and adds "Any time from yesterday to add?" (alone it opens the Calendar). Still only dates go to the helper. Works once the reminders helper is deployed.
+- Export › Service time (CSV). Privacy page: a service time section. Service time goes in backups and exports, never in a handoff. Time and month records merge record by record; the profile and schedule live in settings.
+- Not in this release: the year view and entering past months by total (release 2); importing service time from Witness Work.
+- Tests: service 15 (new, node), calendar_ui 41 (new, browser), smoke 383 (four tabs), screens 60, kinds 23, areas_ui 42, reminders_ui 12, ai_cleanup 60, notes_import 39, drive_folder 37, garden 45, logic 53, others unchanged. VERSION 2.53.0, cache rvapp-v115.
+

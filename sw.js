@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v114';
+const CACHE = 'rvapp-v115';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/defaults.js',
   './js/db.js',
   './js/logic.js',
+  './js/service.js',
   './js/garden.js',
   './js/geo.js',
   './js/kinds.js',
@@ -35,6 +36,7 @@ const ASSETS = [
   './js/todaylist.js',
   './js/reminders.js',
   './js/screens.js',
+  './js/calendar.js',
   './js/critters.js',
   './js/insights.js',
   './js/gmap.js',
@@ -100,25 +102,35 @@ self.addEventListener('fetch', (event) => {
 });
 
 // v2.52: follow-up reminders. The push carries no names; this reads them from the phone's own records.
-function followUpsToday() {
+// v2.53: also the service time reminder: yesterday had visits recorded but no time.
+const dstr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function pushInfo() {
   return new Promise((resolve) => {
     let req;
-    try { req = indexedDB.open('rvapp'); } catch (e) { return resolve([]); }
-    req.onerror = () => resolve([]);
+    try { req = indexedDB.open('rvapp'); } catch (e) { return resolve({ names: [], missed: null }); }
+    req.onerror = () => resolve({ names: [], missed: null });
     req.onsuccess = () => {
       const db = req.result;
       try {
-        const d = new Date(), today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        const t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-        const tx = db.transaction(['rvs', 'entries'], 'readonly');
-        const rq = tx.objectStore('rvs').getAll(), eq = tx.objectStore('entries').getAll();
+        const d = new Date(), today = dstr(d);
+        const t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), y0 = t0 - 864e5;
+        const yday = dstr(new Date(y0));
+        const tx = db.transaction(['rvs', 'entries', 'lib', 'meta'], 'readonly');
+        const rq = tx.objectStore('rvs').getAll(), eq = tx.objectStore('entries').getAll(), lq = tx.objectStore('lib').getAll(), mq = tx.objectStore('meta').get('settings');
         tx.oncomplete = () => {
-          const done = new Set((eq.result || []).filter((e) => !e.deletedAt && (e.type === 'visit' || e.type === 'nh') && new Date(e.at).getTime() >= t0).map((e) => e.rvId));
-          resolve((rq.result || []).filter((r) => !r.deletedAt && !r.archiveReason && r.snoozedUntil === today && !done.has(r.id)).map((r) => r.name || 'Someone').sort());
+          const ents = (eq.result || []).filter((e) => !e.deletedAt && (e.type === 'visit' || e.type === 'nh'));
+          const done = new Set(ents.filter((e) => new Date(e.at).getTime() >= t0).map((e) => e.rvId));
+          const rvs = rq.result || [];
+          const names = rvs.filter((r) => !r.deletedAt && !r.archiveReason && r.snoozedUntil === today && !done.has(r.id)).map((r) => r.name || 'Someone').sort();
+          const inY = (iso) => { const t = new Date(iso).getTime(); return t >= y0 && t < t0; };
+          const went = ents.some((e) => !e.imported && inY(e.at)) || rvs.some((r) => !r.deletedAt && !r.imported && r.createdAt && inY(r.createdAt));
+          const timed = (lq.result || []).some((x) => x.kind === 'time' && !x.deletedAt && x.date === yday);
+          const st = mq.result && mq.result.value, cleared = !!(st && st.service && st.service.cleared && st.service.cleared[yday]);
+          resolve({ names, missed: went && !timed && !cleared ? yday : null });
           db.close();
         };
-        tx.onerror = () => { resolve([]); db.close(); };
-      } catch (e) { resolve([]); }
+        tx.onerror = () => { resolve({ names: [], missed: null }); db.close(); };
+      } catch (e) { resolve({ names: [], missed: null }); }
     };
   });
 }
@@ -131,9 +143,12 @@ function reminderText(names) { // the same words as RV.reminders.message
   return { title: names.length + ' follow-ups today', body: f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] };
 }
 self.addEventListener('push', (event) => {
-  event.waitUntil(followUpsToday().then((names) => {
-    const m = reminderText(names);
-    return self.registration.showNotification(m.title, { body: m.body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'followups', data: { url: './#/home' } });
+  event.waitUntil(pushInfo().then(({ names, missed }) => {
+    const ask = 'Any time from yesterday to add?';
+    let m, url = './#/home';
+    if (missed && !names.length) { m = { title: 'Service time', body: ask }; url = './#/calendar'; }
+    else { m = reminderText(names); if (missed) m.body += ' · ' + ask; }
+    return self.registration.showNotification(m.title, { body: m.body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'followups', data: { url } });
   }));
 });
 self.addEventListener('notificationclick', (event) => {
