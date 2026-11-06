@@ -1,6 +1,6 @@
 # Groundwork handover (2026-11-06, after v2.53.0)
 
-Read this first in a new chat, then claude/design-doc.md (the full design history) for detail. Note: the project copy ends at section 67 (it has grown past the upload limit); section 68 (v2.53.0, the Calendar) is in the repo's docs/DESIGN.md and summarised in claude/service-time.md. Consider splitting the design doc by year of releases next time. This file is the current state; it is rewritten whenever anything changes.
+Read this first in a new chat, then claude/design-doc.md (the design log's current part, sections 51 on) for detail; earlier sections are in claude/design-doc-1.md (1–27, the original spec) and claude/design-doc-2.md (28–50). Repo: docs/DESIGN.md, DESIGN-1.md, DESIGN-2.md. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
@@ -9,7 +9,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js) and `groundwork-ai` (shared Claude key, worker/ai-proxy.js). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.53.1 / rvapp-v116; release 2 of the Calendar would be 2.54.0), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.53.1 / rvapp-v116; release 2 of the Calendar would be 2.54.0), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 90 KB) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
@@ -173,7 +173,7 @@ Read this first in a new chat, then claude/design-doc.md (the full design histor
 - claude/area-shapes.md (docs/AREA-SHAPES.md): design for drawing areas on the map, not built.
 - claude/campaign-publishing.md (docs/CAMPAIGN-PUBLISHING.md): design for publishing campaigns to every user, not built.
 - claude/app-audit.md (docs/AUDIT-2026-10-31.md): full app audit at v2.45.0, issues ranked, nothing built yet.
-- claude/design-doc.md: full design log (every release).
+- claude/design-doc.md: the design log's current part (sections 51 on); claude/design-doc-1.md (1–27) and claude/design-doc-2.md (28–50) hold the earlier ones.
 - claude/gamification-review.md: the game review and the comparison with model games.
 - claude/garden-plan.md: garden spec (section 12: plant kinds and palette, built in v2.34.0).
 - claude/brand-guide.md: brand.
