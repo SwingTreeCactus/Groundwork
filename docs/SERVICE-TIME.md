@@ -1,4 +1,4 @@
-# Groundwork: Calendar and service time (release 1 built as v2.53.0; releases 2 and 3 to come)
+# Groundwork: Calendar and service time (releases 1 and 2 built as v2.53.0 and v2.54.0; release 3 to come)
 
 Agreed with Mark 2026-11-06. Build nothing until Mark says build; mockups first. Reverses design-doc section 10's "Not planned: service time and monthly report tracking."
 Mockups (design canvas "Groundwork Calendar"): https://claude.ai/artifact/Ugp6FJpyAg6QPXNFjfiKdg
