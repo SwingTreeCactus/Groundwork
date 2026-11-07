@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.55.0';
+  RV.VERSION = '2.56.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -277,6 +277,7 @@
     registerSW();
     RV.drive.start();
     // v2.52: keep the reminders helper's dates current (only while reminders are on), and refresh them once on open
+    if (RV.stats) RV.stats.start(); // v2.56: anonymous usage counts, at most once a day (off until RV.config.stats is set)
     if (RV.reminders) { RV.reminders.watch(); if (RV.reminders.state().on) setTimeout(() => RV.reminders.sync().catch(() => {}), 3000); }
     if (signIn && signIn.retrying) {
       // the silent reconnect needs Google to ask: already on the way there

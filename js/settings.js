@@ -1356,12 +1356,23 @@
   RV.importers = { handoff: handoffImport, handoffSheet, openHandoffCode, takeHandoffShare, ministryAssistant: maImport, witnessWork: wwImport, notes: () => { location.hash = '#/settings/notes'; }, spreadsheet: importWizard, restore: restoreChoice };
 
   function about() {
+    // v2.56: press and hold the version line to open the usage stats page (the admin key opens it)
+    const ver = h('div', { class: 'aboutver', style: { fontWeight: 600 } }, 'Groundwork · version ' + RV.VERSION);
+    if (RV.stats && RV.stats.configured()) {
+      let t = null;
+      ver.addEventListener('pointerdown', () => { t = setTimeout(() => { t = null; window.open(RV.stats.url() + '/', '_blank', 'noopener'); }, 700); });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => ver.addEventListener(ev, () => { clearTimeout(t); t = null; }));
+    }
     return page('About', [
       RV.screens.introCard(false),
       h('div', { class: 'card stack' },
-        h('div', { style: { fontWeight: 600 } }, 'Groundwork · version ' + RV.VERSION),
+        ver,
         h('div', { class: 'muted small' }, 'Android: Chrome menu > Install app. iPhone: Safari Share > Add to Home Screen.'),
         h('a', { class: 'muted small', href: 'privacy.html', target: '_blank', rel: 'noopener' }, 'Privacy policy')),
+      RV.stats && RV.stats.configured() ? h('div', { class: 'card stack' },
+        h('label', { class: 'switchrow' }, h('span', { class: 'grow' }, h('b', null, 'Share anonymous usage counts'),
+          h('div', { class: 'muted small' }, 'Once a day: a random code for this install, the app version, the kind of phone, and which features are on. Never names, notes or addresses. It helps see how many people use Groundwork.')),
+          UI.toggle(RV.stats.on(), (v) => RV.stats.setOn(v), 'Share anonymous usage counts'))) : null,
     ], { noRerender: true });
   }
 

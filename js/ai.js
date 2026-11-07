@@ -152,6 +152,7 @@
     const nn = j.note.trim();
     if (!nn) throw new AiError('Claude returned an empty note. The note is kept as is.');
     if (cutTooMuch(note, nn)) throw new AiError('Cleanup changed too much, so your note was kept as is.');
+    if (RV.stats) RV.stats.usedCleanup(); // v2.56: a flag for the anonymous usage counts (no content)
     let dn = typeof j.discussNext === 'string' ? j.discussNext.trim() : discussNext;
     // never lose what was already in Discuss next time
     if (discussNext && !dn.includes(discussNext)) dn = discussNext + (dn ? '\n' + dn : '');
