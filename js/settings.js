@@ -129,7 +129,10 @@
     const listBox = h('div', { class: 'tlib' });
     const indexBox = h('section', { class: 'tindex' });
     search.addEventListener('input', () => { q = search.value; paint(); });
-    const row = (x, showTheme, part) => h('div', { class: 'row plain trow' },
+    // v2.55: topics you made swipe left to Delete (asks first); built-in topics keep their switch and Reset
+    const row = (x, showTheme, part) => x.builtin ? trow(x, showTheme, part) : swipeDel(trow(x, showTheme, part),
+      async () => { if (await confirmDialog({ title: 'Delete?', message: '"' + x.title + '" will be removed.', confirmText: 'Delete', danger: true })) ST.deleteLib(x.id); });
+    const trow = (x, showTheme, part) => h('div', { class: 'row plain trow' },
       h('div', { class: 'main', role: 'button', tabindex: '0', onclick: () => SC.libSheet('topic', x) },
         h('div', { class: 'name' }, part ? h('span', { class: 'tpart' }, part) : null, x.title),
         x.question || x.text ? h('div', { class: 'line2' }, ...SC.linkify(x.question || x.text)) : null,
@@ -276,17 +279,25 @@
       if (key === 'past') rows.reverse();
       if (!rows.length) return;
       box.appendChild(h('div', { class: 'group-head' }, label));
-      box.appendChild(h('div', { class: 'list' }, rows.map((c) =>
+      box.appendChild(h('div', { class: 'list' }, rows.map((c) => swipeDel(
         h('button', { class: 'row' + (key === 'active' ? ' camprow' : ''), type: 'button', style: { textAlign: 'left', width: '100%' }, onclick: () => campaignForm(c) },
           h('div', { class: 'main' }, h('div', { class: 'name' }, c.title), h('div', { class: 'line2' }, campRange(c)),
             c.topic ? h('div', { class: 'line2' }, c.topic) : null),
-          icon('right', 18)))));
+          icon('right', 18)),
+        async () => { if (await confirmDialog({ title: 'Delete this campaign?', message: 'Visits already tagged with it keep their history.', confirmText: 'Delete', danger: true })) ST.deleteLib(c.id); }))));
     });
     return page(lbl('campaign') + 's', [
       hint('Add campaigns ahead of time. Each switches on by itself on its start date and off after its end date, and only one can run at a time. While one is running Home shows it, and new visits are tagged with it (you can switch that off per visit).'),
       all.length ? box : UI.emptyState('calendar', 'No campaigns yet.'),
       h('div', { style: { marginTop: '14px' } }, saveBtn('Add campaign', () => campaignForm(), 'primary block')),
     ]);
+  }
+
+  // v2.55: a row that swipes left to a Delete button (which may ask first)
+  // v2.55: notes import rows swipe left to Remove, like their ×
+  function niSwipe(face, fn) { return RV.swipe ? RV.swipe.row(face, { full: true, actions: [{ label: 'Remove', icon: 'x', kind: 'danger', fn }] }) : face; }
+  function swipeDel(face, fn) {
+    return RV.swipe ? RV.swipe.row(face, { actions: [{ label: 'Delete', icon: 'trash', kind: 'danger', fn }] }) : face;
   }
 
   // ---------- stages ----------
@@ -1235,13 +1246,14 @@
         count ? h('div', { class: 'card stack' },
           h('div', { style: { fontWeight: 600 } }, count + (count === 1 ? ' note ready' : ' notes ready')),
           h('div', { class: 'nilist' },
-            NI.notes.map((n, i) => h('div', { class: 'nirow' },
+            NI.notes.map((n, i) => niSwipe(h('div', { class: 'nirow' },
               h('div', { class: 'main' }, h('div', { class: 'nititle' }, n.title), h('div', { class: 'muted small nisnip' }, n.text.slice(0, 90))),
-              h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove ' + n.title, onclick: () => { NI.notes.splice(i, 1); render(); } }, icon('x', 18)))),
-            groups.map((g) => h('div', { class: 'nirow' },
-              h('img', { class: 'nithumb', src: g[0].url, alt: '' }),
-              h('div', { class: 'main' }, h('div', { class: 'nititle' }, g.length === 1 ? '1 screenshot' : g.length + ' screenshots'), h('div', { class: 'muted small nisnip' }, shotLabel(g))),
-              h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove these screenshots', onclick: () => { const ids = new Set(g.map((x) => x.id)); NI.shots = NI.shots.filter((x) => !ids.has(x.id)); render(); } }, icon('x', 18))))),
+              h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove ' + n.title, onclick: () => { NI.notes.splice(i, 1); render(); } }, icon('x', 18))), () => { NI.notes.splice(i, 1); render(); })),
+            groups.map((g) => { const rm = () => { const ids = new Set(g.map((x) => x.id)); NI.shots = NI.shots.filter((x) => !ids.has(x.id)); render(); };
+              return niSwipe(h('div', { class: 'nirow' },
+                h('img', { class: 'nithumb', src: g[0].url, alt: '' }),
+                h('div', { class: 'main' }, h('div', { class: 'nititle' }, g.length === 1 ? '1 screenshot' : g.length + ' screenshots'), h('div', { class: 'muted small nisnip' }, shotLabel(g))),
+                h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove these screenshots', onclick: rm }, icon('x', 18))), rm); })),
           NI.skipped.length ? h('div', { class: 'muted small' }, 'Left out (not notes): ' + NI.skipped.slice(0, 5).join(', ') + (NI.skipped.length > 5 ? ' and ' + (NI.skipped.length - 5) + ' more' : '')) : null,
           field('Stage for new contacts', stageSel),
           h('button', { class: 'btn primary', type: 'button', onclick: () => niRead(paint) }, 'Make contacts from ' + (count === 1 ? 'this note' : count + ' notes')))

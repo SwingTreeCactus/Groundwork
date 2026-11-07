@@ -2371,3 +2371,47 @@ body.aedit-open { overflow: hidden; }
 .yabtns > * { flex: 1; min-height: 48px; }
 .yrdone .link, .yrask .link { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 500; font-size: .95rem; cursor: pointer; padding: 0 12px; }
 .ydhero .nowrap { white-space: nowrap; }
+
+/* v2.55: swiping and the new toasts. Toasts are ink on paper (paper on ink in dark mode) with the green for actions,
+   stacked newest in front; rows swipe left to show their actions; cards swipe away; sheets pull down to close. */
+:root { --toast-bg: #1F1D1A; --toast-fg: #F2EEE5; --toast-act: #9CCB95; --toast-ico: #3E5546; --sw-quiet: #8A8478; --sw-quiet-long: #5E5A52; --sw-danger: #B4583A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --toast-bg: #ECE7DD; --toast-fg: #1F1D1A; --toast-act: #3F6B48; --toast-ico: #D3DDC5; --sw-quiet: #6E695F; --sw-quiet-long: #514D45; --sw-danger: #A9553A; } }
+:root[data-theme="dark"] { --toast-bg: #ECE7DD; --toast-fg: #1F1D1A; --toast-act: #3F6B48; --toast-ico: #D3DDC5; --sw-quiet: #6E695F; --sw-quiet-long: #514D45; --sw-danger: #A9553A; }
+.toasts { display: grid; align-items: end; justify-items: center; }
+.toast { grid-area: 1 / 1; background: var(--toast-bg); color: var(--toast-fg); border-radius: 16px; padding: 10px 10px 10px 12px; gap: 12px; min-height: 52px;
+  box-shadow: 0 10px 28px rgba(31, 29, 26, .28); max-width: 420px; box-sizing: border-box; touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), opacity .25s ease; transform-origin: 50% 100%; animation: toastin .28s cubic-bezier(.2,.8,.2,1); }
+.toast.back { pointer-events: none; }
+.toast.out { opacity: 0 !important; pointer-events: none; }
+@keyframes toastin { from { transform: translateY(16px); opacity: 0; } }
+.toast .tico { width: 28px; height: 28px; border-radius: 50%; background: var(--toast-ico); color: var(--toast-act); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.toast .tico.bad { background: transparent; color: var(--toast-fg); opacity: .75; }
+.toast .msg { font-size: .95rem; line-height: 1.3; }
+.toast button { color: var(--toast-act); font-size: .95rem; padding: 0 8px; }
+.sw { position: relative; overflow: hidden; }
+.sw > .sw-face { position: relative; z-index: 1; touch-action: pan-y; -webkit-user-drag: none; user-select: none; -webkit-user-select: none; background: var(--surface); }
+.sw-acts { position: absolute; top: 0; right: 0; bottom: 0; display: flex; visibility: hidden; }
+.sw-act { border: 0; width: 76px; min-width: 76px; color: #FFFDF9; font: inherit; font-size: .74rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
+.sw-act.quiet { background: var(--sw-quiet); }
+.sw-act.danger { background: var(--sw-danger); }
+.sw-long .sw-act:first-child { background: var(--sw-quiet-long); align-items: flex-start; padding: 0 22px; transition: background-color .15s ease; }
+.sw-long .sw-act:not(:first-child) { display: none; }
+.sw-gone { transition: max-height .24s ease .2s, opacity .24s ease .2s; max-height: 0 !important; opacity: 0; }
+.sw-card { touch-action: pan-y; }
+.sheet { will-change: transform; }
+.sheet-head { touch-action: none; }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } .sw > .sw-face, .sw-card { transition: none !important; } }
+.list > .sw { border-top: 1px solid var(--line); }
+.list > .sw:first-child { border-top: 0; }
+.list > .sw > .row { border-top: 0; border-radius: 0; }
+.delask { display: flex; flex-direction: column; gap: 10px; }
+.delask .link { align-self: center; min-height: 44px; border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; }
+.tlrows > .sw .tlrow { border-top: 0; }
+.tlrows > .sw + .sw .tlrow { border-top: 1px solid var(--line); }
+.tlrows > .sw.drag { z-index: 5; box-shadow: 0 6px 18px rgba(0,0,0,.14); border-radius: 12px; }
+.cgrid { touch-action: pan-y; }
+.yr { touch-action: none; }
+.drawer-panel { touch-action: pan-y; }
+.sw-face a, .sw-face img, .sw-card a { -webkit-user-drag: none; }
+.toasts { grid-template-columns: minmax(0, 420px); justify-content: center; }
+.toast { width: 100%; }

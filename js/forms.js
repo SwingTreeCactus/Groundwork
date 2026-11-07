@@ -687,6 +687,44 @@
     if (res) toast('Archived: ' + (r ? r.name : ''), { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
+  // v2.55: swiping a contact. Archive happens at once (reason Other; the ⋯ menu's Archive… still asks for a reason),
+  // with Undo. Delete always asks first, offering Archive instead.
+  function quickArchive(rvId) {
+    const rv = ST.rvById(rvId), closed = S.settings.stages.find((x) => x.closed);
+    if (!rv || !closed || L.isClosed(S.settings, rv)) return;
+    const rs = S.settings.archiveReasons;
+    const reason = (rs.find((r) => r.id === 'other' && r.restorable) || rs.find((r) => r.restorable && !r.dnc && r.id !== 'handed') || {}).id;
+    const res = ST.setStage(rvId, closed.id, { reason });
+    if (res) toast(rv.name + ' archived', { seconds: 5, actions: [{ label: 'Undo', fn: res.undo }] });
+  }
+  function quickDelete(rvId) {
+    const rv = ST.rvById(rvId);
+    if (!rv) return;
+    const isClosed = L.isClosed(S.settings, rv);
+    sheet('Delete ' + rv.name + '?', (close) => h('div', { class: 'delask' },
+      h('p', { class: 'muted', style: { marginTop: 0 } }, isClosed ? 'Their visits and notes go too.' : 'Their visits and notes go too. To keep them out of the way instead, archive them.'),
+      h('button', { class: 'btn danger block', type: 'button', 'data-autofocus': true, onclick: () => {
+        close();
+        const snap = JSON.parse(JSON.stringify(rv));
+        ST.deleteRv(rvId);
+        toast(rv.name + ' deleted', { seconds: 5, actions: [{ label: 'Undo', fn: () => { ST.restoreRvSnapshot(snap); ST.updateRv(rvId, { deletedAt: null }); } }] });
+      } }, 'Delete'),
+      isClosed ? null : h('button', { class: 'btn block', type: 'button', onclick: () => { close(); quickArchive(rvId); } }, 'Archive instead'),
+      h('button', { class: 'link', type: 'button', onclick: () => close() }, 'Cancel')), { noFocus: true });
+  }
+  // Wraps a contact row: Archive and Delete (a long swipe archives); archived contacts get Restore and Delete.
+  function contactSwipe(rv, face) {
+    if (!RV.swipe || !rv) return face;
+    const closed = L.isClosed(S.settings, rv);
+    const reason = closed ? L.reasonOf(S.settings, rv.archiveReason) : null;
+    const actions = closed
+      ? [reason && reason.restorable ? { label: 'Restore', icon: 'undo', kind: 'quiet', fn: () => restoreFlow(rv.id) } : null,
+        { label: 'Delete', icon: 'trash', kind: 'danger', fn: () => quickDelete(rv.id) }].filter(Boolean)
+      : [{ label: lbl('archive'), icon: 'archive', kind: 'quiet', fn: () => quickArchive(rv.id) },
+        { label: 'Delete', icon: 'trash', kind: 'danger', fn: () => quickDelete(rv.id) }];
+    return RV.swipe.row(face, { actions, full: !closed });
+  }
+
   // v2.47: hand a contact to another publisher as a small file, shared however they like; afterwards the contact is
   // archived here as Handed over (with Undo). The sender's name and a short message travel with it.
   const FROM_KEY = 'rvapp.handoffFrom';
@@ -817,5 +855,5 @@
           h('button', { class: 'btn primary', type: 'submit' }, 'Save'))));
   }
 
-  RV.forms = { handoverFlow, importStageOptions, addressSheet, afterVisit, cleanupButton, cleanupRow, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
+  RV.forms = { quickArchive, quickDelete, contactSwipe, handoverFlow, importStageOptions, addressSheet, afterVisit, cleanupButton, cleanupRow, areaPicker, studyEdit, rvForm, quickAdd, visitDialog, stageFlow, archiveFlow, restoreFlow, snoozeSheet, select, stageOptions };
 })(window);

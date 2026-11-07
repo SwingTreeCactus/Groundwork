@@ -231,6 +231,9 @@
     x.addEventListener('click', (e) => { e.stopPropagation(); close(); });
     el.addEventListener('pointerdown', () => { music.wake(); if (musicOn() && !music.playing) music.start().catch(() => {}); });
     el.addEventListener('click', (e) => { if (e.target.closest('button')) return; const r = el.getBoundingClientRect(); go(e.clientX - r.left < r.width * 0.3 ? -1 : 1); });
+    // v2.55: swipe left or right between cards, down to close
+    if (RV.swipe) RV.swipe.story(el, { left: () => go(1), right: () => go(-1), down: () => close(),
+      drag: (dy) => { el.style.transition = dy ? 'none' : 'transform .25s ease'; el.style.transform = dy ? 'translateY(' + dy + 'px)' : ''; } });
     const onKey = (e) => { if (e.key === 'Escape') close(); else if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); } else if (e.key === 'ArrowLeft') go(-1); };
     function close() {
       if (!openNow) return;

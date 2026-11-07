@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.54.1';
+  RV.VERSION = '2.55.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -114,6 +114,12 @@
         // v2.51: the last backup (Drive or a downloaded file) at the foot
         h('div', { class: 'drawer-foot' }, h('a', { href: '#/settings/about', onclick: close }, 'Groundwork ' + RV.VERSION),
           h('a', { href: '#/settings/data', onclick: close, class: 'drawer-bk' }, (() => { let d = null; try { d = localStorage.getItem('rvapp.lastBackup'); } catch (e) { /* ignore */ } return d ? 'Backed up ' + U.fmtDate(d) : 'Not backed up'; })()))));
+    // v2.55: swipe the menu back toward its edge (right) to close it
+    const panel = scrim.querySelector('.drawer-panel');
+    if (RV.swipe && panel) RV.swipe.pager(panel, { right: close, drag: (dx, done) => {
+      panel.style.transition = done ? 'transform .22s ease' : 'none';
+      panel.style.transform = dx > 0 ? 'translateX(' + dx + 'px)' : '';
+    } });
     document.body.appendChild(scrim);
     document.body.classList.add('no-scroll');
   }

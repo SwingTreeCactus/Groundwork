@@ -751,6 +751,7 @@
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights/focus/' + k; } }, 'See it in your garden'))));
+    if (RV.swipe) RV.swipe.down(ov.querySelector('.vann-in'), close); // v2.55: pull down = Later
     document.body.appendChild(ov);
     try { if (navigator.vibrate) navigator.vibrate(20); } catch (err) { /* ignore */ }
   }

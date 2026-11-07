@@ -93,13 +93,16 @@
         : picker(['Hours', 'Minutes'], [
           vwheel(HOURS, Math.floor((+s.mins || 0) / 60), (v) => { s.mins = v * 60 + ((+s.mins || 0) % 60); refresh(); }, 'Hours'),
           vwheel(QUARTERS, Math.round(((+s.mins || 0) % 60) / 15) * 15 % 60, (v) => { s.mins = Math.floor((+s.mins || 0) / 60) * 60 + v; refresh(); }, 'Minutes')]);
-      return h('div', { class: 'scard' },
+      const removable = sessions.length > 1 || o.removable;
+      const card = h('div', { class: 'scard' },
         h('div', { class: 'srow' }, seg([['total', 'Total'], ['range', 'Start–finish']], s.mode, (v) => { s.mode = v; rememberMode(v); if (v === 'range' && !s.start) Object.assign(s, { start: '09:00', end: '10:00' }); paint(); }, 'How to enter the time'),
           sessions.length > 1 || o.removable ? h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Remove session', onclick: () => { sessions.splice(i, 1); paint(); } }, icon('x', 18)) : null),
         seg([[false, 'Ministry'], [true, 'Credit']], !!s.credit, (v) => { s.credit = v; refresh(); }, 'Ministry or credit'),
         wheels,
         h('div', { class: 'ssum' }),
         h('div', { class: 'sovl', hidden: true }));
+      // v2.55: a session swipes left to Remove, like its ×
+      return removable && RV.swipe ? RV.swipe.row(card, { actions: [{ label: 'Remove', icon: 'x', kind: 'danger', fn: () => { sessions.splice(i, 1); paint(); } }] }) : card;
     }
     function paint() {
       box.replaceChildren(...sessions.map(card),
@@ -273,6 +276,7 @@
       h('div', { class: 'crow' }, h('span', { class: 'cringt' }, h('i', { class: 'ringi', 'aria-hidden': 'true' }), 'Visits recorded, no time added'),
         h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Hide for now', onclick: () => el.remove() }, icon('x', 16))),
       h('div', { class: 'cchips' }, days.map((d) => h('button', { class: 'cchip', type: 'button', onclick: () => daySheet(d) }, shortDay(d)))));
+    if (RV.swipe) RV.swipe.dismiss(el, () => el.remove()); // v2.55: same as ×
     return el;
   }
   function monthCard(D, m) {
@@ -302,13 +306,17 @@
         n ? h('span', { class: 'cfu', 'aria-hidden': 'true' }, icon('user1', 9), n > 1 ? String(n) : null) : null));
     }
     if (filled) setTimeout(() => { filled = null; }, 0);
+    const grid = h('div', { class: 'cgrid' }, cells);
+    // v2.55: swipe the month left or right to change month
+    if (RV.swipe) RV.swipe.pager(grid, { left: () => { location.hash = '#/calendar/' + V.addMonths(m, 1); }, right: () => { location.hash = '#/calendar/' + V.addMonths(m, -1); },
+      drag: (dx, done) => { grid.style.transition = done ? 'transform .2s ease' : 'none'; grid.style.transform = dx ? 'translateX(' + Math.max(-60, Math.min(60, dx / 2)) + 'px)' : ''; } });
     return h('section', { class: 'ccard cmonth' },
       h('div', { class: 'cmhead' },
         h('a', { class: 'iconbtn cnav', href: '#/calendar/' + V.addMonths(m, -1), 'aria-label': 'Previous month' }, icon('left', 18)),
         h('div', { class: 'cmt' }, h('b', null, V.monthLabel(m)), r && r.sent ? h('span', { class: 'cstamp' }, icon('check', 12), 'Sent ' + U.MONTHS[new Date(r.sentAt || Date.now()).getMonth()] + ' ' + new Date(r.sentAt || Date.now()).getDate()) : null),
         h('a', { class: 'iconbtn cnav', href: '#/calendar/' + V.addMonths(m, 1), 'aria-label': 'Next month' }, icon('right', 18))),
       h('div', { class: 'cwk', 'aria-hidden': 'true' }, ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x) => h('span', null, x))),
-      h('div', { class: 'cgrid' }, cells),
+      grid,
       m !== curMonth() ? h('a', { class: 'link ctoday', href: '#/calendar' }, 'Back to this month') : null);
   }
   function studiesCard(D, m) {
@@ -496,8 +504,10 @@
         h('section', { class: 'ccard sched' }, [0, 1, 2, 3, 4, 5, 6].map((day) => {
           const list = (svc.pattern || {})[day] || [];
           return h('div', { class: 'sday' }, h('span', { class: 'sdn' }, U.DAYS3[day]),
-            h('div', { class: 'sss' }, list.map((s, i) => h('button', { class: 'sss1', type: 'button', onclick: () => planSessionSheet(day, i) },
-              h('span', null, s.mode === 'range' ? rangeText(s) : V.fmtDur(V.sessionMins(s)), h('small', null, (s.credit ? 'Credit' : 'Ministry') + ' · ' + repWord(s))), h('b', null, V.fmtDur(V.sessionMins(s))))),
+            h('div', { class: 'sss' }, list.map((s, i) => { const b = h('button', { class: 'sss1', type: 'button', onclick: () => planSessionSheet(day, i) },
+              h('span', null, s.mode === 'range' ? rangeText(s) : V.fmtDur(V.sessionMins(s)), h('small', null, (s.credit ? 'Credit' : 'Ministry') + ' · ' + repWord(s))), h('b', null, V.fmtDur(V.sessionMins(s))));
+              // v2.55: swipe left to Remove from the pattern
+              return RV.swipe ? RV.swipe.row(b, { actions: [{ label: 'Remove', icon: 'x', kind: 'danger', fn: () => { const prev = list.slice(); V.setPattern(day, list.filter((x, k) => k !== i)); UI.toast('Session removed', { seconds: 4, actions: [{ label: 'Undo', fn: () => V.setPattern(day, prev) }] }); } }] }) : b; }),
             h('button', { class: 'link sadd', type: 'button', onclick: () => planSessionSheet(day, null) }, list.length ? '+ Add session' : '+ Add')));
         })),
         tot ? h('div', { class: 'crow sfoot' }, h('b', null, 'About ' + Math.round(tot / 8 * 4.35 / 60) + ' h a month'), h('span', { class: 'muted small' }, lo === hi ? V.fmtDur(lo) + ' a week' : Math.floor(lo / 60) + '–' + Math.ceil(hi / 60) + ' h a week')) : null);

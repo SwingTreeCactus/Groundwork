@@ -10,7 +10,7 @@
   // today's saved list, or an empty one when the saved list is from another day
   function stateOf(settings, now) {
     const d = dayStr(now), t = settings.todayList || {};
-    return t.day === d ? { day: d, ids: (t.ids || []).slice(), off: (t.off || []).slice(), note: t.note || '' } : { day: d, ids: [], off: [], note: '' };
+    return t.day === d ? { day: d, ids: (t.ids || []).slice(), off: (t.off || []).slice(), note: t.note || '', skip: (t.skip || []).slice() } : { day: d, ids: [], off: [], note: '', skip: [] };
   }
   const followUpToday = (rv, now) => !rv.deletedAt && rv.snoozedUntil === dayStr(now);
   // the latest visit or Not Home today, or null
@@ -44,10 +44,13 @@
   }
   function add(id) { save((st) => { st.off = st.off.filter((x) => x !== id); if (!st.ids.includes(id)) st.ids.push(id); }); }
   function remove(id) { save((st) => { st.ids = st.ids.filter((x) => x !== id); if (!st.off.includes(id)) st.off.push(id); }); }
+  // v2.55: "Not today" on a Could visit today suggestion (until tomorrow)
+  function notToday(id) { save((st) => { if (!st.skip.includes(id)) st.skip.push(id); }); }
+  function unskip(id) { save((st) => { st.skip = st.skip.filter((x) => x !== id); }); }
   function setNote(text) { save((st) => { st.note = String(text || '').trim(); }); }
   // a full new order (ids as shown); follow-ups in it become placed
   function reorder(ids) { save((st) => { st.ids = ids.slice(); }); }
 
-  RV.todayList = { stateOf, rows, has, doneToday, followUpToday, add, remove, setNote, reorder };
+  RV.todayList = { stateOf, rows, has, doneToday, followUpToday, add, remove, notToday, unskip, setNote, reorder };
   if (typeof module !== 'undefined') module.exports = RV.todayList;
 })(typeof window !== 'undefined' ? window : globalThis);

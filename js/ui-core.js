@@ -33,6 +33,7 @@
     const body = typeof content === 'function' ? content(close) : content;
     if (body) box.appendChild(body);
     overlay.appendChild(box);
+    if (RV.swipe && !opts.noSwipe) RV.swipe.down(box, () => close(), box.firstChild); // v2.55: pull down to close
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
     openCount++;
@@ -103,18 +104,74 @@
   }
 
   // ---------- toasts ----------
+  // v2.55: in the app's palette (ink and paper, the green for actions), at the bottom above the tabs. Up to three
+  // stack, newest in front; swipe one sideways or down to dismiss it; touching one holds it until you let go.
   let toastBox = null;
+  const toasts = [];
+  const BAD = /^(couldn|could not|can't|cannot|not available|failed|no |nothing|.*did not|.*needs a connection)/i;
+  function layoutToasts() {
+    const n = toasts.length;
+    toasts.forEach((t, i) => {
+      const k = n - 1 - i; // 0 = newest, in front
+      t.el.style.zIndex = String(10 - k);
+      t.el.classList.toggle('back', k > 0);
+      if (!t.dragging) t.el.style.transform = k ? 'translateY(' + (-10 * k) + 'px) scale(' + (1 - 0.04 * k) + ')' : '';
+      t.el.style.opacity = k ? String(1 - 0.28 * k) : '';
+    });
+  }
   function toast(msg, o) {
     o = o || {};
     if (!toastBox) { toastBox = h('div', { class: 'toasts', 'aria-live': 'polite' }); document.body.appendChild(toastBox); }
-    const el = h('div', { class: 'toast', role: 'status' }, h('div', { class: 'msg', onclick: () => dismiss() }, msg));
-    const dismiss = () => { clearTimeout(t); el.remove(); };
+    const bad = o.icon === false ? null : (o.bad != null ? o.bad : BAD.test(String(msg)));
+    const el = h('div', { class: 'toast', role: 'status' },
+      o.icon === false ? null : h('span', { class: 'tico' + (bad ? ' bad' : ''), 'aria-hidden': 'true' }, icon(bad ? 'alert' : 'check', 16)),
+      h('div', { class: 'msg' }, msg));
+    const t = { el, dragging: false };
+    let timer = null;
+    const ms = (o.seconds || 4) * 1000;
+    const arm = (d) => { clearTimeout(timer); timer = setTimeout(() => dismiss(), d); };
+    const dismiss = (how) => {
+      clearTimeout(timer);
+      const i = toasts.indexOf(t);
+      if (i < 0) return;
+      toasts.splice(i, 1);
+      el.classList.add('out');
+      if (how) el.style.transform = how;
+      setTimeout(() => el.remove(), 220);
+      layoutToasts();
+    };
     (o.actions || []).forEach((a) =>
       el.appendChild(h('button', { type: 'button', onclick: () => { dismiss(); a.fn(); } }, a.label)));
+    // swipe sideways or down to dismiss; holding it pauses the timer
+    let st = null;
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; st = { x: e.clientX, y: e.clientY, id: e.pointerId }; clearTimeout(timer); });
+    el.addEventListener('pointermove', (e) => {
+      if (!st || e.pointerId !== st.id) return;
+      const dx = e.clientX - st.x, dy = Math.max(0, e.clientY - st.y);
+      if (!t.dragging && Math.hypot(dx, dy) < 6) return;
+      if (!t.dragging) { t.dragging = true; el.style.transition = 'none'; try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+      el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      el.style.opacity = String(Math.max(0, 1 - Math.max(Math.abs(dx) / 220, dy / 90)));
+    });
+    const up = (e) => {
+      if (!st) return;
+      const dx = e.clientX - st.x, dy = Math.max(0, e.clientY - st.y);
+      st = null;
+      const was = t.dragging; t.dragging = false; el.style.transition = '';
+      if (was && (Math.abs(dx) > 80 || dy > 40)) { dismiss(Math.abs(dx) > 80 ? 'translateX(' + (dx < 0 ? -420 : 420) + 'px)' : 'translateY(120px)'); return; }
+      el.style.opacity = '';
+      layoutToasts();
+      if (!was) { /* a tap on the message closes it, as before */ if (e.target.closest('.msg')) { dismiss(); return; } }
+      arm(Math.min(ms, 3000));
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', () => { st = null; t.dragging = false; el.style.transition = ''; el.style.opacity = ''; layoutToasts(); arm(3000); });
     toastBox.appendChild(el);
-    const t = setTimeout(dismiss, (o.seconds || 4) * 1000);
-    while (toastBox.children.length > 3) toastBox.firstChild.remove();
-    return dismiss;
+    toasts.push(t);
+    while (toasts.length > 3) { const old = toasts.shift(); old.el.remove(); }
+    layoutToasts();
+    arm(ms);
+    return () => dismiss();
   }
 
   // ---------- small renderers ----------

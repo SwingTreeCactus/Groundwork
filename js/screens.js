@@ -31,6 +31,15 @@
     return st.kind === 'study' ? n + ' more ' + (n === 1 ? 'study' : 'studies') : n + ' more ' + (n === 1 ? 'conversation' : 'conversations');
   };
 
+  // v2.55: a timeline entry swipes left to Delete (a long swipe deletes), with Undo
+  function entrySwipe(e, face) {
+    if (!RV.swipe) return face;
+    return RV.swipe.row(face, { full: true, actions: [{ label: 'Delete', icon: 'trash', kind: 'danger', fn: () => {
+      ST.deleteEntry(e.id);
+      toast((e.type === 'nh' ? lbl('notHome') : 'Entry') + ' deleted', { seconds: 5, actions: [{ label: 'Undo', fn: () => ST.updateEntry(e.id, { deletedAt: null }) }] });
+    } }] });
+  }
+
   // ---------- shared row ----------
   function rvRow(it, o) {
     o = o || {};
@@ -59,7 +68,7 @@
       : stageBadge(rv.stage);
     let plant = null;
     if (garden) { plant = plantOf(st, 'rw'); P.leanOnTouch(plant); }
-    return h('a', { class: 'row rv2' + (garden ? ' gd' : ''), href: '#/rv/' + rv.id, 'data-id': rv.id },
+    const face = h('a', { class: 'row rv2' + (garden ? ' gd' : ''), href: '#/rv/' + rv.id, 'data-id': rv.id },
       plant,
       h('div', { class: 'main' },
         h('div', { class: 'name' }, rv.name),
@@ -72,6 +81,7 @@
           ? h('div', { class: 'gstat' }, statusLine(it, st))
           : h('div', { class: 'line3' + (it.att.state === 'overdue' ? ' due' : '') }, UI.lastText(it))),
       (navBtn || nhBtn) ? h('div', { class: 'row-acts r2' }, navBtn, nhBtn) : null);
+    return o.noSwipe ? face : F.contactSwipe(rv, face); // v2.55
   }
   // Highlights the first place a search token appears in text: returns a node, or null if none matches.
   function hitLine(text, q) {
@@ -238,6 +248,7 @@
     const el = h('div', { class: 'coach', role: 'note' }, h('span', { class: 'coachdot', 'aria-hidden': 'true' }),
       h('div', { class: 'coachtx' }, text),
       h('button', { class: 'link', type: 'button', onclick: () => { el.remove(); ST.saveSettings((s) => { s.tips = Object.assign({}, s.tips || {}, { [id]: true }); }); } }, 'Got it'));
+    if (RV.swipe) RV.swipe.dismiss(el, () => { el.remove(); ST.saveSettings((s) => { s.tips = Object.assign({}, s.tips || {}, { [id]: true }); }); }); // v2.55
     return el;
   }
   // v2.50.1: two compact rows instead of five: another app (the Import contacts page) or a Groundwork backup
@@ -468,6 +479,7 @@
           h('div', { class: 'muted small' }, ds.configured ? 'A backup to your own Google Drive keeps them safe if the phone is lost or its browser is cleared.' : 'A backup keeps them safe if the phone is lost or its browser is cleared.'))),
       h('div', { class: 'bknb' }, h('button', { class: 'btn primary sm', type: 'button', onclick: act[1] }, act[0]),
         h('button', { class: 'link', type: 'button', onclick: () => { try { localStorage.setItem(BK_LATER, U.toDateStr(now)); } catch (e) { /* ignore */ } el.remove(); } }, 'Not now')));
+    if (RV.swipe) RV.swipe.dismiss(el, () => { try { localStorage.setItem(BK_LATER, U.toDateStr(now)); } catch (e) { /* ignore */ } el.remove(); }); // v2.55: same as Not now
     return el;
   }
 
@@ -499,7 +511,12 @@
           h('span', { class: 'tlsub' }, doneLine || likely.get(rv.id) || rv.address || ''),
           !r.done && bring ? h('span', { class: 'tlbring' }, bring) : null),
         rows.length > 1 ? h('button', { class: 'tlgrip', type: 'button', 'aria-label': 'Move ' + rv.name }, icon('grip', 18)) : null);
-      body.appendChild(row);
+      // v2.55: swipe left to take someone off (a long swipe takes them off at once), with Undo
+      const wrap = RV.swipe ? RV.swipe.row(row, { full: true, actions: [{ label: 'Take off', icon: 'minus', kind: 'quiet', fn: () => {
+        TL().remove(rv.id); UI.toast(rv.name + " taken off today's list", { seconds: 4, actions: [{ label: 'Undo', fn: () => TL().add(rv.id) }] });
+      } }] }) : row;
+      wrap.setAttribute('data-id', rv.id);
+      body.appendChild(wrap);
     });
     if (rows.length > 1) dragSort(body, (ids) => TL().reorder(ids));
     return h('section', { class: 'tlcard' },
@@ -515,7 +532,7 @@
       const grip = e.target.closest('.tlgrip');
       if (!grip) return;
       e.preventDefault();
-      const row = grip.closest('.tlrow');
+      const row = grip.closest('.sw') || grip.closest('.tlrow'); // v2.55: the swipe wrapper moves as one
       const startY = e.clientY;
       row.classList.add('drag');
       grip.setPointerCapture(e.pointerId);
@@ -569,17 +586,24 @@
     const onList = new Set(TL().rows(items, S.settings, now).map((r) => r.it.rv.id));
     const why = new Map(L.likelyHomeNow(items, now).map((o) => [o.item.rv.id, o.why]));
     const dow = now.getDay();
-    const pool = L.likelyHomeToday(items, now).filter((it) => !onList.has(it.rv.id));
+    const skip = new Set(TL().stateOf(S.settings, now).skip);
+    const pool = L.likelyHomeToday(items, now).filter((it) => !onList.has(it.rv.id) && !skip.has(it.rv.id));
     pool.sort((a, b) => (why.has(b.rv.id) - why.has(a.rv.id)) || U.cmp(a.rv.name, b.rv.name));
     const list = pool.slice(0, 3);
     if (!list.length) return null;
     return h('section', { class: 'tlcard could' },
       h('div', { class: 'tlhead' }, h('h2', null, 'Could visit today')),
-      h('div', { class: 'tlrows' }, list.map((it) => h('div', { class: 'tlrow' },
-        smallPlant(it),
-        h('a', { class: 'tlmain', href: '#/rv/' + it.rv.id }, h('span', { class: 'tlname' }, it.rv.name),
-          h('span', { class: 'tlsub' }, why.get(it.rv.id) || ((it.rv.bestDays || []).includes(dow) ? 'Best day ' + U.DAYS[dow] : 'Usually home ' + U.DAYS[dow] + 's'))),
-        h('button', { class: 'tladd', type: 'button', 'aria-label': 'Add ' + it.rv.name + " to today's list", onclick: () => TL().add(it.rv.id) }, icon('plus', 16), 'Add')))));
+      h('div', { class: 'tlrows' }, list.map((it) => {
+        const row = h('div', { class: 'tlrow' },
+          smallPlant(it),
+          h('a', { class: 'tlmain', href: '#/rv/' + it.rv.id }, h('span', { class: 'tlname' }, it.rv.name),
+            h('span', { class: 'tlsub' }, why.get(it.rv.id) || ((it.rv.bestDays || []).includes(dow) ? 'Best day ' + U.DAYS[dow] : 'Usually home ' + U.DAYS[dow] + 's'))),
+          h('button', { class: 'tladd', type: 'button', 'aria-label': 'Add ' + it.rv.name + " to today's list", onclick: () => TL().add(it.rv.id) }, icon('plus', 16), 'Add'));
+        // v2.55: "Not today" hides a suggestion until tomorrow
+        return RV.swipe ? RV.swipe.row(row, { full: true, actions: [{ label: 'Not today', icon: 'x', kind: 'quiet', fn: () => {
+          TL().notToday(it.rv.id); UI.toast(it.rv.name + ' hidden until tomorrow', { seconds: 4, actions: [{ label: 'Undo', fn: () => TL().unskip(it.rv.id) }] });
+        } }] }) : row;
+      })));
   }
   // The calendar in a contact's top bar: Today puts them on today's list; Tomorrow or a date sets the follow-up date.
   function planSheet(rvId) {
@@ -682,9 +706,9 @@
     // v2.51: Worth reconsidering moved here from Insights: people often not home, with the days tried
     const recon = L.reconsider(all, S.settings, now, new Set()).filter((r) => inArea(r.item));
     const reconSec = recon.length ? [h('div', { class: 'ghead recon' }, h('span', null, 'Not home 3 or more times'), h('span', null, String(recon.length))),
-      h('div', { class: 'list' }, recon.slice(0, 8).map((r) => h('a', { class: 'row', href: '#/rv/' + r.item.rv.id },
+      h('div', { class: 'list' }, recon.slice(0, 8).map((r) => F.contactSwipe(r.item.rv, h('a', { class: 'row', href: '#/rv/' + r.item.rv.id },
         h('div', { class: 'main' }, h('div', { class: 'name' }, r.item.rv.name), h('div', { class: 'line2', style: { whiteSpace: 'normal' } }, lbl('notHome') + ' ' + r.nh + ' times on ' + r.label)),
-        icon('right', 18))))] : [];
+        icon('right', 18)))))] : [];
     return live.length ? sec('Likely home ' + U.DAYS[now.getDay()], top).concat(sec(top.length ? 'Others' : 'Everyone here', rest), reconSec) : [];
   }
   function areaScreen(key) {
@@ -770,11 +794,11 @@
         const box = h('div');
         const views = S.settings.savedViews;
         if (!views.length) box.appendChild(h('p', { class: 'muted', style: { marginTop: 0 } }, 'Save the current filters and sort as a one-tap view.'));
-        views.forEach((v) => box.appendChild(h('div', { class: 'row plain' },
+        views.forEach((v) => box.appendChild(RV.swipe.row(h('div', { class: 'row plain' },
           h('div', { class: 'main', style: { cursor: 'pointer' }, onclick: () => { close(); applyView(v); } },
             h('div', { class: 'name' }, v.name),
             h('div', { class: 'line2' }, [(LIST_SORTS.find(([k]) => k === v.sort) || [0, 'Longest since visit'])[1], v.stage ? L.shownName(S.settings, v.stage) : null, v.neighborhood, v.bestDay ? dayLabel(v.bestDay) : null].filter(Boolean).join(' · '))),
-          h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Delete view ' + v.name, onclick: () => { ST.saveSettings((s) => { s.savedViews = s.savedViews.filter((x) => x.id !== v.id); }); close(); viewsSheet(); } }, icon('trash')))));
+          h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Delete view ' + v.name, onclick: () => { ST.saveSettings((s) => { s.savedViews = s.savedViews.filter((x) => x.id !== v.id); }); close(); viewsSheet(); } }, icon('trash'))), { actions: [{ label: 'Delete', icon: 'trash', kind: 'danger', fn: () => { ST.saveSettings((s) => { s.savedViews = s.savedViews.filter((x) => x.id !== v.id); }); close(); viewsSheet(); } }] })));
         box.appendChild(h('div', { class: 'actions' }, h('button', {
           class: 'btn primary', type: 'button',
           onclick: async () => {
@@ -849,10 +873,10 @@
           list = h('div', { class: 'list azlist' }); body.append(list);
         }
         const gs = gardenOn() ? gstate(it) : null;
-        list.append(h('a', { class: 'row azrow', href: '#/rv/' + it.rv.id },
+        list.append(F.contactSwipe(it.rv, h('a', { class: 'row azrow', href: '#/rv/' + it.rv.id },
           gs && gs.form ? h('span', { class: 'azplant' }, plantOf(gs, 'sm', { still: true })) : h('span', { class: 'azplant' }),
           h('div', { class: 'main' }, h('div', { class: 'name' }, it.rv.name || 'Unnamed'),
-            h('div', { class: 'line2' }, [it.rv.address, it.rv.neighborhood].filter(Boolean).join(' \u00B7 ')))));
+            h('div', { class: 'line2' }, [it.rv.address, it.rv.neighborhood].filter(Boolean).join(' \u00B7 '))))));
       }
       const strip = h('nav', { class: 'azstrip', 'aria-label': 'Jump to letter' }, letters.map((l) => h('button', { type: 'button', onclick: () => {
         const el = body.querySelector('.azhead[data-l="' + l + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -1208,7 +1232,7 @@
           (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
           UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null];
         ul.appendChild(h('li', { class: e.type + (e.type !== 'stage' ? ' tap' : '') },
-          e.type !== 'stage' ? h('button', { class: 'tlopen', type: 'button', 'aria-label': 'Edit this entry', onclick: () => UI.editEntrySheet(e.id) }, ...body, h('span', { class: 'tlchev', 'aria-hidden': 'true' }, icon('right', 16))) : body));
+          e.type !== 'stage' ? entrySwipe(e, h('button', { class: 'tlopen', type: 'button', 'aria-label': 'Edit this entry', onclick: () => UI.editEntrySheet(e.id) }, ...body, h('span', { class: 'tlchev', 'aria-hidden': 'true' }, icon('right', 16)))) : body));
       });
       tlBox.appendChild(ul);
       if (shown.length > tlShown) tlBox.appendChild(h('button', { class: 'btn sm', type: 'button', style: { marginTop: '10px' }, onclick: () => { tlShown += 30; renderTl(); } }, 'Show more'));
