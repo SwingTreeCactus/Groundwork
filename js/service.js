@@ -292,25 +292,44 @@
 
   // ---------- the service year (September to August) ----------
   function yearStart(m) { const [y, mo] = mParts(m); return (mo >= 9 ? y : y - 1) + '-09'; }
+  // v2.56.1 (Mark): the months ahead are expected at the monthly average, not My schedule. The average is this
+  // month's projection (recorded + My schedule for the rest of it) with the earlier months of this service year,
+  // leaving out months before tracking began (no time in Groundwork and no total entered). Credit counts.
+  function ahead(D, now, days) {
+    const svc = svcOf(D.settings), cur = ym(now), s0 = yearStart(cur);
+    days = days || dayMap(D.times);
+    const since = svc.since ? monthOf(localDay(svc.since)) : null;
+    const timed = new Set(); for (const d of days.keys()) timed.add(monthOf(d));
+    const rest = Math.max(0, pace(D, cur, now) - monthStats(D, cur).shown);
+    const rc = monthRaw(D, cur, days);
+    let sum = rc.svc + rc.cr + rest, n = 1;
+    for (let x = s0; x < cur; x = addMonths(x, 1)) {
+      const r = monthRec(D, x), adj = r && ((+r.adjMins || 0) || (+r.adjCredit || 0));
+      if (!timed.has(x) && !adj && !(since && x >= since)) continue;
+      const raw = monthRaw(D, x, days); sum += raw.svc + raw.cr; n++;
+    }
+    return { rest, avg: Math.round(sum / n) };
+  }
   function yearOf(D, m, now) {
-    const svc = svcOf(D.settings), s0 = yearStart(m), cur = ym(now), today = U.toDateStr(now);
+    const svc = svcOf(D.settings), s0 = yearStart(m), cur = ym(now), today = U.toDateStr(now), ah = ahead(D, now);
     const label = s0.slice(0, 4) + '–' + String(+s0.slice(0, 4) + 1).slice(2);
     let mins = 0, plan = 0, finished = 0, finishedMins = 0;
     for (let i = 0; i < 12; i++) {
       const x = addMonths(s0, i);
       if (x <= cur) { const r = monthRaw(D, x); mins += r.svc + r.cr; if (x < cur) { finished++; finishedMins += r.svc + r.cr; } }
-      if (x === cur) plan += Math.max(0, pace(D, x, now) - monthStats(D, x).shown);
-      if (x > cur) plan += plannedMonth(svc, x, today);
+      if (x === cur) plan += ah.rest;
+      if (x > cur) plan += ah.avg;
     }
     const p = profileFor(svc, cur);
     return { label, start: s0, mins, paceMins: mins + plan, avgMins: finished ? Math.round(finishedMins / finished) : null, goalH: p.kind === 'pioneer' ? 600 : null };
   }
   const yearLabel = (s0) => s0.slice(0, 4) + '–' + String(+s0.slice(0, 4) + 1).slice(2);
 
-  // v2.54: the year view. One row per month, September to August: what was recorded (ministry and credit), what My
-  // schedule adds (the rest of this month and the months ahead), and whether any day has time in Groundwork.
+  // v2.54: the year view. One row per month, September to August: what was recorded (ministry and credit), what's
+  // expected (My schedule for the rest of this month, the monthly average for the months ahead; v2.56.1), and whether
+  // any day has time in Groundwork.
   function yearMonths(D, m, now) {
-    const svc = svcOf(D.settings), s0 = yearStart(m), cur = ym(now), today = U.toDateStr(now), days = dayMap(D.times);
+    const s0 = yearStart(m), cur = ym(now), days = dayMap(D.times), ah = ahead(D, now, days);
     const timed = new Set(); for (const d of days.keys()) timed.add(monthOf(d));
     const out = [];
     let credit = 0;
@@ -318,7 +337,7 @@
       const x = addMonths(s0, i);
       const r = x <= cur ? monthRaw(D, x, days) : { svc: 0, cr: 0 };
       if (x <= cur) credit += r.cr;
-      const plan = x === cur ? Math.max(0, pace(D, x, now) - monthStats(D, x).shown) : x > cur ? plannedMonth(svc, x, today) : 0;
+      const plan = x === cur ? ah.rest : x > cur ? ah.avg : 0;
       out.push({ m: x, rec: r.svc + r.cr, plan, hasDays: timed.has(x), past: x < cur, cur: x === cur });
     }
     const carry = cur >= s0 && cur <= addMonths(s0, 11) ? (() => { const st = monthStats(D, cur); return st.carryS + st.carryC; })() : 0;
@@ -395,7 +414,7 @@
 
   const pure = { pad2, monthOf, ym, addMonths, daysIn, dayStr, monthName, monthLabel, toMin, fromMin, fmtDur, fmtClock, KIND, defaultSvc, svcOf,
     profileFor, goalOf, tracks, hoursReported, badge, sessionMins, dayTotals, fixOverlap, dayMap, monthRec, isStudy, monthRaw, monthStats,
-    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf, yearLabel, yearMonths, yearReview, reviewStatus, reviewYear, reviewPushDate };
+    plannedFor, planMins, pace, plannedMonth, activity, ringDays, remindDates, studies, ordinal, shared, reportText, yearStart, yearOf, yearLabel, yearMonths, ahead, yearReview, reviewStatus, reviewYear, reviewPushDate };
 
   // ---------- the store side (browser) ----------
   const ST = () => RV.store;

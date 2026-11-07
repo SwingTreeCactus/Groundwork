@@ -378,7 +378,7 @@
     const top = Math.max(goalMonth * 1.25, ...ym1.months.map((x) => x.rec + x.plan), 60);
     const bars = h('div', { class: 'ybars' }, ym1.months.map((x) => {
       const rh = x.rec / top * 100, ph = x.plan / top * 100;
-      return h('button', { class: 'ycol' + (x.cur ? ' cur' : ''), type: 'button', 'aria-label': V.monthLabel(x.m) + ': ' + V.fmtDur(x.rec) + ' recorded' + (x.plan ? ', ' + V.fmtDur(x.plan) + ' from My schedule' : ''), onclick: () => openMonth(x.m) },
+      return h('button', { class: 'ycol' + (x.cur ? ' cur' : ''), type: 'button', 'aria-label': V.monthLabel(x.m) + ': ' + V.fmtDur(x.rec) + ' recorded' + (x.plan ? ', ' + V.fmtDur(x.plan) + ' expected' : ''), onclick: () => openMonth(x.m) },
         h('span', { class: 'yv' }, x.rec ? String(Math.floor(x.rec / 60)) : ''),
         h('span', { class: 'ybar' }, ph > 0.5 ? h('i', { class: 'pl', style: { height: ph + '%' } }) : null, rh > 0.5 ? h('i', { class: 'rec', style: { height: rh + '%' } }) : null),
         h('span', { class: 'yml' }, V.monthName(x.m).slice(0, 3)));
@@ -391,12 +391,12 @@
         goalH ? h('div', { class: 'yhero' }, yearRing(y.mins, inYear ? y.paceMins : y.mins, goalH), inYear && y.paceMins > y.mins ? h('span', { class: 'cgood' }, 'On pace for ' + Math.floor(y.paceMins / 60) + ' h') : y.mins >= goalH * 60 ? h('span', { class: 'cgood' }, leaf(), 'Goal reached') : null)
           : h('div', { class: 'cbig' }, h('b', null, Math.floor(y.mins / 60) + ' h'), h('span', { class: 'muted' }, 'this service year')),
         bars,
-        h('div', { class: 'ykey' }, h('span', null, h('i', { class: 'rec' }), 'Recorded'), h('span', null, h('i', { class: 'pl' }), 'From My schedule')),
+        h('div', { class: 'ykey' }, h('span', null, h('i', { class: 'rec' }), 'Recorded'), h('span', null, h('i', { class: 'pl' }), 'Expected')),
         h('div', { class: 'ylist' },
           y.avgMins != null ? li('Monthly average', Math.round(y.avgMins / 60) + ' h') : null,
           ym1.credit ? li('Credit', Math.floor(ym1.credit / 60) + ' h') : null,
           inYear && ym1.carry ? li('Carried into ' + V.monthName(cur), V.fmtDur(ym1.carry)) : null),
-        h('p', { class: 'muted small ynote' }, 'Tap a month to open it. The pace uses My schedule, so change days on the calendar for assemblies or time away.'),
+        h('p', { class: 'muted small ynote' }, 'Tap a month to open it. This month uses My schedule; later months use your monthly average.'),
         ry && RV.review ? h('button', { class: 'yrev', type: 'button', onclick: () => RV.review.open(ry) },
           h('span', { class: 'yrevpot', 'aria-hidden': 'true' }, RV.review.pot(40)), h('b', null, 'Your ' + V.yearLabel(ry) + ' in review'), icon('right', 18)) : null));
     return det;

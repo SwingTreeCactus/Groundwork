@@ -52,7 +52,7 @@ with sync_playwright() as p:
     check('null' not in pg.locator('.cal').inner_text(), 'no stray “null” where a card is missing')
     check(pg.locator('.cyear .yring').count() == 1 and pg.locator('.cyear .yrc').inner_text().replace('\n', ' ').endswith('of 600'), 'unfolded: the ring with “of 600”')
     check(pg.locator('.cyear .ycol').count() == 12 and [x.strip() for x in pg.locator('.cyear .yml').all_inner_texts()][:2] == ['Sep', 'Oct'], 'twelve month bars, September first')
-    check(pg.locator('.cyear .ycol .pl').count() >= 1, 'the months ahead show My schedule')
+    check(pg.locator('.cyear .ycol .pl').count() >= 1, 'the months ahead show what is expected')
     check('Tap a month to open it.' in pg.locator('.cyear .ynote').inner_text(), 'the one line about tapping a month')
     check(pg.locator('.cyear .yrev').count() == 0, 'no review button for a year whose August report isn’t Sent')
     shot(pg, '01-year-view')

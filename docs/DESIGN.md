@@ -59,3 +59,11 @@ Mark (2026-11-06): how many people use Groundwork, and which features; free; no 
 - Privacy page: an "Anonymous usage counts" section.
 - Tests: stats 7 (new, node, D1 played by Node's SQLite), stats_ui 14 (new, browser), others unchanged. VERSION 2.56.0, cache rvapp-v119.
 
+
+## 72. v2.56.1 The year pace from the monthly average (built 2026-11-06)
+
+Mark (2026-11-06): My schedule shouldn't be applied to the whole service year; only to the rest of this month. Beyond this month, average the time.
+- **Year pace** (`RV.service.ahead`, used by `yearOf` and `yearMonths`): this month is recorded + My schedule for the rest of it (the month pace card's "On pace for", unchanged). Each later month in the service year is expected at the average of the earlier months' totals and this month's projection. Year projection = earlier months + this month's projection + average × months left.
+- Months before tracking began (before `settings.service.since`, with no time in Groundwork and no total entered) are left out of the average; a total entered by hand counts, and a month after tracking began with no time counts as zero. Credit counts in the totals. In September the average is just September's projection.
+- The year view looks the same: the ring and "On pace for" use the new projection; the future bars' light fill is the average. The key reads Recorded / Expected; the note: "Tap a month to open it. This month uses My schedule; later months use your monthly average."
+- Tests: service 20 (one new: the average, months before tracking, a hand-entered total, credit), year_ui 48, others unchanged. VERSION 2.56.1, cache rvapp-v120.

@@ -139,9 +139,25 @@ test('year months: recorded, the plan ahead, which months have days, credit and 
   assert.equal(y.months[0].m, '2026-09'); assert.equal(y.months[0].rec, 3600); assert.equal(y.months[0].hasDays, false);
   assert.equal(y.months[1].rec, 185); assert.equal(y.months[1].hasDays, true);
   assert.equal(y.months[2].cur, true); assert.ok(y.months[2].plan > 0, 'the rest of November is planned');
-  assert.equal(y.months[3].rec, 0); assert.ok(y.months[3].plan >= 4 * 180, 'December from My schedule');
+  assert.equal(y.months[3].rec, 0); assert.equal(y.months[3].plan, Math.round((3600 + 185 + 90 + 4 * 180) / 3), 'December at the monthly average'); assert.equal(y.months[11].plan, y.months[3].plan);
   assert.equal(y.credit, 60);
   assert.equal(y.carry, 5, 'October’s 3 h 5 m carries 5 minutes (September was whole hours)');
+});
+test('year pace (v2.56.1): this month from My schedule, later months at the average; months before tracking left out', () => {
+  // tracking began in October; September has nothing in Groundwork, so it stays out of the average
+  const D = bundle({ times: [...['03', '04', '05', '06'].map((d) => T('2026-10-' + d, tot(10 * 60))), T('2026-10-10', tot(10 * 60, true)), T('2026-11-02', tot(10 * 60))] });
+  D.settings.service.pattern = { 6: [Object.assign(tot(5 * 60), { repeat: 'every' })] }; // 4 Saturdays left: 20 h
+  const a = V.ahead(D, NOW);
+  assert.equal(a.rest, 20 * 60);
+  assert.equal(a.avg, 40 * 60, 'October 50 h (credit counts) and November on pace for 30 h');
+  const y = V.yearOf(D, '2026-11', NOW);
+  assert.equal(y.paceMins, (50 + 10 + 20 + 9 * 40) * 60);
+  // a September total entered by hand counts even before tracking began
+  D.months = [{ id: 'svm-2026-09', kind: 'svmonth', month: '2026-09', adjMins: 60 * 60 }];
+  assert.equal(V.ahead(D, NOW).avg, Math.round((60 + 50 + 30) * 60 / 3));
+  // a month after tracking began with no time counts as zero
+  D.months = []; D.settings.service.since = local('2026-09-01', 0);
+  assert.equal(V.ahead(D, NOW).avg, Math.round((0 + 50 + 30) * 60 / 3));
 });
 test('year in review: hours, days out, best weekday, people, new, studies and firsts, topic, area, growth', () => {
   const rvs = [
