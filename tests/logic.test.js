@@ -22,7 +22,7 @@ let seq = 0;
 const mkRv = (o = {}) => Object.assign({
   id: 'rv' + ++seq, name: 'Test ' + seq, address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
   notes: '', interests: '', scriptures: [], tags: [], custom: {}, stage: 'return', archiveReason: null, prevStage: null,
-  nextVisit: null, snoozedUntil: null, nhBannerOff: false, createdAt: daysAgo(100), stageChangedAt: daysAgo(100), updatedAt: daysAgo(100), deletedAt: null,
+  nextVisit: null, snoozedUntil: null, createdAt: daysAgo(100), stageChangedAt: daysAgo(100), updatedAt: daysAgo(100), deletedAt: null,
 }, o);
 const mkEntry = (rvId, type, atIso, text = '') => ({ id: 'e' + ++seq, rvId, type, at: atIso, text, scriptures: [], deletedAt: null });
 const item = (rv, entries = []) => L.buildItems([rv], entries, S, NOW)[0];
@@ -88,30 +88,7 @@ test('attention text', () => {
   assert.match(L.attentionText({ state: 'soon', reason: 'visit', inDays: 1 }), /tomorrow/);
 });
 
-console.log('not-home pattern');
 const thuMorning = (d, h = 9, mi = 30) => at(2026, 10, d, h, mi);
-test('shows after two not-homes on the same weekday', () => {
-  const rv = mkRv();
-  const es = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', at(2026, 10, 1, 18))]; // Thursday morning and Thursday evening
-  const p = L.notHomePattern(item(rv, es), S, NOW);
-  assert.ok(p); assert.equal(p.scope, 'day'); assert.equal(p.nh, 2); assert.equal(p.label, 'Thursdays');
-});
-test('not enough tries, a visit on that weekday, or other weekdays: no banner', () => {
-  const rv = mkRv();
-  assert.equal(L.notHomePattern(item(rv, [mkEntry(rv.id, 'nh', thuMorning(8))]), S, NOW), null);
-  const withVisit = [mkEntry(rv.id, 'nh', thuMorning(8)), mkEntry(rv.id, 'nh', thuMorning(1)), mkEntry(rv.id, 'visit', at(2026, 9, 24, 18))]; // home on a Thursday once
-  assert.equal(L.notHomePattern(item(rv, withVisit), S, NOW), null);
-  const otherDays = [mkEntry(rv.id, 'nh', at(2026, 10, 12, 9)), mkEntry(rv.id, 'nh', at(2026, 10, 13, 9)), mkEntry(rv.id, 'nh', at(2026, 10, 14, 9))];
-  assert.equal(L.notHomePattern(item(rv, otherDays), S, NOW), null);
-});
-test('suppressed by per-RV switch and global switch', () => {
-  const es = (id) => [mkEntry(id, 'nh', thuMorning(8)), mkEntry(id, 'nh', thuMorning(1))];
-  const off = mkRv({ nhBannerOff: true });
-  assert.equal(L.notHomePattern(item(off, es(off.id)), S, NOW), null);
-  const s2 = D.defaultSettings(); s2.notHomeBanner.on = false;
-  const rv = mkRv();
-  assert.equal(L.notHomePattern(L.buildItems([rv], es(rv.id), s2, NOW)[0], s2, NOW), null);
-});
 test('best window handles overnight and every-day windows', () => {
   const rv = mkRv({ bestTimes: [{ days: [], from: '08:30', to: '09:15' }] });
   assert.ok(L.inBestWindow(rv, NOW));

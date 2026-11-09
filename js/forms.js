@@ -196,7 +196,6 @@
       notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
       whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
-      nhOff: h('input', { type: 'checkbox', checked: !!rv.nhBannerOff }),
     };
     // Geotag: coordinates live only here, in the form. The popup suggests a street address to edit first.
     let geo = rv.geo || null;
@@ -293,7 +292,6 @@
         field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
-        h('label', { class: 'check' }, f.nhOff, 'Never show the not-home banner for this contact'),
         !existing ? null : h('button', {
           class: 'btn danger', type: 'button', style: { width: '100%', marginTop: '8px' },
           onclick: async () => {
@@ -318,7 +316,6 @@
             howMet: f.howMet.value, bestDays: bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
             publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
             notes: f.notes.value.trim(), tags: U.splitList(f.tags.value),
-            nhBannerOff: f.nhOff.checked,
             geo,
             custom: Object.assign({}, rv.custom || {}),
           };

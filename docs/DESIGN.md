@@ -67,3 +67,10 @@ Mark (2026-11-06): My schedule shouldn't be applied to the whole service year; o
 - Months before tracking began (before `settings.service.since`, with no time in Groundwork and no total entered) are left out of the average; a total entered by hand counts, and a month after tracking began with no time counts as zero. Credit counts in the totals. In September the average is just September's projection.
 - The year view looks the same: the ring and "On pace for" use the new projection; the future bars' light fill is the average. The key reads Recorded / Expected; the note: "Tap a month to open it. This month uses My schedule; later months use your monthly average."
 - Tests: service 20 (one new: the average, months before tracking, a hand-entered total, credit), year_ui 48, others unchanged. VERSION 2.56.1, cache rvapp-v120.
+
+## 73. v2.56.2 The not-home banner removed (built 2026-11-08)
+
+Mark (2026-11-08): the "Never show the not-home banner for this contact" box in Edit contact isn't needed any more. The banner it controlled (the original spec's section 7: "Usually not home on Saturdays. Not home 3 of 3 tries at this time.", with Hide for this contact) has been overtaken by Likely home on the Details card (v2.39, every visit and Not Home weighted by recency) and each area's "Not home 3 or more times" (v2.51), and a yellow warning about someone you keep missing sits against the no-pressure rule. Mark chose to remove the whole feature, not just the box.
+- Gone: the banner on the record screen, `L.notHomePattern` (and its `tally` helper), Edit contact's checkbox, and the Not-home banner switch with "Tries needed before it shows" in Settings › Needs attention. New contacts and the notes import's Edit details no longer carry `nhBannerOff`; `settings.notHomeBanner` is no longer a default.
+- Old data keeps `nhBannerOff` on contacts and `notHomeBanner` in settings; both are ignored. `L.reconsider` (the areas' list) was separate and is unchanged.
+- Tests: smoke 381 (the two banner checks removed), logic 50 (the three notHomePattern tests removed), others unchanged. VERSION 2.56.2, cache rvapp-v121.

@@ -244,17 +244,6 @@ with sync_playwright() as p:
     page.goto(URL + '#/rv/' + ana); page.wait_for_selector('.banner.danger')
     check(page.locator('button:has-text("Restore")').count() == 0, 'DNC records cannot be restored')
 
-    print('not-home banner')
-    ev('''() => { const ST = RV.store; const r = ST.rvById("%s"); }''' % ana)
-    ben = ev('RV.store.S.rvs.find(r=>r.name=="Ben Carter").id')
-    ev('''(id) => { const ST = RV.store; const now = new Date();
-      for (let w = 1; w <= 3; w++) { const d = new Date(now); d.setDate(d.getDate() - 7*w); ST.addEntry(id, 'nh', {}, d.toISOString()); } }''', ben)
-    page.goto(URL + '#/rv/' + ben); page.wait_for_selector('text=Timeline')
-    check(page.locator('.banner:has-text("Usually not home")').count() == 1, 'not-home banner appears for 3 same-slot misses')
-    shot('09-nh-banner')
-    page.click('button:has-text("Hide for this contact")')
-    check(page.locator('.banner:has-text("Usually not home")').count() == 0, 'banner can be hidden per RV')
-
     print('v2: quick add, campaign tag, day tags, next time, topics')
     dow = ev('new Date().getDay()')
     campaign = ev('RV.store.activeCampaign()')

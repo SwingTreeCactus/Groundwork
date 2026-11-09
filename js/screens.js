@@ -1060,15 +1060,6 @@
       els.push(h('div', { class: 'banner info' }, icon('archive'), h('div', { class: 'body' }, 'Archived' + (reason ? ': ' + reason.name : '') + '.',
         reason && reason.restorable ? h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.restoreFlow(rv.id) }, 'Restore')) : null)));
     }
-    const pattern = L.notHomePattern(it, S.settings, new Date());
-    if (pattern) {
-      els.push(h('div', { class: 'banner warn' }, icon('clock'),
-        h('div', { class: 'body' },
-          h('strong', null, 'Usually not home on ' + pattern.label + '. '),
-          'Not home ' + pattern.nh + ' of ' + (pattern.nh + pattern.home) + ' tries at this time.',
-          h('div', null, h('button', { class: 'link', type: 'button', onclick: () => ST.updateRv(rv.id, { nhBannerOff: true }) }, 'Hide for this contact'),
-            ' · Turn off for everyone in Settings > Needs attention.'))));
-    }
 
     // header card: who they are and what to bring up, then the actions
     const study = !closed && L.isStudyStage(S.settings, rv.stage);

@@ -1,4 +1,4 @@
-/* RV app: pure business logic (attention, not-home pattern, search, duplicates, CSV import/export).
+/* RV app: pure business logic (attention, likely home, search, duplicates, CSV import/export).
    No DOM and no storage in here, so it can be unit tested in Node. */
 (function (root) {
   'use strict';
@@ -172,7 +172,7 @@
     });
   }
 
-  // ---------- best times and the not-home pattern ----------
+  // ---------- best times ----------
   const toMin = (s) => {
     const m = /^(\d{1,2}):(\d{2})/.exec(s || '');
     return m ? +m[1] * 60 + +m[2] : null;
@@ -196,33 +196,6 @@
     return 'night';
   }
   const dayType = (dow) => (dow === 0 || dow === 6 ? 'weekend' : 'weekday');
-
-  function tally(entries, pred) {
-    let nh = 0, home = 0;
-    for (const e of entries) {
-      if (e.type !== 'nh' && e.type !== 'visit') continue;
-      const d = new Date(e.at);
-      if (isNaN(d) || !pred(d)) continue;
-      if (e.type === 'nh') nh++;
-      else home++;
-    }
-    return { nh, home };
-  }
-
-  function notHomePattern(item, settings, now) {
-    now = now || new Date();
-    const cfg = settings.notHomeBanner;
-    if (!cfg || !cfg.on) return null;
-    const rv = item.rv;
-    if (rv.nhBannerOff || item.att.state === 'closed') return null;
-    const dow = now.getDay();
-    const min = Math.max(1, cfg.minAttempts || 2);
-    const day = tally(item.entries, (d) => d.getDay() === dow);
-    if (day.home === 0 && day.nh >= min) {
-      return { scope: 'day', nh: day.nh, home: day.home, label: U.DAYS[dow] + 's' };
-    }
-    return null;
-  }
 
   // ---------- likely home (v2.39) ----------
   // An estimate of how likely someone is to be home on a weekday and part of the day, from every visit (home)
@@ -703,7 +676,7 @@
         scriptures: [], tags: U.splitList(get(row, 'tags')), custom: {},
         stage, archiveReason: null, prevStage: null,
         nextVisit: (() => { const d = parseLooseDate(get(row, 'nextVisit')); return d ? U.toDateStr(d) : null; })(),
-        snoozedUntil: null, nhBannerOff: false,
+        snoozedUntil: null,
         createdAt: (created || new Date()).toISOString(), stageChangedAt: nowIso, updatedAt: nowIso, deletedAt: null,
       };
       if ((stageOf(settings, stage) || {}).closed) { rv.archiveReason = 'other'; }
@@ -719,7 +692,7 @@
 
   RV.logic = { homeOdds, bestHomeSlot,
     isStudyStage, stageOf, isClosed, reasonOf, isDNC, thresholdFor, lastTouched, attention, buildItems,
-    SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, notHomePattern, likelyHomeNow, describeWindows,
+    SORTS, SORT_NAMES, filterItems, inBestWindow, partOf, dayType, likelyHomeNow, describeWindows,
     duplicateMatches, attentionLists, recentlyAdded, attentionText, rvsToCsv, entriesToCsv,
     suggestNext,
     PARTS, validTag, dayTagsOf, bestDaysOf, partRank, tagLabel, tagsLabel, tagShort, tagsShort, tagForDay, todayPlan, todaySet, likelyHomeToday, forecast,

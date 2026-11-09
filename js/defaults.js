@@ -75,7 +75,6 @@
       recapSeen: null,
       roundSeen: null,
       nhToastSeconds: 6,
-      notHomeBanner: { on: true, minAttempts: 2 },
       lists: {
         neighborhoods: [],
         howMet: ['House to house', 'Street', 'Referral', 'Phone or letter', 'Other'],
@@ -91,7 +90,7 @@
     const d = defaultSettings();
     if (!saved || typeof saved !== 'object') return d;
     const out = Object.assign({}, d, saved);
-    for (const k of ['labels', 'notHomeBanner', 'lists', 'lock', 'points']) out[k] = Object.assign({}, d[k], saved[k] || {});
+    for (const k of ['labels', 'lists', 'lock', 'points']) out[k] = Object.assign({}, d[k], saved[k] || {});
     if (out.labels.recordVisit === 'Record visit') out.labels.recordVisit = d.labels.recordVisit; // old default, renamed in 2.7
     const cards = Array.isArray(saved.homeCards) ? saved.homeCards.filter((c) => HOME_CARD_NAMES[c.id]) : d.homeCards;
     for (const c of d.homeCards) if (!cards.some((x) => x.id === c.id)) cards.push(c);

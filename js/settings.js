@@ -465,18 +465,12 @@
       i.addEventListener('change', () => { const n = num(i.value); if (n == null || n < min || n > max) { i.value = String(S.settings[key]); return; } save((s) => { s[key] = n; }); });
       return field(label, i, hintText);
     };
-    const minTries = h('input', { type: 'number', min: '1', max: '10', inputmode: 'numeric', value: String(S.settings.notHomeBanner.minAttempts) });
-    minTries.addEventListener('change', () => { const n = num(minTries.value); if (n == null || n < 1 || n > 10) { minTries.value = String(S.settings.notHomeBanner.minAttempts); return; } save((s) => { s.notHomeBanner.minAttempts = n; }); });
     return page('Needs attention', [
       hint('A contact is flagged by how long it has been since the last logged visit, unless it has a follow-up date.'),
       mk('defaultStaleDays', 'Default days before flagged', 'Used for stages with no number of their own.', 1, 365),
       mk('comingUpDays', 'Coming up window (days)', 'Planned visit dates within this many days are marked as coming up.', 1, 60),
       mk('soonDays', 'Heads-up before due (days)', 'Flag as coming up this many days before a contact is due.', 0, 14),
       mk('dayTagForceFactor', 'Best-day safety net (times the usual timing)', 'A contact with a best day is only marked due on that day. After this many times its usual timing, it is marked due on any day so nothing gets buried.', 1, 10),
-      h('div', { class: 'card' },
-        h('div', { class: 'switchrow' }, h('div', { class: 'grow' }, h('div', { style: { fontWeight: 600 } }, 'Not-home banner')),
-          UI.toggle(S.settings.notHomeBanner.on, (v) => save((s) => { s.notHomeBanner.on = v; }), 'Not-home banner')),
-        field('Tries needed before it shows', minTries)),
     ], { noRerender: true });
   }
 
@@ -1278,7 +1272,7 @@
           { name: c.name, address: c.address, phone: c.phone, notes: c.notes, whatsNext: c.discussNext, neighborhood: c.neighborhood, visits: c.visits, nextVisit: c.nextVisit }),
         onDone: (d) => {
           Object.assign(c, { name: d.name, address: d.address, phone: d.phone, notes: d.notes, discussNext: d.whatsNext, neighborhood: d.neighborhood, stage: d.stage, edited: true });
-          c.extra = { howMet: d.howMet, bestDays: d.bestDays, tags: d.tags, publication: d.publication, progress: d.progress, nextStart: d.nextStart, nhBannerOff: d.nhBannerOff, geo: d.geo, custom: d.custom };
+          c.extra = { howMet: d.howMet, bestDays: d.bestDays, tags: d.tags, publication: d.publication, progress: d.progress, nextStart: d.nextStart, geo: d.geo, custom: d.custom };
           c.dup = niDup(c);
           render();
         },
