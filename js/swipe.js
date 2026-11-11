@@ -4,6 +4,8 @@
    - RV.swipe.dismiss(card, onDismiss): a card that swipes away sideways (same as its × or Not now).
    - RV.swipe.down(box, handle, close): a sheet or overlay that closes when pulled down.
    - RV.swipe.pager(el, {left, right, down}): a quick swipe in a direction (months, the year in review).
+   - RV.swipe.away(box, close, {up, scroller}) (v2.56.3): a notice or full-screen moment that swipes away sideways, or
+     toward the screen edge it sits nearest: down for anything full-screen, centred or low, up for a notice at the top.
    Every button stays: swiping is a shortcut, never the only way. Swipes starting at the screen's very edge are left
    to the phone (Android's back gesture). */
 (function (root) {
@@ -202,5 +204,66 @@
     el.addEventListener('pointercancel', () => { st = null; if (o.drag) o.drag(0); });
   }
 
-  RV.swipe = { row, dismiss, down, pager, story, closeOpen: () => { if (openRow) openRow.close(); } };
+  // ---------- notices and moments: swipe away (v2.56.3) ----------
+  // Sideways either way, or vertically toward the nearest screen edge: down by default (full-screen moments, anything
+  // centred or low), up with {up: true} (a notice pinned to the top). Vertical only once the scroller has reached that
+  // end, so long content still scrolls. Touch goes through touch events so the drag can stop the page scrolling.
+  function away(box, close, o) {
+    o = o || {};
+    const up = !!o.up, sc = o.scroller || box, dir = up ? -1 : 1;
+    box.classList.add('sw-away');
+    let st = null, gone = false;
+    const set = (x, y, anim) => {
+      box.style.transition = anim ? 'transform .28s cubic-bezier(.2,.8,.2,1), opacity .28s ease' : 'none';
+      box.style.transform = x || y ? 'translate(' + x + 'px, ' + y + 'px)' + (x ? ' rotate(' + (x / 60).toFixed(2) + 'deg)' : '') : '';
+      const w = box.offsetWidth || 360, hh = box.offsetHeight || 700;
+      box.style.opacity = x || y ? String(Math.max(0.25, 1 - Math.max(Math.abs(x) / w, Math.abs(y) / hh))) : '';
+    };
+    const atEnd = () => up ? sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 : sc.scrollTop <= 0;
+    const begin = (x, y, target) => {
+      if (gone || fromEdge(x) || (target && target.closest && target.closest('input, textarea, select, [contenteditable], .noswipe'))) { st = null; return; }
+      st = { x, y, mode: null, t: Date.now() };
+    };
+    // returns true while the drag is ours (the caller stops the page scrolling)
+    const move = (x, y) => {
+      if (!st) return false;
+      const dx = x - st.x, dy = y - st.y;
+      if (!st.mode) {
+        if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) return false;
+        if (Math.abs(dx) > Math.abs(dy)) st.mode = 'x';
+        else if (Math.sign(dy) === dir && atEnd()) st.mode = 'y';
+        else { st = null; return false; } // scrolling, or the wrong way: not ours
+      }
+      if (st.mode === 'x') set(dx, 0, false);
+      else set(0, dir * Math.max(0, dy * dir), false);
+      return true;
+    };
+    const end = (x, y) => {
+      if (!st) return;
+      const was = st; st = null;
+      if (!was.mode) return;
+      eatClick(box);
+      const dt = Math.max(1, Date.now() - was.t), dx = x - was.x, dy = y - was.y;
+      const w = box.offsetWidth || 360, hh = box.offsetHeight || 700;
+      let out = null;
+      if (was.mode === 'x' && (Math.abs(dx) > w * 0.3 || (Math.abs(dx / dt) > 0.6 && Math.abs(dx) > 30))) out = [(dx < 0 ? -1 : 1) * (w + 80), 0];
+      if (was.mode === 'y' && (dy * dir > 110 || (dy * dir / dt > 0.6 && dy * dir > 30))) out = [0, dir * (hh + 40)];
+      if (!out) { set(0, 0, true); return; }
+      gone = true; set(out[0], out[1], true);
+      setTimeout(close, reduce() ? 0 : 220);
+    };
+    const cancel = () => { if (st && st.mode) set(0, 0, true); st = null; };
+    box.addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { cancel(); return; } const t = e.touches[0]; begin(t.clientX, t.clientY, e.target); }, { passive: true });
+    box.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (t && move(t.clientX, t.clientY) && e.cancelable) e.preventDefault(); }, { passive: false });
+    box.addEventListener('touchend', (e) => { const t = e.changedTouches[0]; if (t) end(t.clientX, t.clientY); });
+    box.addEventListener('touchcancel', cancel);
+    // mouse (and pen) through pointer events
+    box.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' || e.button > 0) return; begin(e.clientX, e.clientY, e.target); if (st) st.id = e.pointerId; });
+    box.addEventListener('pointermove', (e) => { if (e.pointerType === 'touch' || !st || st.id !== e.pointerId) return; if (move(e.clientX, e.clientY)) { e.preventDefault(); try { box.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } } });
+    box.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch' && st && st.id === e.pointerId) end(e.clientX, e.clientY); });
+    box.addEventListener('pointercancel', (e) => { if (e.pointerType !== 'touch') cancel(); });
+    return box;
+  }
+
+  RV.swipe = { row, dismiss, down, pager, story, away, closeOpen: () => { if (openRow) openRow.close(); } };
 })(window);

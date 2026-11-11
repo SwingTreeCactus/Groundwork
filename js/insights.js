@@ -358,7 +358,9 @@
       const el = scene.querySelector('.gv-' + opt.focus);
       if (!scene.isConnected) return;
       if (!el) { focusReq = null; return; }
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      // v2.56.3: a redraw during the visit asks again; only scroll when the visitor isn't already in view
+      const r = el.getBoundingClientRect(), vh = root.innerHeight || 800;
+      if (r.top < 90 || r.bottom > vh - 90) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       setTimeout(() => {
         if (!el.isConnected) return;
         arrive(el); el.classList.add('spot');
@@ -669,6 +671,7 @@
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Close'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights'; } }, 'See the garden'))));
+    if (RV.swipe) RV.swipe.away(ov, close); // v2.56.3: sideways or down = Close
     document.body.appendChild(ov);
     return true;
   }
@@ -707,6 +710,7 @@
           h('div', null, h('b', null, r.added === 1 ? 'New contact' : 'New contacts'))) : null,
         h('div', { class: 'grow1' }),
         h('div', { class: 'ract' }, h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Close'))));
+    if (RV.swipe) RV.swipe.away(ov, close); // v2.56.3: sideways or down = Close
     document.body.appendChild(ov);
     return true;
   }
@@ -751,7 +755,7 @@
         h('div', { class: 'ract' },
           h('button', { class: 'btn', type: 'button', onclick: close }, 'Later'),
           h('button', { class: 'btn primary', type: 'button', onclick: () => { close(); location.hash = '#/insights/focus/' + k; } }, 'See it in your garden'))));
-    if (RV.swipe) RV.swipe.down(ov.querySelector('.vann-in'), close); // v2.55: pull down = Later
+    if (RV.swipe) RV.swipe.away(ov, close); // v2.56.3: sideways or down = Later
     document.body.appendChild(ov);
     try { if (navigator.vibrate) navigator.vibrate(20); } catch (err) { /* ignore */ }
   }

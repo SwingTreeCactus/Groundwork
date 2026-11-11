@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.56.2';
+  RV.VERSION = '2.56.3';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -184,7 +184,9 @@
     document.title = screen.title && screen.title !== 'Groundwork' ? screen.title + ' · Groundwork' : 'Groundwork';
     renderTabs();
     renderStatus();
-    lastHash = hash;
+    // v2.56.3: a screen may swap its address while drawing (the garden's focus link becomes #/insights), so the
+    // next redraw must count as the same page and keep the scroll, not jump back to that page's old position
+    lastHash = location.hash || hash;
     root.scrollTo(0, y);
   }
 

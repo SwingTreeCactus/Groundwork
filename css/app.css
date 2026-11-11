@@ -2398,6 +2398,7 @@ body.aedit-open { overflow: hidden; }
 .sw-long .sw-act:not(:first-child) { display: none; }
 .sw-gone { transition: max-height .24s ease .2s, opacity .24s ease .2s; max-height: 0 !important; opacity: 0; }
 .sw-card { touch-action: pan-y; }
+.sw-away { touch-action: pan-y; user-select: none; -webkit-user-select: none; } /* v2.56.3 */
 .sheet { will-change: transform; }
 .sheet-head { touch-action: none; }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .sw > .sw-face, .sw-card { transition: none !important; } }

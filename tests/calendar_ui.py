@@ -147,7 +147,9 @@ with sync_playwright() as p:
     hist = pg.evaluate("(m) => RV.service.monthRec(RV.service.data(), m).history.map((x) => x.text)", prev)
     check(len(hist) == 2 and 'after the report was sent' in hist[-1] and '62 h' in hist[-1] and '63 h' in hist[-1], 'the change is written to the month history (%s)' % hist)
     # the look back when a month turns
-    pg.evaluate("(m) => { RV.service.setSent(m, false); RV.service.saveSvc((v) => { v.seenMonth = null; }); }", prev)
+    # (tracking must have started before last month, or there's nothing to look back on; "since" was 10 days ago,
+    # which falls in this month after the 10th)
+    pg.evaluate("(m) => { RV.service.setSent(m, false); RV.service.saveSvc((v) => { v.seenMonth = null; v.since = RV.util.addDays(new Date(), -45).toISOString(); }); }", prev)
     pg.goto(URL + '#/home'); pg.wait_for_selector('.home')
     pg.evaluate("window.__RV_SVCCARD = 1; RV.calendar.maybeLookBack()"); pg.wait_for_selector('.lookback')
     check('63 h' in pg.locator('.lbhero').inner_text() and 'Copy report' in pg.locator('.lookback').inner_text(), 'the look back shows last month with Copy report')
