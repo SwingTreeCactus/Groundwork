@@ -64,7 +64,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True, service_workers='block')
     ctx.route('https://ai.test/**', helper)
-    ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    ctx.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
     ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
     ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     page = ctx.new_page()
@@ -219,7 +219,7 @@ with sync_playwright() as p:
     print('shared from another app (Android share sheet, real service worker)')
     ctx2 = b.new_context(viewport={'width': 390, 'height': 844}, service_workers='allow')
     ctx2.route('https://ai.test/**', helper)
-    ctx2.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
+    ctx2.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"; window.__RV_AI_PROXY = "https://ai.test"')
     ctx2.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
     ctx2.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     p2 = ctx2.new_page()

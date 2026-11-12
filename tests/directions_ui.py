@@ -25,7 +25,7 @@ SPY = "window.__opened = []; window.open = (u) => { window.__opened.push(u); ret
 
 def setup(b, ua):
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, user_agent=ua)
-    ctx.add_init_script("window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;" + SPY)
+    ctx.add_init_script("window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;" + SPY)
     ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', body='{"version":8,"sources":{},"layers":[]}'))
     ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', body='[]'))
     pg = ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))

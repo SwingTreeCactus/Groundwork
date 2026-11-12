@@ -20,7 +20,7 @@ def check(c, label):
     else: bad += 1
 def shot(pg, name):
     if SHOTS: pg.screenshot(path=os.path.join(SHOTS, name + '.png'), full_page=False)
-INIT = "window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;"
+INIT = "window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;"
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844})

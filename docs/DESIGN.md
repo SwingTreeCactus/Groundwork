@@ -145,3 +145,10 @@ Mark's feedback on v2.59–2.60 from his phone (Nov 12): too little fits on a co
 - **Tabs hide on scroll** (every screen): scrolling down more than a little slides the tab bar away; any scroll up, or a new screen, brings it back; pages too short to scroll keep it; scrolls the app makes itself and scrolling under a sheet don't count. The pinned buttons and the + button drop to the bottom edge with it (`body.tabs-away`).
 - **The day page**: tapping a day in the month (or a chip on the ring card) opens `#/calendar/day/YYYY-MM-DD`: the date and Today/Tomorrow/Yesterday in the bar, back to the month, ‹ › grouped in a pill and a swipe for other days (they replace the address, so Back still goes to the month), then the v2.59 card's contents: Time (wheel and a full-width Save), Visits, Planned time, Scheduled. The month no longer has a card under it or a selected day.
 - Tests: contact_ui 31 (compact header, street only, Area in About, the tabs and the slim bar on scroll, the full address while editing), calendar_ui 46 (the day page, arrows, Back to the month), smoke 378 (⋯ from the card; the seed is `lg`), others unchanged. VERSION 2.61.0, cache rvapp-v127.
+
+## 80. v2.61.1 Usage counts switched on (built 2026-11-12)
+
+Mark (2026-11-12) set up the stats helper from section 71 in Cloudflare: the `groundwork-stats` D1 database, the `groundwork-stats` Worker running worker/stats.js at https://groundwork-stats.swingtreecactus.workers.dev, the `DB` binding, `ALLOWED_ORIGIN` = https://mygroundwork.app, the `ADMIN_KEY` secret (Mark's alone) and a daily cron (midnight UTC).
+- `RV.config.stats` now points to that Worker, so every install checks in once a day from this release on (switch in Menu › About still turns it off). No history before this release.
+- To read the counts: open the Worker URL, or press and hold the version line in Menu › About, and enter the admin key once per browser.
+- Tests: every browser suite sets `window.__RV_STATS = ''` so test runs never reach the real helper (stats_ui still sets its own test address); counts unchanged. VERSION 2.61.1, cache rvapp-v128.

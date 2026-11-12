@@ -11,7 +11,7 @@
     // v2.52: the follow-up reminders helper (worker/reminders.js on Cloudflare) and its public VAPID key. Both empty = reminders off.
     reminders: '',
     // v2.56: the usage stats helper (worker/stats.js on Cloudflare). Empty = nothing is sent.
-    stats: root.__RV_STATS != null ? root.__RV_STATS : '',
+    stats: root.__RV_STATS != null ? root.__RV_STATS : 'https://groundwork-stats.swingtreecactus.workers.dev',
     vapidPublic: '',
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -19,7 +19,7 @@ H = {'Access-Control-Allow-Origin': '*'}
 STYLE = json.dumps({'version': 8, 'sources': {}, 'layers': [{'id': 'background', 'type': 'background', 'paint': {'background-color': '#ffffff'}}]})
 with sync_playwright() as p:
     b = p.chromium.launch(); c = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, service_workers='block')
-    c.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"')
+    c.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"')
     c.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers=H, body=STYLE))
     c.route('https://nominatim.openstreetmap.org/search**', lambda r: r.fulfill(status=200, content_type='application/json', headers=H, body=json.dumps([{'lat': '37.968', 'lon': '-121.307'}])))
     c.route('https://nominatim.openstreetmap.org/reverse**', lambda r: r.fulfill(status=200, content_type='application/json', headers=H, body='{}'))

@@ -27,7 +27,7 @@ def drag(pg, loc, dx, dy=0, at=0.6, steps=12):
     pg.mouse.move(x, y); pg.mouse.down()
     for i in range(1, steps + 1): pg.mouse.move(x + dx * i / steps, y + dy * i / steps)
     pg.mouse.up(); pg.wait_for_timeout(450)
-INIT = "window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true; try { localStorage.setItem('rvapp.rvsView', 'list'); } catch (e) {}"
+INIT = "window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true; try { localStorage.setItem('rvapp.rvsView', 'list'); } catch (e) {}"
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844})

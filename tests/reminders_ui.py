@@ -16,7 +16,7 @@ def check(c, label):
     if c: ok += 1
     else: bad += 1
 VAPID = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-INIT = """window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.__RV_REMINDERS = 'https://rem.test'; window.__RV_VAPID = '%s';
+INIT = """window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.__RV_REMINDERS = 'https://rem.test'; window.__RV_VAPID = '%s';
   const fakeSub = { endpoint: 'https://push.example.com/send/xyz', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' } }; }, unsubscribe: async () => { window.__unsub = true; return true; } };
   let has = false;
   if (window.PushManager) { PushManager.prototype.getSubscription = async function () { return has ? fakeSub : null; }; PushManager.prototype.subscribe = async function (o) { window.__subOpts = o; has = true; return fakeSub; }; }

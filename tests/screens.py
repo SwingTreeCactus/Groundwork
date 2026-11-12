@@ -38,7 +38,7 @@ def check(c, label):
     if c: ok+=1
     else: bad+=1
 with sync_playwright() as p:
-    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); c.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"'); pg=c.new_page()
+    b=p.chromium.launch(); c=b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,service_workers='block', has_touch=False); c.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"'); pg=c.new_page()
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
     base=f'http://127.0.0.1:{PORT}/'
     shot=lambda n: pg.screenshot(path=f'{OUT}/b-{n}.png')

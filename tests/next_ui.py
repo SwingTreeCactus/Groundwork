@@ -22,7 +22,7 @@ def shot(pg, n):
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844})
-    ctx.add_init_script("window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;")
+    ctx.add_init_script("window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;")
     ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', body='{"version":8,"sources":{},"layers":[]}'))
     ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', body='[]'))
     pg = ctx.new_page()

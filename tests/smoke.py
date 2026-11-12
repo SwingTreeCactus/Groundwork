@@ -72,7 +72,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True,
                         locale='en-US', timezone_id='America/Los_Angeles')
-    ctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"') # no surprise visitors unless a test asks
+    ctx.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "off"') # no surprise visitors unless a test asks
     ctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
     ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     page = ctx.new_page()
@@ -778,7 +778,7 @@ with sync_playwright() as p:
 
     print('v2.29: Getting started')
     sctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, service_workers='block')
-    sctx.add_init_script('window.__RV_SURPRISE = 0; window.__RV_STARTER = "on"')
+    sctx.add_init_script('window.__RV_STATS = ""; window.__RV_SURPRISE = 0; window.__RV_STARTER = "on"')
     sctx.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='{"version":8,"sources":{},"layers":[]}'))  # v2.38: Contacts opens on the map
     sctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'}, body='[]'))
     sp = sctx.new_page(); sp.goto(URL + '#/home'); sp.wait_for_selector('.starter')

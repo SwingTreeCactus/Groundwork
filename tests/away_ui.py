@@ -23,7 +23,7 @@ def drag(pg, x, y, dx, dy, steps=12):
     pg.mouse.move(x, y); pg.mouse.down()
     for i in range(1, steps + 1): pg.mouse.move(x + dx * i / steps, y + dy * i / steps)
     pg.mouse.up(); pg.wait_for_timeout(450)
-INIT = "window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;"
+INIT = "window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;"
 def announce(pg):
     pg.evaluate("document.querySelectorAll('.vann, .recap').forEach(e => e.remove())")
     pg.evaluate("window.__RV_SURPRISE = 1"); pg.evaluate("RV.store.saveSettings(s => { s.visitorsHere = {}; s.visitors = {}; })"); pg.wait_for_timeout(250)

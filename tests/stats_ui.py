@@ -22,7 +22,7 @@ def route(r):
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844})
-    ctx.add_init_script("window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true; window.__RV_STATS = 'https://stats.example.workers.dev';")
+    ctx.add_init_script("window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true; window.__RV_STATS = 'https://stats.example.workers.dev';")
     ctx.route('https://stats.example.workers.dev/**', route)
     pg = ctx.new_page()
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     check(pg.evaluate("window.__opened") == ['https://stats.example.workers.dev/'], 'press and hold the version line opens the stats page')
     check(not errs, 'no page errors (%s)' % errs[:2])
     # no helper set: nothing at all
-    ctx2 = b.new_context(); ctx2.add_init_script("window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;")
+    ctx2 = b.new_context(); ctx2.add_init_script("window.__RV_STATS = ''; window.__RV_SURPRISE = 0; window.__RV_STARTER = 'off'; window.RV_NO_SW = true;")
     sent = []
     ctx2.route('https://**/ping', lambda r: (sent.append(1), r.fulfill(status=200, body='{}')))
     pg2 = ctx2.new_page(); pg2.goto(URL + '#/home'); pg2.wait_for_selector('.tabbar .tab'); pg2.wait_for_timeout(4800)
