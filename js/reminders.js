@@ -19,12 +19,27 @@
   function datesToSend(items, now) {
     now = now || new Date();
     const today = U.toDateStr(now), t0 = U.startOfDay(now).getTime();
-    const open = items.filter((it) => !it.rv.deletedAt && it.att.state !== 'closed' && it.rv.snoozedUntil && it.rv.snoozedUntil >= today);
+    // v2.57: contacts with a reminder of their own (a time, the day before, or none) aren't on the morning list
+    const morning = (rv) => !RV.next || RV.next.inMorning(rv);
+    const open = items.filter((it) => !it.rv.deletedAt && it.att.state !== 'closed' && it.rv.snoozedUntil && it.rv.snoozedUntil >= today && morning(it.rv));
     const doneToday = (it) => it.entries.some((e) => !e.deletedAt && (e.type === 'visit' || e.type === 'nh') && new Date(e.at).getTime() >= t0);
     const dates = new Set(open.map((it) => it.rv.snoozedUntil));
     const todays = open.filter((it) => it.rv.snoozedUntil === today);
     if (todays.length && todays.every(doneToday)) dates.delete(today);
     return Array.from(dates).sort();
+  }
+  // v2.57: the moments for timed reminders ("2026-11-14T10:00"), from now on, for contacts still open
+  function atsToSend(items, now) {
+    if (!RV.next) return [];
+    now = now || new Date();
+    const cur = U.toDateStr(now) + 'T' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const out = new Set();
+    for (const it of items) {
+      if (it.rv.deletedAt || it.att.state === 'closed') continue;
+      const at = RV.next.remindAt(it.rv);
+      if (at && at >= cur) out.add(at);
+    }
+    return Array.from(out).sort().slice(0, 400);
   }
   // The words of the notification, from names ("Follow-up today: Maria Lopez"; "3 follow-ups today: Maria, James
   // and Linda"). The service worker has its own copy of this (it can't load this file).
@@ -81,6 +96,7 @@
     const rv = RV.service ? [RV.service.reviewPushDate(RV.service.data(), now)].filter(Boolean) : []; // v2.54.1: once, either switch
     return Array.from(new Set(fu.concat(sv, rv))).sort();
   }
+  const ats = (s) => (s.fu !== false ? atsToSend(RV.store.items(), new Date()) : []);
   // Send the current dates (and time) to the helper. Quietly does nothing when reminders are off.
   async function sync() {
     const s = state();
@@ -89,7 +105,7 @@
     if (!sub) return false;
     const j = sub.toJSON();
     await post('/subscribe', { id: remindId(), sub: { endpoint: j.endpoint, keys: j.keys }, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, time: s.time,
-      dates: dates(s) });
+      dates: dates(s), at: ats(s) });
     s.synced = U.nowISO(); save(s);
     return true;
   }
@@ -121,7 +137,7 @@
       if (!state().on) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        const key = dates(state()).join(',') + '|' + state().time;
+        const key = dates(state()).join(',') + '|' + ats(state()).join(',') + '|' + state().time;
         if (key === lastSent) return;
         sync().then((ok) => { if (ok) lastSent = key; }).catch(() => { /* next change retries */ });
       }, 4000);
@@ -138,6 +154,6 @@
     try { await sync(); } catch (e) { /* next change retries */ }
     return 'on';
   }
-  RV.reminders = { datesToSend, dates, message, state, support, enable, disable, setTime, setKind, sync, watch };
+  RV.reminders = { datesToSend, atsToSend, dates, message, state, support, enable, disable, setTime, setKind, sync, watch };
   if (typeof module !== 'undefined') module.exports = RV.reminders;
 })(typeof window !== 'undefined' ? window : globalThis);

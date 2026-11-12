@@ -13,12 +13,14 @@
    Settings → Triggers → Cron Triggers: add one that runs every 15 minutes.
 
    Routes (POST, JSON, only from ALLOWED_ORIGIN):
-     /subscribe    { id, sub: {endpoint, keys: {p256dh, auth}}, tz, time: "HH:MM", dates: ["YYYY-MM-DD", ...] }
+     /subscribe    { id, sub: {endpoint, keys: {p256dh, auth}}, tz, time: "HH:MM", dates: ["YYYY-MM-DD", ...],
+                   at: ["YYYY-MM-DDTHH:MM", ...] }   (v2.57: timed reminders, local times; still no names)
      /unsubscribe  { id }
 */
 const ID_RE = /^[A-Za-z0-9_-]{16,64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const AT_RE = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_DATES = 400;
 
 const enc = new TextEncoder();
@@ -44,7 +46,10 @@ export function clean(b) {
   if (!TIME_RE.test(b.time || '')) return null;
   try { new Intl.DateTimeFormat('en-US', { timeZone: b.tz }); } catch (e) { return null; }
   if (!Array.isArray(b.dates) || b.dates.length > MAX_DATES || !b.dates.every((d) => DATE_RE.test(d))) return null;
-  return { sub: { endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } }, tz: b.tz, time: b.time, dates: Array.from(new Set(b.dates)).sort(), sent: b.sent || null };
+  const at = b.at == null ? [] : b.at;
+  if (!Array.isArray(at) || at.length > MAX_DATES || !at.every((d) => AT_RE.test(d))) return null;
+  return { sub: { endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } }, tz: b.tz, time: b.time, dates: Array.from(new Set(b.dates)).sort(),
+    at: Array.from(new Set(at)).sort(), sent: b.sent || null, sentAt: [] };
 }
 
 // The date and time where the person is ("2026-11-04", "08:15").
@@ -57,6 +62,13 @@ export function localNow(tz, now) {
 export function due(rec, now) {
   const l = localNow(rec.tz, now);
   return rec.dates.includes(l.day) && l.time >= rec.time && rec.sent !== l.day ? l.day : null;
+}
+
+// v2.57: the timed reminders due now: their moment has come today and they haven't gone yet (a late run still
+// sends them the same day; nothing is sent for a day already past).
+export function dueAt(rec, now) {
+  const l = localNow(rec.tz, now), cur = l.day + 'T' + l.time, sent = rec.sentAt || [];
+  return (rec.at || []).filter((a) => a.slice(0, 10) === l.day && a <= cur && !sent.includes(a));
 }
 
 // ---------- Web Push (RFC 8291 encryption, RFC 8292 VAPID) ----------
@@ -114,11 +126,22 @@ export async function run(env, now) {
       const rec = await env.REMINDERS.get(k.name, 'json');
       if (!rec) continue;
       const day = due(rec, now);
-      if (!day) continue;
+      const ats = dueAt(rec, now);
+      if (!day && !ats.length) continue;
       try {
-        const r = await push(env, rec, JSON.stringify({ t: 'followup', day }));
-        if (r.status === 404 || r.status === 410) { await env.REMINDERS.delete(k.name); continue; }
-        if (r.ok) { rec.sent = day; await env.REMINDERS.put(k.name, JSON.stringify(rec)); sent++; }
+        let gone = false, changed = false;
+        if (day) {
+          const r = await push(env, rec, JSON.stringify({ t: 'followup', day }));
+          if (r.status === 404 || r.status === 410) gone = true;
+          else if (r.ok) { rec.sent = day; changed = true; sent++; }
+        }
+        for (const at of gone ? [] : ats) {
+          const r = await push(env, rec, JSON.stringify({ t: 'timed', at }));
+          if (r.status === 404 || r.status === 410) { gone = true; break; }
+          if (r.ok) { rec.sentAt = (rec.sentAt || []).concat([at]).slice(-50); changed = true; sent++; }
+        }
+        if (gone) { await env.REMINDERS.delete(k.name); continue; }
+        if (changed) await env.REMINDERS.put(k.name, JSON.stringify(rec));
       } catch (e) { /* try again next run */ }
     }
     cursor = page.list_complete ? null : page.cursor;
@@ -148,6 +171,7 @@ export default {
     if (!rec) return json({ error: 'bad_request' }, 400, c.headers);
     const old = await env.REMINDERS.get('u:' + b.id, 'json');
     rec.sent = old && old.sent ? old.sent : null; // a re-sync never re-sends today's reminder
+    rec.sentAt = old && Array.isArray(old.sentAt) ? old.sentAt : []; // nor a timed one already sent
     await env.REMINDERS.put('u:' + b.id, JSON.stringify(rec));
     return json({ ok: true }, 200, c.headers);
   },

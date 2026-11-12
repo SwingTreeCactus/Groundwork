@@ -214,12 +214,17 @@
     if (L.isDNC(S.settings, rv)) { toast('This record is marked Do not call.'); return; }
     const res = ST.logNH(rvId);
     vibrate();
+    // v2.57: an optional "Try again Sat" (their likely-home day) sets the next visit, unless one is already ahead
+    const ahead = rv.snoozedUntil && rv.snoozedUntil > U.toDateStr(new Date());
+    const it = !ahead && RV.next ? ST.itemFor(rvId) : null;
+    const again = it ? RV.next.tryAgain(it, new Date(), ST.items()) : null;
     toast(lbl('notHome') + ' logged: ' + rv.name, {
-      seconds: S.settings.nhToastSeconds || 6,
+      seconds: Math.max(S.settings.nhToastSeconds || 6, again ? 8 : 0),
       actions: [
         { label: 'Undo', fn: res.undo },
+        again ? { label: 'Try again ' + U.DAYS3[U.parseDateStr(again).getDay()], fn: () => RV.next.save(rvId, { date: again, time: rv.nextTime, remind: rv.nextRemind, repeat: rv.nextRepeat }) } : null,
         { label: 'Add note', fn: () => editEntrySheet(res.entry.id) },
-      ],
+      ].filter(Boolean),
     });
   }
 

@@ -26,7 +26,7 @@
   function vwheel(vals, value, onChange, label) {
     let idx = Math.max(0, vals.findIndex((v) => v.value === value));
     const list = h('div', { class: 'vw', role: 'listbox', tabindex: '0', 'aria-label': label });
-    vals.forEach((v, i) => list.appendChild(h('div', { class: 'vwi', role: 'option', onclick: () => list.scrollTo({ top: i * ITEM, behavior: 'smooth' }) }, v.label)));
+    vals.forEach((v, i) => list.appendChild(h('div', { class: 'vwi', role: 'option', onclick: () => list.scrollTo({ top: i * ITEM, behavior: 'smooth' }) }, h('span', null, v.label))));
     const paint = () => Array.from(list.children).forEach((c, i) => { const d = Math.abs(i - idx); c.className = 'vwi ' + (d === 0 ? 'r0' : d === 1 ? 'r1' : 'r2'); c.setAttribute('aria-selected', String(d === 0)); });
     const tick = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } };
     list.addEventListener('scroll', () => {

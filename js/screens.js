@@ -605,28 +605,9 @@
         } }] }) : row;
       })));
   }
-  // The calendar in a contact's top bar: Today puts them on today's list; Tomorrow or a date sets the follow-up date.
-  function planSheet(rvId) {
-    const rv = ST.rvById(rvId);
-    if (!rv) return;
-    const now = new Date();
-    const on = TL().has(ST.items(), S.settings, rvId, now);
-    const tomorrow = U.toDateStr(U.addDays(now, 1));
-    const date = h('input', { type: 'date', value: rv.snoozedUntil && rv.snoozedUntil > U.toDateStr(now) ? rv.snoozedUntil : '', min: tomorrow, 'aria-label': 'Follow up on' });
-    const follow = (val) => {
-      const res = ST.snooze(rvId, val);
-      UI.toast(val ? 'Follow up on ' + U.fmtDate(val) : 'Follow-up date cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
-    };
-    const opt = (label, sub, fn) => h('button', { class: 'planopt', type: 'button', onclick: fn }, h('b', null, label), h('span', { class: 'muted small' }, sub));
-    UI.sheet('Plan a visit', (close) => h('div', { class: 'plansheet' },
-      h('div', { class: 'muted small', style: { marginTop: '-6px' } }, rv.name),
-      on ? opt("Take off today's list", '', () => { TL().remove(rvId); UI.toast("Taken off today's list", { actions: [{ label: 'Undo', fn: () => TL().add(rvId) }], seconds: 4 }); close(); })
-        : opt('Today', "Adds " + String(rv.name || '').split(' ')[0] + " to today's list", () => { TL().add(rvId); UI.toast("Added to today's list", { actions: [{ label: 'Undo', fn: () => TL().remove(rvId) }], seconds: 4 }); close(); }),
-      opt('Tomorrow', 'Follow up on ' + U.fmtDate(tomorrow), () => { follow(tomorrow); close(); }),
-      h('div', { class: 'planpick' }, h('label', null, h('b', null, 'Pick a date'), date),
-        h('button', { class: 'btn primary sm', type: 'button', onclick: () => { if (date.value) { follow(date.value); close(); } } }, 'Set')),
-      rv.snoozedUntil && rv.snoozedUntil > U.toDateStr(now) ? h('button', { class: 'link', type: 'button', onclick: () => { follow(null); close(); } }, 'Clear follow-up on ' + U.fmtDate(rv.snoozedUntil)) : null));
-  }
+  // v2.57: the calendar in a contact's top bar opens the next visit sheet (Today puts them on today's list, as a
+  // next visit today does)
+  function planSheet(rvId) { RV.next.sheet(rvId); }
   function home() {
     const items = ST.items();
     // v2.50.1: a new user first sees what Groundwork is, then Getting started (or, if that was skipped, Add and the import rows)
@@ -1191,7 +1172,7 @@
     const rows = [
       rv.howMet ? ['How we met', rv.howMet] : null,
       UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
-      rv.snoozedUntil && U.parseDateStr(rv.snoozedUntil) >= U.startOfDay(new Date()) ? ['Snoozed until', U.fmtDate(rv.snoozedUntil)] : null,
+      
       L.dayTagsOf(rv).length || rv.bestNote ? ['Best days', [L.tagsLabel(rv), rv.bestNote].filter(Boolean).join('\n')] : null,
       // v2.39: the estimate from visits and Not homes
       (() => { const b = !closed && L.bestHomeSlot(it, new Date(), ST.items()); return b ? ['Likely home', b.label] : null; })(),
@@ -1240,7 +1221,7 @@
         return h('div', null,
           !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Plan a visit…', () => planSheet(rv.id), rv.snoozedUntil ? 'Follow up on ' + U.fmtDate(rv.snoozedUntil) : "Today's list or a date") : null,
+          !closed ? act('Next visit…', () => planSheet(rv.id), rv.snoozedUntil ? RV.next.whenText(rv.snoozedUntil, rv.nextTime) : 'Pick a day') : null,
           !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
           act('Delete this contact permanently', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });

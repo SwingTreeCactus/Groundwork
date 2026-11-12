@@ -549,8 +549,19 @@
     // v2.51: the field starts empty with last time's plan shown faintly inside it; only what is written here (or a
     // topic's linking question picked) counts as a plan. Left empty, last time's plan stays on the record.
     const whatsNext = h('textarea', { value: '', 'aria-label': 'Discuss next time', placeholder: rv.whatsNext ? 'Last time: ' + rv.whatsNext : 'Discuss next time', style: { minHeight: '60px' } });
-    // Follow up on <date>: optional; quiets the record until then and holds the chain
-    const follow = h('input', { type: 'date', 'aria-label': 'Follow up on', min: U.toDateStr(U.addDays(new Date(), 1)) });
+    // v2.57: the next visit (date, time, reminder, repeat). One still ahead is kept; one that repeats asks first.
+    const today0 = U.toDateStr(new Date());
+    let next = rv.snoozedUntil && rv.snoozedUntil > today0 ? { date: rv.snoozedUntil, time: rv.nextTime || null, remind: rv.nextRemind || 'morning', repeat: rv.nextRepeat || null } : null;
+    const nextField = RV.next.field(rvId, next, (v) => { next = v; if (askBox) askBox.hidden = true; }, 'Next visit');
+    const fol = !next ? RV.next.following(rv) : null;
+    const askWord = { w1: 'Same time next week?', w2: 'Same time in two weeks?', m1: 'Same time next month?' }[rv.nextRepeat];
+    const folDraft = fol ? { date: fol, time: rv.nextTime || null, remind: rv.nextRemind || 'morning', repeat: rv.nextRepeat } : null;
+    const askBox = fol ? h('div', { class: 'nvask' },
+      h('div', null, askWord), h('b', null, RV.next.whenText(fol, rv.nextTime)),
+      h('div', { class: 'nvaskb' },
+        h('button', { type: 'button', class: 'btn primary sm', onclick: () => { next = folDraft; nextField.set(next); askBox.hidden = true; } }, 'Yes'),
+        h('button', { type: 'button', class: 'btn sm', onclick: () => RV.next.sheet(rvId, { draft: folDraft, onDone: (v) => { next = v; nextField.set(v); askBox.hidden = true; } }) }, 'Pick another'),
+        h('button', { type: 'button', class: 'btn sm quiet', onclick: () => { askBox.hidden = true; } }, 'Not now'))) : null;
     const camp = ST.activeCampaign();
     const campOn = h('input', { type: 'checkbox', checked: true });
     let pickedTopic = null;
@@ -596,6 +607,7 @@
       text.placeholder = study ? 'What did you talk about?' : 'What did you discuss?';
       text.style.minHeight = '120px';
       title.textContent = (study ? lbl('logStudy') : lbl('recordVisit')) + ': ' + rv.name;
+      nextField.firstChild.textContent = study ? 'Next study' : 'Next visit';
       saveBtn.textContent = study ? 'Save study' : 'Save visit';
       (study ? prog : text).setAttribute('data-autofocus', '');
       (study ? text : prog).removeAttribute('data-autofocus');
@@ -617,7 +629,7 @@
             publication: study ? pub.value : undefined,
             progress: study ? prog.value : undefined,
             nextStart: study ? nextStart.value : undefined,
-            snoozedUntil: follow.value || null,
+            next: next,
             stage: stage.value !== rv.stage ? stage.value : undefined,
             tags: U.splitList(tags.value),
             at: d ? d.toISOString() : undefined,
@@ -632,7 +644,8 @@
         noteBox,
         topicBox,
         nextBox,
-        field('Follow up on', follow),
+        askBox,
+        nextField,
         campBox,
         stageNote,
         h('details', { class: 'more', style: { marginTop: '12px' } },
@@ -811,24 +824,8 @@
     if (res) toast('Restored to ' + L.shownName(S.settings, choice), { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
   }
 
-  // Follow up on <date>: one action for the old Snooze and next-visit date. Quiet until then; holds the chain.
-  function snoozeSheet(rvId) {
-    const rv = ST.rvById(rvId);
-    if (!rv) return;
-    const date = h('input', { type: 'date', value: rv.snoozedUntil || '', min: U.toDateStr(U.addDays(new Date(), 1)) });
-    const apply = (val) => {
-      const res = ST.snooze(rvId, val);
-      toast(val ? 'Follow up on ' + U.fmtDate(val) : 'Follow-up date cleared', { actions: [{ label: 'Undo', fn: res.undo }], seconds: 4 });
-    };
-    sheet('Follow up on', (close) =>
-      h('div', null,
-        [['In 3 days', 3], ['In 1 week', 7], ['In 2 weeks', 14], ['In 1 month', 30]].map(([t, n]) =>
-          h('button', { class: 'opt', type: 'button', onclick: () => { apply(U.toDateStr(U.addDays(new Date(), n))); close(); } }, t)),
-        field('Or pick a date', date),
-        h('div', { class: 'actions' },
-          rv.snoozedUntil ? h('button', { class: 'btn', type: 'button', onclick: () => { apply(null); close(); } }, 'Clear') : null,
-          h('button', { class: 'btn primary', type: 'button', onclick: () => { if (date.value) { apply(date.value); close(); } } }, 'Set date'))));
-  }
+  // v2.57: the next visit sheet (was Follow up on <date>)
+  function snoozeSheet(rvId) { RV.next.sheet(rvId); }
 
   // quick edit of what they are studying and where they are
   // Tapping the Studying block only sets where to start next time; the publication is changed in Edit.

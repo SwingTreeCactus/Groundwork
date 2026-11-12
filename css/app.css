@@ -2416,3 +2416,41 @@ body.aedit-open { overflow: hidden; }
 .sw-face a, .sw-face img, .sw-card a { -webkit-user-drag: none; }
 .toasts { grid-template-columns: minmax(0, 420px); justify-content: center; }
 .toast { width: 100%; }
+
+/* ---------- v2.57: the next visit sheet (like a calendar app's event sheet), its form row, and drum wheels ---------- */
+.nvlist { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.nvrow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 0 14px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; font-size: 1rem; text-align: left; }
+.nvlist > :first-child { border-top: 0; }
+.nvk { flex: 1; }
+.nvv { background: var(--surface2); border-radius: 8px; padding: 5px 10px; font-weight: 600; font-size: .95rem; border: 0; color: var(--fg); font-family: inherit; }
+.nvv.on { background: var(--green-t); color: var(--green); }
+.nvrow .icon { color: var(--muted); }
+.nvwheel { border-top: 1px solid var(--line); padding: 8px 10px; }
+.nvwheel .pk { display: flex; }
+.nvopts { border-top: 1px solid var(--line); background: var(--surface); }
+.nvopt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px 14px; border: 0; background: transparent; font: inherit; color: var(--fg); text-align: left; }
+.nvopt small { display: block; color: var(--muted); font-size: .8rem; }
+.nvck { width: 18px; flex: none; color: var(--green); display: flex; }
+.nvcal { border-top: 1px solid var(--line); padding: 6px 10px 10px; }
+.nvcalh { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.nvcalh span { display: flex; }
+.nvgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.nvdow { font-size: .72rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.nvd { width: 38px; height: 38px; margin: 0 auto; border-radius: 50%; border: 0; background: transparent; font: inherit; color: var(--fg); }
+.nvd.today { color: var(--accent); font-weight: 700; }
+.nvd.past { color: var(--line-strong); }
+.nvd.sel { background: var(--fg); color: var(--bg); font-weight: 700; }
+.nvclear { width: 100%; margin-top: 12px; color: var(--warn, #8a5300); }
+.nvfield { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; border: 0; border-radius: 14px; background: var(--surface2); color: var(--fg); font: inherit; text-align: left; }
+.nvfield b { display: block; }
+.nvfield small { display: block; }
+.nvadd { color: var(--green); font-weight: 700; }
+.nvask { background: var(--surface2); border-radius: 14px; padding: 12px 14px; margin: 10px 0; }
+.nvask b { display: block; font-size: 1.05rem; margin-top: 2px; }
+.nvaskb { display: flex; gap: 8px; margin-top: 10px; }
+.nvaskb .btn { flex: 1; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+/* drum wheels: the values above and below the band tilt away, the edges shade */
+.pk { background: linear-gradient(180deg, var(--line) 0%, var(--surface2) 22%, var(--surface2) 78%, var(--line) 100%); }
+.vwi > span { display: inline-block; }
+.vwi.r1 > span { transform: perspective(260px) rotateX(30deg); }
+.vwi.r2 > span { transform: perspective(260px) rotateX(50deg); }

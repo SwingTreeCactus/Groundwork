@@ -1,6 +1,6 @@
 // Run: node tests/reminders.test.mjs   (the follow-up reminders Worker, v2.52)
 import assert from 'node:assert/strict';
-import worker, { clean, localNow, due, encrypt, vapidHeader, run } from '../worker/reminders.js';
+import worker, { clean, localNow, due, dueAt, encrypt, vapidHeader, run } from '../worker/reminders.js';
 
 let passed = 0;
 async function test(name, fn) {
@@ -48,7 +48,7 @@ async function decrypt(buf) {
 
 await test('a subscription keeps only push keys, time, time zone and dates; anything off is refused', () => {
   const r = clean(JSON.parse(body({ name: 'Maria', dates: ['2026-11-04', '2026-11-04', '2026-11-02'] })));
-  assert.deepEqual(Object.keys(r).sort(), ['dates', 'sent', 'sub', 'time', 'tz']);
+  assert.deepEqual(Object.keys(r).sort(), ['at', 'dates', 'sent', 'sentAt', 'sub', 'time', 'tz']);
   assert.deepEqual(r.dates, ['2026-11-02', '2026-11-04']);
   assert.equal(clean(JSON.parse(body({ id: 'x' }))), null);
   assert.equal(clean(JSON.parse(body({ time: '25:00' }))), null);
@@ -63,6 +63,15 @@ await test('due: only on a follow-up day, from the chosen time, once', () => {
   assert.equal(due(rec, new Date('2026-11-04T16:15:00Z')), '2026-11-04');    // 8:15
   assert.equal(due(Object.assign({}, rec, { sent: '2026-11-04' }), new Date('2026-11-04T18:00:00Z')), null);
   assert.equal(due(rec, new Date('2026-11-05T16:15:00Z')), null);            // no follow-up that day: nothing
+});
+await test('v2.57: timed reminders are kept as local moments, sent once when their time comes that day', () => {
+  assert.equal(clean(JSON.parse(body({ at: ['tomorrow 10am'] }))), null);
+  const rec = clean(JSON.parse(body({ at: ['2026-11-04T10:00', '2026-11-04T09:30', '2026-11-05T08:00'] })));
+  assert.deepEqual(rec.at, ['2026-11-04T09:30', '2026-11-04T10:00', '2026-11-05T08:00']);
+  assert.deepEqual(dueAt(rec, new Date('2026-11-04T17:40:00Z')), ['2026-11-04T09:30']);                   // 9:40 local
+  assert.deepEqual(dueAt(rec, new Date('2026-11-04T18:05:00Z')), ['2026-11-04T09:30', '2026-11-04T10:00']); // a late run still sends
+  assert.deepEqual(dueAt(Object.assign({}, rec, { sentAt: ['2026-11-04T09:30'] }), new Date('2026-11-04T18:05:00Z')), ['2026-11-04T10:00']);
+  assert.deepEqual(dueAt(rec, new Date('2026-11-06T18:05:00Z')), []);                                      // a day already past: nothing
 });
 await test('the push is encrypted for that browser (RFC 8291) and decrypts to no names', async () => {
   const out = await encrypt(JSON.stringify({ t: 'followup', day: '2026-11-04' }), SUB.keys.p256dh, SUB.keys.auth);

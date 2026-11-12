@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v122';
+const CACHE = 'rvapp-v123';
 const ASSETS = [
   './',
   './index.html',
@@ -33,6 +33,7 @@ const ASSETS = [
   './js/dom.js',
   './js/swipe.js',
   './js/ui-core.js',
+  './js/nextvisit.js',
   './js/forms.js',
   './js/todaylist.js',
   './js/reminders.js',
@@ -125,7 +126,7 @@ function pushInfo() {
           const ents = (eq.result || []).filter((e) => !e.deletedAt && (e.type === 'visit' || e.type === 'nh'));
           const done = new Set(ents.filter((e) => new Date(e.at).getTime() >= t0).map((e) => e.rvId));
           const rvs = rq.result || [];
-          const names = rvs.filter((r) => !r.deletedAt && !r.archiveReason && r.snoozedUntil === today && !done.has(r.id)).map((r) => r.name || 'Someone').sort();
+          const names = rvs.filter((r) => !r.deletedAt && !r.archiveReason && r.snoozedUntil === today && !done.has(r.id) && !r.nextRemind).map((r) => r.name || 'Someone').sort();
           const inY = (iso) => { const t = new Date(iso).getTime(); return t >= y0 && t < t0; };
           const went = ents.some((e) => !e.imported && inY(e.at)) || rvs.some((r) => !r.deletedAt && !r.imported && r.createdAt && inY(r.createdAt));
           const timed = (lq.result || []).some((x) => x.kind === 'time' && !x.deletedAt && x.date === yday);
@@ -160,7 +161,82 @@ function reminderText(names) { // the same words as RV.reminders.message
   const f = names.map(first);
   return { title: names.length + ' follow-ups today', body: f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] };
 }
+// v2.57: a timed reminder for one next visit. The push says only when; the names come from this phone's records.
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmt12 = (t) => { const m = /^(\d{2}):(\d{2})$/.exec(t || ''); if (!m) return ''; const hh = +m[1]; return (hh % 12 || 12) + ':' + m[2] + ' ' + (hh < 12 ? 'AM' : 'PM'); };
+const LEAD = { at: 0, '15': 15, '30': 30, '60': 60, '120': 120 };
+function remindAt(r) { // the same rule as RV.next.remindAt
+  if (!r || !r.snoozedUntil || r.deletedAt || r.archiveReason) return null;
+  const p = r.snoozedUntil.split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]);
+  if (r.nextRemind === 'daybefore') { d.setDate(d.getDate() - 1); return dstr(d) + 'T18:00'; }
+  const m = /^(\d{2}):(\d{2})$/.exec(r.nextTime || '');
+  if (!m || !(r.nextRemind in LEAD)) return null;
+  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), +m[1], +m[2] - LEAD[r.nextRemind]);
+  return dstr(at) + 'T' + pad2(at.getHours()) + ':' + pad2(at.getMinutes());
+}
+function rvsAt(at) {
+  return new Promise((resolve) => {
+    let req;
+    try { req = indexedDB.open('rvapp'); } catch (e) { return resolve([]); }
+    req.onerror = () => resolve([]);
+    req.onsuccess = () => {
+      const db = req.result;
+      try {
+        const rq = db.transaction('rvs', 'readonly').objectStore('rvs').getAll();
+        rq.onsuccess = () => { resolve((rq.result || []).filter((r) => remindAt(r) === at)); db.close(); };
+        rq.onerror = () => { resolve([]); db.close(); };
+      } catch (e) { resolve([]); }
+    };
+  });
+}
+function timedNote(at) {
+  return rvsAt(at).then((rvs) => {
+    if (!rvs.length) return null;
+    const today = dstr(new Date());
+    const when = (r) => (r.snoozedUntil === today ? '' : 'Tomorrow ') + (r.nextTime ? 'at ' + fmt12(r.nextTime) : '');
+    if (rvs.length > 1) return self.registration.showNotification(rvs.length + ' next visits', { body: rvs.map((r) => (r.name || 'Someone').split(' ')[0] + ' ' + when(r)).join(' · '),
+      icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'nv-' + at, data: { url: './#/home' } });
+    const r = rvs[0];
+    const body = [r.whatsNext, [r.address, r.neighborhood].filter(Boolean).join(' · ')].filter(Boolean).join('\n') || 'Next visit';
+    return self.registration.showNotification((r.name || 'Next visit') + ' ' + when(r), { body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'nv-' + r.id,
+      actions: [{ action: 'tomorrow', title: 'Tomorrow' }, { action: 'dir', title: 'Directions' }],
+      data: { url: './#/rv/' + r.id, id: r.id, address: r.address || '', geo: r.geo || null, maps: r.maps || null } });
+  });
+}
+// Tomorrow from the notification: the open app moves it (so its own copy stays current); otherwise it's written here.
+function moveTomorrow(id) {
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  const ds = dstr(t);
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+    if (cs.length) { cs.forEach((c) => c.postMessage({ type: 'nv-move', id, date: ds })); return; }
+    return new Promise((resolve) => {
+      let req;
+      try { req = indexedDB.open('rvapp'); } catch (e) { return resolve(); }
+      req.onerror = () => resolve();
+      req.onsuccess = () => {
+        const db = req.result;
+        try {
+          const tx = db.transaction('rvs', 'readwrite'), st = tx.objectStore('rvs'), g = st.get(id);
+          g.onsuccess = () => { const r = g.result; if (r) { r.snoozedUntil = ds; r.updatedAt = new Date().toISOString(); st.put(r); } };
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onerror = () => { db.close(); resolve(); };
+        } catch (e) { resolve(); }
+      };
+    });
+  });
+}
+function mapsUrl(d) { // v2.57: Apple Maps on Apple devices unless Google Maps or Waze was chosen
+  const q = d.geo && d.geo.lat != null ? d.geo.lat + ',' + d.geo.lng : d.address;
+  const apple = /iPhone|iPad|Macintosh/.test(self.navigator.userAgent || '');
+  const app = d.maps || (apple ? 'apple' : 'google');
+  if (app === 'waze') return 'https://waze.com/ul?navigate=yes&' + (d.geo && d.geo.lat != null ? 'll=' + q : 'q=' + encodeURIComponent(q));
+  if (app === 'apple') return 'https://maps.apple.com/?daddr=' + encodeURIComponent(q);
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q);
+}
 self.addEventListener('push', (event) => {
+  let data = null;
+  try { data = event.data ? event.data.json() : null; } catch (e) { data = null; }
+  if (data && data.t === 'timed' && data.at) { event.waitUntil(timedNote(data.at)); return; }
   event.waitUntil(pushInfo().then(({ names, missed, review }) => {
     const ask = 'Any time from yesterday to add?';
     let m, url = './#/home';
@@ -175,6 +251,9 @@ self.addEventListener('push', (event) => {
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const d = event.notification.data || {};
+  if (event.action === 'tomorrow' && d.id) { event.waitUntil(moveTomorrow(d.id)); return; }
+  if (event.action === 'dir' && (d.address || d.geo)) { event.waitUntil(self.clients.openWindow(mapsUrl(d))); return; }
   const url = new URL((event.notification.data && event.notification.data.url) || './#/home', self.registration.scope).href;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
     const c = cs.find((x) => x.url.startsWith(self.registration.scope));

@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.56.3';
+  RV.VERSION = '2.57.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -297,6 +297,11 @@
 
   function registerSW() {
     if (root.RV_NO_SW || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+    // v2.57: Tomorrow tapped on a next-visit reminder while the app is open: move it here, so this copy stays current
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      const m = e.data || {};
+      if (m.type === 'nv-move' && m.id && /^\d{4}-\d{2}-\d{2}$/.test(m.date || '') && RV.store.rvById(m.id)) RV.store.updateRv(m.id, { snoozedUntil: m.date });
+    });
     const had = !!navigator.serviceWorker.controller;
     // Look for a new version every time the app is opened or brought back, and switch to it on its own.
     navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {

@@ -45,6 +45,7 @@
     await seedTopics();
     await migrateBestDays();
     await migrateNotes();
+    await migrateNextVisit();
     // 2.16: the garden starts today. Care and chains are read from the timeline silently; streaks and
     // exhibits only count from here.
     if (!S.settings.gardenSince) { S.settings.gardenSince = U.nowISO(); await DB.setMeta('settings', S.settings); }
@@ -60,6 +61,17 @@
     emit();
   }
 
+  // v2.57: the next visit's fields from {date, time, remind, repeat}
+  const nextFields = (v) => ({ snoozedUntil: v.date || null, nextTime: v.date && v.time ? v.time : null,
+    nextRemind: v.date && v.remind && v.remind !== 'morning' ? v.remind : null, nextRepeat: v.date && v.repeat ? v.repeat : null });
+  // v2.57: one next-visit date. An imported "next visit" date still ahead becomes the next visit (the follow-up date).
+  async function migrateNextVisit() {
+    const today = U.toDateStr(new Date()), changed = [];
+    for (const r of S.rvs) {
+      if (r.nextVisit && !r.snoozedUntil && r.nextVisit >= today) { r.snoozedUntil = r.nextVisit; touch(r); changed.push(r); }
+    }
+    if (changed.length) await DB.putMany('rvs', changed);
+  }
   // 2.9: three note fields. Interests and record-level scriptures fold into household notes once; "Door" became "House to house".
   async function migrateNotes() {
     const changed = [];
@@ -173,12 +185,13 @@
       id: U.uuid(), name: '', address: '', neighborhood: '', phone: '', howMet: '', bestTimes: [], bestNote: '',
       bestDays: [], dayPrimary: null, daySecondary: null, whatsNext: '', campaignId: null, publication: '', progress: '', nextStart: '',
       notes: '', interests: '', scriptures: [], tags: [], custom: {},
-      stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, geo: null,
+      stage: first.id, archiveReason: null, prevStage: null, nextVisit: null, snoozedUntil: null, nextTime: null, nextRemind: null, nextRepeat: null, geo: null,
       createdAt: now, stageChangedAt: now, updatedAt: now, deletedAt: null,
     }, f || {});
   }
   function addRv(fields) {
     const rv = blankRv(fields);
+    if (rv.nextVisit && !rv.snoozedUntil && rv.nextVisit >= U.toDateStr(new Date())) rv.snoozedUntil = rv.nextVisit; // v2.57: imports
     if (!fields || !Array.isArray(fields.bestDays)) rv.bestDays = L.bestDaysOf(Object.assign({}, rv, { bestDays: undefined }));
     S.rvs.push(rv);
     persist('rvs', rv);
@@ -290,7 +303,11 @@
     S.entries.push(entry);
     persist('entries', entry);
     rv.nextVisit = o.nextVisit || null;
-    rv.snoozedUntil = o.snoozedUntil || null;
+    // v2.57: the next visit. o.next = {date, time, remind, repeat} (null clears it); old callers pass snoozedUntil.
+    // Given neither, a next visit after this visit's day stays; one on or before it is done and goes.
+    if (o.next !== undefined) Object.assign(rv, nextFields(o.next || {}));
+    else if (o.snoozedUntil !== undefined) Object.assign(rv, nextFields({ date: o.snoozedUntil || null }));
+    else if (rv.snoozedUntil && rv.snoozedUntil <= U.toDateStr(new Date(entry.at))) Object.assign(rv, nextFields({}));
     if (typeof o.whatsNext === 'string') rv.whatsNext = o.whatsNext.trim();
     if (o.topic) rv.lastTopic = o.topic; // v2.41: the topic used, so the next part of its series can be suggested
     if (typeof o.publication === 'string') rv.publication = o.publication.trim();
