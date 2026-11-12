@@ -182,19 +182,25 @@
     });
   }
 
-  // ---------- the day card (v2.59: under the month, like a calendar app; was a bottom sheet) ----------
+  // ---------- the day page (v2.61: its own page, #/calendar/day/YYYY-MM-DD; v2.59 had it under the month) ----------
   const KIND_WORD = { visit: 'Visit', study: 'Study', nh: 'Not home', new: 'New contact' };
-  let sel = null; // the day the card shows; the Calendar opens on today
-  // Kept for callers (the ring card, tests): show that day's card
-  function daySheet(ds) {
-    sel = ds;
-    const m = V.monthOf(ds), want = m === curMonth() ? '#/calendar' : '#/calendar/' + m;
-    if (location.hash !== want) location.hash = want;
-    else if (RV.app && RV.app.render) RV.app.render();
-    else window.dispatchEvent(new HashChangeEvent('hashchange'));
-    setTimeout(() => { const c = document.querySelector('.daycard'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 60);
+  // Kept for callers (a tapped day, the ring card, tests): open that day's page
+  function daySheet(ds) { location.hash = '#/calendar/day/' + ds; }
+  function dayPage(ds) {
+    const today = todayStr(), m = V.monthOf(ds);
+    // the arrows and a swipe move through the days in place, so Back still goes to the month
+    const step = (n) => { location.replace('#/calendar/day/' + U.toDateStr(U.addDays(U.parseDateStr(ds), n))); };
+    const inDays = Math.round((U.parseDateStr(ds) - U.parseDateStr(today)) / 864e5);
+    const sub = ds === today ? 'Today' : inDays === 1 ? 'Tomorrow' : inDays === -1 ? 'Yesterday' : '';
+    return {
+      title: dayTitle(ds), sub, back: m === curMonth() ? '#/calendar' : '#/calendar/' + m,
+      actions: [h('span', { class: 'dayarrows' }, h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Previous day', onclick: () => step(-1) }, icon('left', 18)),
+        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Next day', onclick: () => step(1) }, icon('right', 18)))],
+      el: h('div', { class: 'cal daypage' }, dayCard(V.data(), ds, step, { page: true })),
+    };
   }
-  function dayCard(D, ds, step) {
+  function dayCard(D, ds, step, o) {
+    o = o || {};
     const svc = V.svcOf(D.settings), m = V.monthOf(ds), p = V.profileFor(svc, m), keeps = V.tracks(p);
     const today = todayStr(), future = ds > today;
     const recs = V.activity(D, {}).get(ds) || [];
@@ -208,7 +214,7 @@
     const addRow = (label, fn) => h('button', { class: 'dadd', type: 'button', onclick: fn }, icon('plus', 16), label);
     const inDays = Math.round((U.parseDateStr(ds) - U.parseDateStr(today)) / 864e5);
     const sub = ds === today ? 'Today' : ring ? 'Visits recorded, no time added' : inDays === 1 ? 'Tomorrow' : inDays === -1 ? 'Yesterday' : future ? 'In ' + inDays + ' days' : '';
-    const kids = [h('div', { class: 'dchead' },
+    const kids = [o.page ? (ring ? h('div', { class: 'muted small dring' }, 'Visits recorded, no time added') : null) : h('div', { class: 'dchead' },
       h('div', { class: 'dct' }, h('b', null, dayTitle(ds)), sub ? h('span', { class: 'muted small' }, sub) : null),
       h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Previous day', onclick: () => step(-1) }, icon('left', 18)),
       h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Next day', onclick: () => step(1) }, icon('right', 18)))];
@@ -341,7 +347,7 @@
       else if (keeps && ds >= today && !t) { const pl = V.planMins(svc, ds); if (pl) { mark = h('span', { class: 'cplan' }, hrs(pl)); what.push(V.fmtDur(pl) + ' planned'); } }
       const n = fu.get(ds);
       if (n) what.push(n + (n === 1 ? ' follow-up' : ' follow-ups'));
-      cells.push(h('button', { class: 'cday' + (ds === today ? ' today' : '') + (ds === selDs ? ' sel' : ''), type: 'button', 'data-day': ds, 'aria-pressed': String(ds === selDs), 'aria-label': dayTitle(ds) + (what.length ? ': ' + what.join(', ') : ''), onclick: () => (onPick ? onPick(ds) : daySheet(ds)) },
+      cells.push(h('button', { class: 'cday' + (ds === today ? ' today' : '') + (ds === selDs ? ' sel' : ''), type: 'button', 'data-day': ds, 'aria-pressed': selDs ? String(ds === selDs) : null, 'aria-label': dayTitle(ds) + (what.length ? ': ' + what.join(', ') : ''), onclick: () => (onPick ? onPick(ds) : daySheet(ds)) },
         h('span', { class: 'cn' }, String(d)), mark,
         n ? h('span', { class: 'cfu', 'aria-hidden': 'true' }, icon('user1', 9), n > 1 ? String(n) : null) : null));
     }
@@ -561,37 +567,16 @@
   function screen(sub, sub2) {
     if (sub === 'profile') return profilePage();
     if (sub === 'schedule') return schedulePage();
+    if (sub === 'day' && /^\d{4}-\d{2}-\d{2}$/.test(sub2 || '')) return dayPage(sub2);
     // #/calendar/review/2026-09 opens that service year's review (handy before September comes round)
     if (sub === 'review') { const y = /^\d{4}-09$/.test(sub2 || '') ? sub2 : V.addMonths(V.yearStart(curMonth()), -12); history.replaceState(null, '', '#/calendar'); if (RV.review) setTimeout(() => RV.review.open(y), 0); sub = ''; }
     const D = V.data(), svc = V.svcOf(D.settings);
     const m = /^\d{4}-\d{2}$/.test(sub || '') ? sub : curMonth();
     const p = V.profileFor(svc, m), keeps = V.tracks(p);
     const el = h('div', { class: 'cal' });
-    // v2.59: the selected day's card sits under the month; the Calendar opens on today
-    const selDs = sel && V.monthOf(sel) === m ? sel : m === curMonth() ? todayStr() : V.dayStr(m, 1);
-    sel = selDs;
-    const dayBox = h('div', { class: 'daybox' });
-    const paintDay = () => { dayBox.replaceChildren(dayCard(V.data(), sel, stepDay)); };
-    function select(ds) {
-      sel = ds;
-      el.querySelectorAll('.cday.sel').forEach((c) => { c.classList.remove('sel'); c.setAttribute('aria-pressed', 'false'); });
-      const c = el.querySelector('.cday[data-day="' + ds + '"]'); if (c) { c.classList.add('sel'); c.setAttribute('aria-pressed', 'true'); }
-      paintDay();
-    }
-    function pick(ds) { select(ds); reveal(); }
-    // A tap on a day brings the card's top into view, leaving some of the month above it
-    function reveal() {
-      const c = dayBox.firstChild; if (!c || !c.getBoundingClientRect) return;
-      const top = c.getBoundingClientRect().top, vh = window.innerHeight || 800, want = vh * 0.42;
-      if (top > want) window.scrollBy({ top: top - want, behavior: 'smooth' });
-    }
-    function stepDay(n) {
-      const ds = U.toDateStr(U.addDays(U.parseDateStr(sel), n));
-      if (V.monthOf(ds) === m) select(ds); else daySheet(ds);
-    }
-    paintDay();
+    // v2.61: a tapped day opens its own page (monthCard's default)
     if (!svc.setup) {
-      el.append(setupCard(), monthCard(D, m, selDs, pick), dayBox);
+      el.append(setupCard(), monthCard(D, m, null));
       return { title: 'Calendar', el };
     }
     el.append(...[
@@ -600,8 +585,7 @@
         keeps ? h('a', { class: 'cschedb', href: '#/calendar/schedule' }, icon('calendar', 16), 'My schedule') : null),
       keeps ? paceCard(D, m, p) : null,
       ringCard(D, m),
-      monthCard(D, m, selDs, pick),
-      dayBox,
+      monthCard(D, m, null),
       studiesCard(D, m),
       m === curMonth() ? reportCard(V.addMonths(m, -1)) : m < curMonth() ? reportCard(m) : null,
       keeps ? yearCard(D, m, p) : null].filter(Boolean)); // append() would write "null" for a missing card
@@ -658,5 +642,5 @@
     return true;
   }
 
-  RV.calendar = { screen, daySheet, dayCard, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel, pastMonthSheet, openMonth, quietSurprises, leaf };
+  RV.calendar = { screen, daySheet, dayPage, dayCard, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel, pastMonthSheet, openMonth, quietSurprises, leaf };
 })(window);

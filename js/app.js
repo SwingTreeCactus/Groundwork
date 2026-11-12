@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.60.0';
+  RV.VERSION = '2.61.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -156,6 +156,9 @@
     current = screen;
     topbar.replaceChildren();
     topbar.classList.toggle('sub-page', !!screen.back);
+    // v2.61: a screen with back and ⋯ in its own header (a contact) has no bar until that header scrolls away
+    topbar.classList.toggle('float', !!screen.floatBar);
+    topbar.classList.remove('shown'); topbar.inert = !!screen.floatBar;
     if (screen.back) {
       topbar.appendChild(h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Back', onclick: () => { if (history.length > 1) history.back(); else location.hash = screen.back; } }, icon('left')));
     }
@@ -169,6 +172,7 @@
         const big = view.querySelector(screen.titleWatch); // looked up each time: the screen may repaint its parts
         const bar = topbar.getBoundingClientRect().bottom;
         h1.classList.toggle('hide', !!big && big.getBoundingClientRect().bottom > bar);
+        if (screen.floatBar) { const on = !big || big.getBoundingClientRect().bottom < 0; topbar.classList.toggle('shown', on); topbar.inert = !on; }
       };
       root.addEventListener('scroll', check, { passive: true });
       requestAnimationFrame(check);
@@ -189,11 +193,27 @@
     // next redraw must count as the same page and keep the scroll, not jump back to that page's old position
     lastHash = location.hash || hash;
     root.scrollTo(0, y);
+    tabsBack();
+  }
+
+  // v2.61: the tabs slide away while scrolling down and come back on any scroll up (and on every new screen).
+  // Scrolls the app makes itself (restoring a page's place) don't count.
+  let lastY = 0, quietUntil = 0;
+  function tabsBack() { document.body.classList.remove('tabs-away'); lastY = root.scrollY; quietUntil = Date.now() + 400; }
+  function tabsOnScroll() {
+    const y = root.scrollY, dy = y - lastY;
+    if (Date.now() < quietUntil || document.querySelector('.sheet-wrap, .sheet')) { lastY = y; return; }
+    if (Math.abs(dy) < 8) return;
+    const roomy = document.documentElement.scrollHeight - root.innerHeight > 120; // short pages keep their tabs
+    if (dy > 0 && y > 60 && roomy) document.body.classList.add('tabs-away');
+    else if (dy < 0) document.body.classList.remove('tabs-away');
+    lastY = y;
   }
 
   root.addEventListener('scroll', () => {
     if (lastHash) scrollPos[lastHash] = root.scrollY;
     if (document.body.classList.contains('immersive')) topbar.classList.toggle('solid', root.scrollY > 170);
+    tabsOnScroll();
   }, { passive: true });
   root.addEventListener('hashchange', () => { if (!location.hash) location.replace('#/home'); render(); });
 

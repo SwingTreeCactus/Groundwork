@@ -29,7 +29,8 @@ with sync_playwright() as p:
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(URL + '#/home'); pg.wait_for_selector('.tabbar .tab')
     ids = pg.evaluate("""() => { const S = RV.store, d = (n) => new Date(Date.now() - n * 864e5).toISOString();
-      const m = S.addRv({ name: 'Maria Lopez', stage: 'return', address: '1418 Pine St', neighborhood: 'Lakeview', phone: '(209) 555-0142', notes: 'Lives with her mother. Two cats.', whatsNext: 'Psalm 37:29' });
+      const m = S.addRv({ name: 'Maria Lopez', stage: 'return', address: '1418 Pine St, Stockton 95204', neighborhood: 'Lakeview', phone: '(209) 555-0142', notes: 'Lives with her mother. Two cats.', whatsNext: 'Psalm 37:29' });
+      for (let i = 0; i < 6; i++) S.addEntry(m.id, 'visit', { text: 'An earlier visit, number ' + i + ', with a few words about it.' }, d(40 + i));
       S.addEntry(m.id, 'visit', { text: 'Left the Happy family tract.' }, d(20)); S.addEntry(m.id, 'nh', {}, d(13)); S.addEntry(m.id, 'visit', { text: 'Talked about Psalm 37.' }, d(1));
       S.updateRv(m.id, { snoozedUntil: RV.util.toDateStr(RV.util.addDays(new Date(), 3)), nextTime: '10:30', nextRemind: '30' });
       const p = S.addRv({ name: 'Diane Park', stage: 'yet', address: '1422 Pine St' });
@@ -48,7 +49,28 @@ with sync_playwright() as p:
     check(pg.locator('.gprog').count() == 1 and pg.locator('.gbar').count() == 0, 'a plain progress bar, no growth card')
     check(pg.locator('.rvdock .nhsm').count() == 1 and pg.locator('.rvdock .btn.primary').inner_text().strip() == 'Record a visit', 'Not Home (small) and Record a visit stay pinned')
     dock = pg.locator('.rvdock').bounding_box()
-    check(dock and dock['y'] + dock['height'] <= 844 - 50, 'the dock sits above the tabs')
+    check(dock and dock['y'] + dock['height'] <= 844 - 50 and dock['height'] <= 72, 'the dock sits above the tabs, one line high (%d)' % dock['height'])
+    # v2.61: compact: no bar above the name, street only, area in About, tabs away on scroll
+    check(pg.locator('.whohead button[aria-label="Back"]').count() == 1 and pg.locator('.whohead button[aria-label="More actions"]').count() == 1, 'back and ⋯ sit beside the name')
+    pg.wait_for_timeout(400); tb = pg.locator('.topbar').bounding_box()
+    check(tb['y'] + tb['height'] <= 1, 'no bar above the name at the top (%s)' % tb)
+    check(pg.locator('.gaddr').inner_text().strip() == '1418 Pine St', 'the address shows the street only (%s)' % pg.locator('.gaddr').inner_text().strip())
+    ab = pg.evaluate("[...document.querySelectorAll('details.about .abrow')].map((r) => r.textContent.replace(/\\s+/g, ' ').trim())")
+    check(any(x.startswith('Area') and 'Lakeview' in x for x in ab), 'the area is in About (%s)' % ab[:3])
+    for i in range(6): pg.mouse.wheel(0, 120); pg.wait_for_timeout(80)
+    pg.wait_for_timeout(450)
+    tb = pg.locator('.topbar').bounding_box()
+    check(pg.evaluate("document.body.classList.contains('tabs-away')") and pg.locator('.tabbar').bounding_box()['y'] >= 844 - 2, 'scrolling down slides the tabs away')
+    check(tb['y'] >= -1 and 'Maria Lopez' in pg.locator('.topbar').inner_text(), 'the slim bar with back and the name comes in once the name scrolls away')
+    dock = pg.locator('.rvdock').bounding_box()
+    check(dock['y'] + dock['height'] >= 844 - 4, 'the dock drops to the bottom edge')
+    pg.mouse.wheel(0, -120); pg.wait_for_timeout(450)
+    check(not pg.evaluate("document.body.classList.contains('tabs-away')"), 'any scroll up brings the tabs back')
+    pg.evaluate("window.scrollTo(0, 0)"); pg.wait_for_timeout(400)
+    # the address: the whole of it while editing
+    pg.click('.gaddr'); pg.wait_for_selector('.inl input')
+    check(pg.locator('.inl input').input_value() == '1418 Pine St, Stockton 95204', 'editing shows the whole address')
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     # the name, typed in place
     pg.click('.gperson'); pg.wait_for_selector('.inl.big input')
     shot(pg, 'c2-name', False)
@@ -76,7 +98,7 @@ with sync_playwright() as p:
     pg.fill('.abrow .inl input', '(209) 555-0199'); pg.keyboard.press('Enter'); pg.wait_for_timeout(300)
     check(pg.evaluate("(id) => RV.store.rvById(id).phone", ids['m']) == '(209) 555-0199', 'the phone row edits in place')
     # ⋯
-    pg.click('button[aria-label="More actions"]'); pg.wait_for_selector('.sheet .opt')
+    pg.click('.whohead button[aria-label="More actions"]'); pg.wait_for_selector('.sheet .opt')
     acts = [x.split('\n')[0] for x in pg.locator('.sheet .opt').all_inner_texts()]
     check(acts == ['Archive…', 'Hand over…', 'Delete contact…'], '⋯ holds Archive, Hand over and Delete (%s)' % acts)
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200)

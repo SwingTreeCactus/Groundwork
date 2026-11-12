@@ -133,3 +133,15 @@ Release D, the last of the redesign (canvas "Groundwork final screens", boards D
 - `UI.isApple`, `UI.MAPS`, `UI.mapsUrl`, `UI.mapsApp` exported for the settings page and tests.
 - To check on Mark's phone: that the Google Maps link opens the Google Maps app from the iPhone home-screen app (if installed), not just the website.
 - Tests: directions_ui 21 (new, browser: iPhone and Android, first tap, saved choice, exact spot vs address, Settings, Ask each time, restored Apple choice), smoke 378 (the menu has nine rows; its directions check sets Google Maps first), others unchanged. VERSION 2.60.0, cache rvapp-v126.
+
+## 79. v2.61.0 A compact contact page, tabs that hide, the day as its own page (built 2026-11-12)
+
+Mark's feedback on v2.59–2.60 from his phone (Nov 12): too little fits on a contact; a day under the month meant scrolling back up through the time wheel. Mockups: "Groundwork final screens", row "Compact contact page and the day page" (C-Top, C-Scrolled, C-Study, C-Address, D-Month, D-Day).
+- **No bar above a contact's name.** Back and ⋯ sit in the who card beside the plant and name (`.whohead`). A slim bar with back, the name and ⋯ slides in once the name scrolls off the top (`floatBar` on a screen; `.topbar.float.shown`; the bar is inert while hidden).
+- **The plant** beside the name is the `lg` size (80 px wide) instead of `xl`; the name is a size smaller.
+- **Street only**: the address shows up to its first comma ("2756 Telegraph"); city, ZIP and area stay saved, go to Directions and show in full when the address is tapped to edit. The area left the header: About has an Area row (pick list, Undo).
+- **Phone · Text · Directions** (and Add phone): 40 px buttons, icon beside the label. Household notes link, growth path (24 px plants) and its 4 px bar are tighter; the Next time card's padding is smaller.
+- **Not Home and Record a visit / Log study**: 48 px, one line each, icon beside the label (they shrink rather than overflow at large text sizes).
+- **Tabs hide on scroll** (every screen): scrolling down more than a little slides the tab bar away; any scroll up, or a new screen, brings it back; pages too short to scroll keep it; scrolls the app makes itself and scrolling under a sheet don't count. The pinned buttons and the + button drop to the bottom edge with it (`body.tabs-away`).
+- **The day page**: tapping a day in the month (or a chip on the ring card) opens `#/calendar/day/YYYY-MM-DD`: the date and Today/Tomorrow/Yesterday in the bar, back to the month, ‹ › grouped in a pill and a swipe for other days (they replace the address, so Back still goes to the month), then the v2.59 card's contents: Time (wheel and a full-width Save), Visits, Planned time, Scheduled. The month no longer has a card under it or a selected day.
+- Tests: contact_ui 31 (compact header, street only, Area in About, the tabs and the slim bar on scroll, the full address while editing), calendar_ui 46 (the day page, arrows, Back to the month), smoke 378 (⋯ from the card; the seed is `lg`), others unchanged. VERSION 2.61.0, cache rvapp-v127.

@@ -2543,3 +2543,49 @@ button.nxp { border-left: 0; border-right: 0; border-bottom: 0; background: none
 .mapspick .opt > div { flex: 1; font-weight: 600; }
 .mapspick .opt > svg:last-child { color: var(--muted); }
 .mapspick p { margin: 0 2px 12px; }
+
+/* ---------- v2.61: a compact contact page, tabs that hide on scroll ---------- */
+/* no bar above a contact: back and ⋯ sit beside the name; a slim bar slides in once the name scrolls away */
+.topbar.float { position: fixed; left: 0; right: 0; top: 0; transform: translateY(-100%); transition: transform .2s ease; box-shadow: 0 1px 0 var(--line); }
+.topbar.float.shown { transform: none; }
+.whohead { display: flex; align-items: flex-start; gap: 2px; margin: -6px -8px 0 -10px; }
+.whohead > .iconbtn { flex: none; width: 40px; height: 40px; color: var(--fg); }
+.whohead .ghero { flex: 1; min-width: 0; margin: 0; padding-left: 0; gap: 10px; align-items: flex-end; }
+.whohead .ghero .pl.lg.s1 { margin-top: -48px; }
+.whohead .ghero .pl.lg.s2 { margin-top: -30px; }
+.whohead .gwho, .whohead .gwho.plain { flex: 1; min-width: 0; padding: 6px 0 2px; margin: 0; }
+.whohead .gperson, .whohead .gwho.plain .gperson { font-size: 1.5rem; }
+.whohead .gwho .gname { min-height: 28px; font-size: .95rem; }
+.whohead .gaddr { min-height: 28px; padding-top: 2px; }
+.whohead .gaddr span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actrow { gap: 8px; margin-top: 10px; }
+.actrow button { flex-direction: row; justify-content: center; gap: 6px; min-height: 40px; border-radius: 12px; font-size: .88rem; padding: 0 6px; }
+.actrow .addphone { flex: 1; }
+button.household, .addline { margin-top: 10px; }
+.addline { font-size: .9rem; }
+.card.who .gpath { margin: 10px 0 0; }
+.card.who .gpath .gs > span { padding: 3px 6px 2px; border-radius: 10px; }
+.card.who .gpath .pl.sm { width: 24px; height: 37px; }
+.card.who .gprog { height: 4px; margin: 6px 4px 0; }
+.card.who { padding-bottom: 12px; }
+.nextcard .seck { margin-bottom: 4px; }
+.nextcard .nxw { min-height: 40px; }
+.nxp { margin-top: 8px; padding-top: 8px; }
+/* Not Home and Record a visit: one line each */
+.rvdock .btn { min-height: 48px; border-radius: 14px; }
+.rvdock .nhsm { flex: 0 0 auto; flex-direction: row; gap: 6px; font-size: .9rem; padding: 0 14px; }
+.hasdock { padding-bottom: 72px; }
+/* the tabs slide away scrolling down; the dock and the + button follow them down */
+.tabbar, .rvdock, .fab { transition: transform .22s ease, bottom .22s ease; }
+body.tabs-away .tabbar { transform: translateY(100%); }
+body.tabs-away .rvdock { bottom: env(safe-area-inset-bottom); }
+body.tabs-away .fab { bottom: calc(16px + env(safe-area-inset-bottom)); }
+.rvdock .btn.big { flex-direction: row; gap: 8px; min-height: 48px; font-size: 1rem; }
+.rvdock .btn { white-space: nowrap; }
+.rvdock .nhsm { padding: 0 12px; }
+.topbar .dayarrows { display: flex; border: 1px solid var(--line); border-radius: 14px; margin-right: 4px; }
+.topbar .dayarrows .iconbtn { width: 40px; height: 38px; }
+.daypage .daycard .dlab:first-child, .daypage .daycard .dring + .dlab { margin-top: 2px; }
+.daypage .dring { margin-bottom: 4px; }
+.dtime .actions { display: flex; } .dtime .actions .btn { flex: 1; min-height: 48px; }
+.rvdock .btn { min-width: 0; overflow: hidden; } .rvdock .nhsm { flex-shrink: 0; }

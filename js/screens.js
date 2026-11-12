@@ -971,7 +971,7 @@
   // v2.58: the plant beside the name, the stage and the address (all made by detail())
   function gardenHero(it, st, nameEl, stageEl, addrEl) {
     const rv = it.rv;
-    const big = plantOf(st, 'xl');
+    const big = plantOf(st, 'lg'); // v2.61: smaller, beside the name with back and ⋯
     P.leanOnTouch(big);
     if (P.pendingWater === rv.id) { P.pendingWater = null; setTimeout(() => P.water(big), 60); }
     return h('div', { class: 'ghero' }, big, h('div', { class: 'gwho' }, nameEl, stageEl, addrEl));
@@ -1100,21 +1100,39 @@
     // v2.58: a dotted underline under the name and notes for the first few contacts opened, until something is edited in place
     const cue = !closed && !(S.settings.tips || {}).inline && cueCount() < 6;
 
+    const goBack = () => { if (history.length > 1) history.back(); else location.hash = '#/rvs'; };
+    function moreBtn() { return h('button', {
+      class: 'iconbtn', type: 'button', 'aria-label': 'More actions',
+      onclick: () => sheet('Actions', (close) => {
+        const act = (label, fn, sub) => h('button', { class: 'opt', type: 'button', onclick: () => { close(); fn(); } }, h('div', null, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
+        return h('div', null,
+          !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
+          !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
+          act('Delete contact…', async () => {
+            const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
+            if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
+          }));
+      }),
+    }, icon('more')); }
     // ---- 1 Who: plant, name, stage, address; Phone · Text · Directions; household notes; the growth path ----
     const nameEl = h(closed ? 'h2' : 'button', { class: 'gperson' + (cue ? ' cue' : ''), type: closed ? null : 'button', 'aria-label': closed ? null : 'Rename ' + rv.name,
       onclick: closed ? null : (e) => inlineEdit(e.currentTarget, { value: rv.name, label: 'Name', required: true, onSave: (v) => ST.updateRv(rv.id, { name: v }) }) }, rv.name);
     const stName = L.shownName(S.settings, rv.stage);
     const stageEl = closed ? null : h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName, icon('down', 16));
-    const addrText = rv.address ? rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '') : (rv.neighborhood ? rv.neighborhood + ' · ' : '') + 'Add address';
+    // v2.61: the street only (up to the first comma); city, ZIP and area stay saved, go to Directions and show when editing
+    const addrText = rv.address ? streetOf(rv.address) : 'Add address';
     const addrEl = h('button', { class: 'gaddr' + (rv.address ? '' : ' add'), type: 'button', 'aria-label': rv.address ? 'Edit address: ' + rv.address : 'Add address',
       onclick: (e) => addressInline(e.currentTarget, rv) }, icon('pin', 15), h('span', null, addrText));
-    const hero = gst && gst.form ? gardenHero(it, gst, nameEl, stageEl, addrEl) : h('div', { class: 'gwho plain' }, nameEl, stageEl, addrEl);
+    const heroIn = gst && gst.form ? gardenHero(it, gst, nameEl, stageEl, addrEl) : h('div', { class: 'gwho plain' }, nameEl, stageEl, addrEl);
+    // v2.61: no bar above the name: back and ⋯ sit beside it (a slim bar with both slides in once the name scrolls away)
+    const hero = h('div', { class: 'whohead' + (heroIn.classList.contains('plain') ? ' plain' : '') },
+      h('button', { class: 'iconbtn whoback', type: 'button', 'aria-label': 'Back', onclick: goBack }, icon('left')), heroIn, moreBtn());
     const navTo = rv.address || rv.geo;
     const actRow = !closed ? h('div', { class: 'actrow' },
-      rv.phone ? h('button', { type: 'button', 'aria-label': 'Phone ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, icon('phone', 20), 'Phone') : null,
-      rv.phone ? h('button', { type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 20), 'Text') : null,
-      !rv.phone ? h('button', { type: 'button', class: 'addphone', onclick: (e) => phoneInline(rv) }, icon('plus', 20), 'Add phone') : null,
-      h('button', { type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), disabled: !navTo, onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 20), 'Directions')) : null;
+      rv.phone ? h('button', { type: 'button', 'aria-label': 'Phone ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, icon('phone', 18), 'Phone') : null,
+      rv.phone ? h('button', { type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 18), 'Text') : null,
+      !rv.phone ? h('button', { type: 'button', class: 'addphone', onclick: (e) => phoneInline(rv) }, icon('plus', 18), 'Add phone') : null,
+      h('button', { type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), disabled: !navTo, onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 18), 'Directions')) : null;
     const notesEl = rv.notes
       ? h(closed ? 'div' : 'button', { class: 'household' + (cue ? ' cue' : ''), type: closed ? null : 'button', 'aria-label': closed ? null : 'Edit household notes',
         onclick: closed ? null : (e) => inlineEdit(e.currentTarget, { value: rv.notes, label: 'Household notes', multiline: true, onSave: (v) => ST.updateRv(rv.id, { notes: v }) }) }, rv.notes)
@@ -1183,9 +1201,16 @@
       const v = await UI.pick('How we met', [{ value: '', label: '(not set)' }].concat(list.map((x) => ({ value: x, label: x }))), rv.howMet || '');
       if (v !== undefined && v !== null && v !== (rv.howMet || '')) { const before = rv.howMet || ''; ST.updateRv(rv.id, { howMet: v }); toast('Saved', { seconds: 4, actions: [{ label: 'Undo', fn: () => ST.updateRv(rv.id, { howMet: before }) }] }); }
     };
+    // v2.61: the area moved here from under the name
+    const areaPick = async () => {
+      const names = ST.neighborhoods(); if (rv.neighborhood && !names.includes(rv.neighborhood)) names.push(rv.neighborhood);
+      const v = await UI.pick(lbl('neighborhood'), [{ value: '', label: '(none)' }].concat(names.map((x) => ({ value: x, label: x }))), rv.neighborhood || '');
+      if (v !== undefined && v !== null && v !== (rv.neighborhood || '')) { const before = rv.neighborhood || ''; ST.updateRv(rv.id, { neighborhood: v }); toast('Saved', { seconds: 4, actions: [{ label: 'Undo', fn: () => ST.updateRv(rv.id, { neighborhood: before }) }] }); }
+    };
     const aboutRows = [
       aboutRow('Phone', rv.phone, closed ? null : () => phoneInline(rv)),
       aboutRow('How we met', rv.howMet, closed ? null : howMetPick),
+      aboutRow(lbl('neighborhood'), rv.neighborhood, closed ? null : areaPick),
     ].concat((S.settings.customFields || []).map((c) => aboutRow(c.name, (rv.custom || {})[c.id] || '', closed ? null : (e) => {
       const host = e.currentTarget.querySelector('.abv');
       inlineEdit(host, { value: (rv.custom || {})[c.id] || '', label: c.name, onSave: (v) => ST.updateRv(rv.id, { custom: Object.assign({}, rv.custom, { [c.id]: v }) }) });
@@ -1200,28 +1225,18 @@
     // Not Home (small) and Record a visit (wide) stay put above the tabs
     if (!closed) els.push(h('div', { class: 'rvdock' },
       h('button', { class: 'btn nhsm', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 18), h('span', null, lbl('notHome'))),
-      h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 20), study || showStudy ? lbl('logStudy') : lbl('recordVisit'))));
+      h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 18), study || showStudy ? lbl('logStudy') : lbl('recordVisit'))));
 
-    const more = h('button', {
-      class: 'iconbtn', type: 'button', 'aria-label': 'More actions',
-      onclick: () => sheet('Actions', (close) => {
-        const act = (label, fn, sub) => h('button', { class: 'opt', type: 'button', onclick: () => { close(); fn(); } }, h('div', null, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
-        return h('div', null,
-          !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
-          act('Delete contact…', async () => {
-            const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
-            if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
-          }));
-      }),
-    }, icon('more'));
     return {
       title: rv.name, back: '#/rvs', titleWatch: '.gperson', // the bar shows the name once the big one scrolls away
-      actions: [more],
+      floatBar: true, // v2.61: no bar until the name scrolls away (back and ⋯ are beside it)
+      actions: [moreBtn()],
       el: h('div', { class: closed ? null : 'hasdock' }, els),
     };
   }
 
+  // v2.61: "2756 Telegraph, Stockton 95204" shows as "2756 Telegraph"
+  const streetOf = (a) => { const t = String(a || '').split(',')[0].trim(); return t || String(a || '').trim(); };
   // ---------- v2.58: editing in place ----------
   const inline = { busy: false, pending: false, done: null };
   const cueCount = () => { try { return +(localStorage.getItem('rvapp.cue') || 0); } catch (e) { return 99; } };
