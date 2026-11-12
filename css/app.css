@@ -2538,3 +2538,8 @@ button.nxp { border-left: 0; border-right: 0; border-bottom: 0; background: none
 .dtime .actions { position: static; padding: 8px 0 0; background: none; }
 .dtime .actions .btn { flex: 1; }
 .daycard .dclear { display: block; margin: 8px auto 0; background: none; border: 0; color: var(--muted); font: inherit; text-decoration: underline; }
+
+/* v2.60: Directions chooser */
+.mapspick .opt > div { flex: 1; font-weight: 600; }
+.mapspick .opt > svg:last-child { color: var(--muted); }
+.mapspick p { margin: 0 2px 12px; }

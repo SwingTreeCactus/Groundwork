@@ -122,3 +122,14 @@ Release C of the redesign (canvas "Groundwork final screens", option 1A). Feedba
 - **Scheduled**: the next visits set for that day, by time (any time last), tap to open the contact; Schedule a visit (pick a contact, then the Next visit sheet with that date).
 - `RV.calendar.daySheet(ds)` stays for the ring card and other callers: it selects the day and shows the card. The service profile sheet is unchanged.
 - Tests: calendar_ui 42 (day card, tap brings it into view, future day Scheduled), all other suites unchanged and passing. VERSION 2.59.0, cache rvapp-v125.
+
+## 78. v2.60.0 Directions in the maps app you choose (built 2026-11-12)
+
+Release D, the last of the redesign (canvas "Groundwork final screens", boards Directions and DirSettings). Feedback: directions should be able to open Google Maps, not only Apple Maps. Before this, an iPhone always got Apple Maps and everything else Google Maps (`UI.openNav`).
+- **The first Directions tap asks** (sheet "Open directions in": Google Maps, Apple Maps on Apple devices only, Waze; "Asked once. Change it any time in Settings › Directions."). The choice is saved (`settings.maps`) and the app opens from the same tap, so the phone doesn't block it as a pop-up. Later taps go straight there. Every Directions button uses it (the contact's action row, the map card, the list pin).
+- **Settings › Directions** (Menu, after Note cleanup): Google Maps (Works everywhere), Apple Maps (iPhone, iPad and Mac; shown only on Apple devices), Waze, Ask each time (the chooser every tap, nothing saved). The menu row shows the choice, or "Asks on first use". "Directions go to the exact spot when the contact has one, else to the address."
+- Links: Google Maps `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=…`, Apple Maps `https://maps.apple.com/?dirflg=d&daddr=…`, Waze `https://waze.com/ul?navigate=yes&ll=lat,lng` (or `q=` with an address). An Apple Maps choice restored onto a phone that isn't Apple's opens Google Maps.
+- **Reminder notifications**: the Directions button on a timed reminder reads the same setting from the phone's records (sw.js `rvsAt` reads `settings.maps`); not chosen or Ask each time falls back to Apple Maps on Apple devices, else Google Maps (a notification can't show the chooser).
+- `UI.isApple`, `UI.MAPS`, `UI.mapsUrl`, `UI.mapsApp` exported for the settings page and tests.
+- To check on Mark's phone: that the Google Maps link opens the Google Maps app from the iPhone home-screen app (if installed), not just the website.
+- Tests: directions_ui 21 (new, browser: iPhone and Android, first tap, saved choice, exact spot vs address, Settings, Ask each time, restored Apple choice), smoke 378 (the menu has nine rows; its directions check sets Google Maps first), others unchanged. VERSION 2.60.0, cache rvapp-v126.

@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v125';
+const CACHE = 'rvapp-v126';
 const ASSETS = [
   './',
   './index.html',
@@ -182,9 +182,13 @@ function rvsAt(at) {
     req.onsuccess = () => {
       const db = req.result;
       try {
-        const rq = db.transaction('rvs', 'readonly').objectStore('rvs').getAll();
-        rq.onsuccess = () => { resolve((rq.result || []).filter((r) => remindAt(r) === at)); db.close(); };
-        rq.onerror = () => { resolve([]); db.close(); };
+        const tx = db.transaction(['rvs', 'meta'], 'readonly'), rq = tx.objectStore('rvs').getAll(), mq = tx.objectStore('meta').get('settings');
+        tx.oncomplete = () => { // v2.60: the maps app chosen in Settings › Directions rides along for the Directions button
+          const st = (mq.result && mq.result.value) || {}, maps = st.maps || null;
+          resolve((rq.result || []).filter((r) => remindAt(r) === at).map((r) => Object.assign({}, r, { maps })));
+          db.close();
+        };
+        tx.onerror = () => { resolve([]); db.close(); };
       } catch (e) { resolve([]); }
     };
   });
@@ -225,10 +229,10 @@ function moveTomorrow(id) {
     });
   });
 }
-function mapsUrl(d) { // v2.57: Apple Maps on Apple devices unless Google Maps or Waze was chosen
+function mapsUrl(d) { // the app chosen in Settings › Directions; not chosen or Ask each time: Apple Maps on Apple devices, else Google Maps
   const q = d.geo && d.geo.lat != null ? d.geo.lat + ',' + d.geo.lng : d.address;
   const apple = /iPhone|iPad|Macintosh/.test(self.navigator.userAgent || '');
-  const app = d.maps || (apple ? 'apple' : 'google');
+  const app = d.maps === 'google' || d.maps === 'waze' || (d.maps === 'apple' && apple) ? d.maps : apple ? 'apple' : 'google';
   if (app === 'waze') return 'https://waze.com/ul?navigate=yes&' + (d.geo && d.geo.lat != null ? 'll=' + q : 'q=' + encodeURIComponent(q));
   if (app === 'apple') return 'https://maps.apple.com/?daddr=' + encodeURIComponent(q);
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q);

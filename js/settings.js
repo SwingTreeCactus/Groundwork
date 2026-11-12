@@ -25,10 +25,31 @@
     return [
       ['Prepare', [['lib/topic', lbl('topics'), cnt('topic') + ' saved', 'note'], ['campaigns', lbl('campaign') + 's', cnt('campaign') + ' saved', 'calendar']]],
       ['App', [['display', 'Display', 'Theme, text size, Home screen', 'sliders'], ['data', 'Backup and import', null, 'download'],
-        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['notify', 'Notifications', RV.reminders && RV.reminders.state().on ? 'Reminders at ' + RV.reminders.state().time : 'Off', 'bell'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
+        ['ai', 'Note cleanup', RV.ai && RV.ai.available() ? 'Claude is on' : 'Off', 'sparkle'], ['directions', 'Directions', mapsLabel(), 'navigation'], ['notify', 'Notifications', RV.reminders && RV.reminders.state().on ? 'Reminders at ' + RV.reminders.state().time : 'Off', 'bell'], ['security', 'Security', S.settings.lock.on ? 'PIN lock is on' : 'PIN lock is off', 'lock']]],
       [null, [['customize', 'Customize', 'Stages, archive reasons, fields, labels', 'edit']]],
     ];
   };
+  // v2.60: the maps app Directions opens
+  const MAPS_SUB = { google: 'Works everywhere', apple: 'iPhone, iPad and Mac', waze: null, ask: null };
+  function mapsLabel() {
+    const m = S.settings.maps; if (!m) return 'Asks on first use';
+    if (m === 'ask') return 'Ask each time';
+    const f = UI.MAPS().find(([v]) => v === UI.mapsApp()); return f ? f[1] : 'Google Maps';
+  }
+  function directions() {
+    const box = h('div');
+    function paint() {
+      const cur = S.settings.maps ? (S.settings.maps === 'ask' ? 'ask' : UI.mapsApp()) : null;
+      box.replaceChildren(
+        h('div', { class: 'card' }, h('div', { class: 'sethead' }, 'Open directions in'),
+          [...UI.MAPS(), ['ask', 'Ask each time']].map(([v, label]) => h('button', { class: 'opt', type: 'button', 'aria-pressed': String(v === cur),
+            onclick: () => { save((st) => { st.maps = v; }); paint(); } },
+          h('div', null, h('div', null, label), MAPS_SUB[v] ? h('div', { class: 'sub' }, MAPS_SUB[v]) : null)))),
+        h('p', { class: 'muted small' }, 'Directions go to the exact spot when the contact has one, else to the address.'));
+    }
+    paint();
+    return page('Directions', [box], { noRerender: true });
+  }
   const setRow = (href, title, sub, ic) =>
     h('a', { class: 'setrow', href }, icon(ic, 20), h('div', { class: 'main' }, h('div', null, title), sub ? h('div', { class: 'sub' }, sub) : null), icon('right', 18));
   function index() {
@@ -1370,5 +1391,5 @@
     ], { noRerender: true });
   }
 
-  RV.settingsScreens = { index, customize, display, notify, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport, import: importPage };
+  RV.settingsScreens = { index, customize, display, directions, notify, home: homeSettings, lib, campaigns, campaignForm, stages, reasons, fields, labels, attention, ai, security, data, about, notes: notesImport, import: importPage };
 })(window);

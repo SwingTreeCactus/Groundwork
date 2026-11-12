@@ -369,6 +369,35 @@
     return el;
   }
 
+  // ---------- directions (v2.60) ----------
+  // settings.maps: unset until chosen on the first tap; 'google', 'apple' (Apple devices only), 'waze' or 'ask'
+  const isApple = () => /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const MAPS = () => [['google', 'Google Maps'], isApple() ? ['apple', 'Apple Maps'] : null, ['waze', 'Waze']].filter(Boolean);
+  function mapsUrl(app, a) {
+    const q = encodeURIComponent(a), ll = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(a);
+    if (app === 'apple') return 'https://maps.apple.com/?dirflg=d&daddr=' + q;
+    if (app === 'waze') return 'https://waze.com/ul?navigate=yes&' + (ll ? 'll=' + a : 'q=' + q);
+    return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + q;
+  }
+  // The app to open now: the saved choice, or null when the chooser should show (not chosen yet, or Ask each time)
+  function mapsApp() {
+    const m = S.settings.maps;
+    if (m === 'apple' && !isApple()) return 'google'; // a backup from an iPhone restored elsewhere
+    return m === 'google' || m === 'apple' || m === 'waze' ? m : null;
+  }
+  function openNav(a) {
+    const app = mapsApp();
+    if (app) { window.open(mapsUrl(app, a), '_blank', 'noopener'); return; }
+    const first = S.settings.maps !== 'ask';
+    // The maps app opens inside the tap on a choice, so the phone doesn't block it as a pop-up
+    sheet('Open directions in', (close) => h('div', { class: 'mapspick' },
+      first ? h('p', { class: 'muted small' }, 'Asked once. Change it any time in Settings › Directions.') : null,
+      MAPS().map(([v, label]) => h('button', { class: 'opt', type: 'button', onclick: () => {
+        if (first) ST.saveSettings((st) => { st.maps = v; });
+        window.open(mapsUrl(v, a), '_blank', 'noopener'); close();
+      } }, icon('navigation', 20), h('div', { class: 'grow' }, label), icon('right', 18)))), { noFocus: true });
+  }
+
   RV.ui = {
     lbl, sheet, confirmDialog, pick, textPrompt, toast, stageBadge, attBadge, campaignName, subtitle, lastText, toggle, field, emptyState,
     doNotHome, editEntrySheet, dateTimeLocal, parseLocalDT, vibrate, wheel,
@@ -384,12 +413,8 @@
     openSms: (p) => { location.href = 'sms:' + String(p).replace(/[^\d+]/g, ''); },
     // Directions go to the geotag when there is one (exact spot), else to the saved address.
     navTarget: (rv) => (rv.geo && typeof rv.geo.lat === 'number' && typeof rv.geo.lng === 'number' ? rv.geo.lat + ',' + rv.geo.lng : [rv.address, rv.neighborhood].filter(Boolean).join(', ')),
-    openNav: (a) => {
-      const q = encodeURIComponent(a);
-      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const url = ios ? 'https://maps.apple.com/?dirflg=d&daddr=' + q : 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + q;
-      window.open(url, '_blank', 'noopener');
-    },
+    // v2.60: the maps app is the user's choice (Settings › Directions), asked on the first Directions tap
+    isApple, MAPS, mapsUrl, mapsApp, openNav,
     openMap: (a) => { window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a), '_blank', 'noopener'); },
   };
 })(window);
