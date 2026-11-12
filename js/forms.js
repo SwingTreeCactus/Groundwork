@@ -548,7 +548,7 @@
     nextStart.addEventListener('input', () => { nextTouched = true; });
     prog.addEventListener('input', () => { if (!nextTouched) nextStart.value = L.suggestNext(prog.value); });
     const pubList = h('datalist', { id: 'pub-list-v' }, ST.publications().map((n) => h('option', { value: n })));
-    const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal(new Date().toISOString()) });
+    const when = h('input', { type: 'datetime-local', value: UI.dateTimeLocal((opts && opts.at) || new Date().toISOString()) }); // v2.59: a past day from the Calendar
     // the stage is left alone unless changed here; the garden grows it on its own
     const sc = stageChoices(rv.stage);
     const stage = select(sc.options, sc.value);

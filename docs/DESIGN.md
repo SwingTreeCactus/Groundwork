@@ -111,3 +111,14 @@ Release B of the redesign (canvas "Groundwork final screens"; audit claude/conta
 - **New contact**: Fill from a note, Name, Address, Area, what you talked about, the Potential / RV switch, then Discuss next time and Next visit; More details holds Phone, How we met, household notes and the campaign. No topic, no best days picker (Likely home learns it), no tags, no second stage menu.
 - **Removed**: tags in forms and on the page (old values stay on records, in search and exports), Topic last used and its next-part suggestion, the year in review's go-to topic card.
 - Tests: contact_ui 22 (new, browser), smoke 378 (old page checks moved to the new page; topic and best-day checks now check their absence), kinds 23, next_ui 16, others unchanged. VERSION 2.58.0, cache rvapp-v124.
+
+## 77. v2.59.0 The Calendar day card (built 2026-11-12)
+
+Release C of the redesign (canvas "Groundwork final screens", option 1A). Feedback: too many taps to record field service time. A tapped day no longer opens a bottom sheet; its card sits under the month, like a phone's calendar app, and the Calendar opens on today.
+- **The card** (`dayCard`, `.daycard`): the date with Previous / Next day arrows, and swipe left or right for the next day (`RV.swipe.pager`). Tapping a day marks it (`.cday.sel`) and scrolls just enough for the card's top to show under the month.
+- **Time**: with nothing recorded the wheel is open in the card with Save, so recording time is one tap on the day and Save (Total or Start–finish, Ministry or Credit, as before). With time recorded: the sessions, tap one to change it, Add session, and "No service this day".
+- **Visits** (past and today): who was visited, then Record a visit (pick a contact; the visit is dated that day).
+- **Planned time** (future days), as before.
+- **Scheduled**: the next visits set for that day, by time (any time last), tap to open the contact; Schedule a visit (pick a contact, then the Next visit sheet with that date).
+- `RV.calendar.daySheet(ds)` stays for the ring card and other callers: it selects the day and shows the card. The service profile sheet is unchanged.
+- Tests: calendar_ui 42 (day card, tap brings it into view, future day Scheduled), all other suites unchanged and passing. VERSION 2.59.0, cache rvapp-v125.

@@ -126,12 +126,21 @@
     return true;
   }
 
+  // v2.59: save a day's sessions (the sheet and the day card)
+  async function saveTime(ds, sessions, t, wasRing) {
+    if (t && t.tooLong) { UI.toast('A day can’t be more than 24 hours.'); return false; }
+    const list = sessions.filter((s) => V.sessionMins(s) > 0).map((s) => ({ id: s.id, mode: s.mode, mins: s.mins, start: s.start, end: s.end, brk: s.brk, credit: !!s.credit }));
+    const done = await guardSent(V.monthOf(ds), () => { if (wasRing && list.length) filled = ds; V.saveDay(ds, list); });
+    if (!done) { filled = null; return false; }
+    UI.toast(list.length ? V.fmtDur(V.dayTotals(list).total) + ' recorded for ' + shortDay(ds) : 'Time removed for ' + shortDay(ds));
+    return true;
+  }
   function timeSheet(ds, o) {
     o = o || {};
     const plan = !!o.plan, svc = V.svc();
     const sessions = (plan ? V.plannedFor(svc, ds) : V.times(ds)).map((s) => Object.assign({}, s));
     const had = sessions.length > 0;
-    if (!sessions.length) sessions.push(blankSession());
+    if (!sessions.length || o.add) sessions.push(blankSession());
     const wasRing = !plan && V.ringDays(V.data(), V.monthOf(ds), now()).includes(ds);
     let t = null;
     const ed = sessionEditor(sessions, (x) => { t = x; }, { plan, removable: had });
@@ -142,10 +151,8 @@
           if (t && t.tooLong) { UI.toast('A day can’t be more than 24 hours.'); return; }
           const list = sessions.filter((s) => V.sessionMins(s) > 0).map((s) => ({ id: s.id, mode: s.mode, mins: s.mins, start: s.start, end: s.end, brk: s.brk, credit: !!s.credit }));
           if (plan) { V.setOverride(ds, list.map((s) => { const c = Object.assign({}, s); delete c.id; return c; })); close(); UI.toast('Plan changed for ' + shortDay(ds)); return; }
-          const done = await guardSent(V.monthOf(ds), () => { if (wasRing && list.length) filled = ds; V.saveDay(ds, list); });
-          if (!done) { filled = null; return; }
+          if (!(await saveTime(ds, sessions, t, wasRing))) return;
           close();
-          UI.toast(list.length ? V.fmtDur(V.dayTotals(list).total) + ' recorded for ' + shortDay(ds) : 'Time removed for ' + shortDay(ds));
           if (o.after) o.after();
         } }, 'Save'))));
   }
@@ -175,49 +182,82 @@
     });
   }
 
-  // ---------- the day sheet ----------
+  // ---------- the day card (v2.59: under the month, like a calendar app; was a bottom sheet) ----------
   const KIND_WORD = { visit: 'Visit', study: 'Study', nh: 'Not home', new: 'New contact' };
+  let sel = null; // the day the card shows; the Calendar opens on today
+  // Kept for callers (the ring card, tests): show that day's card
   function daySheet(ds) {
-    const D = V.data(), svc = V.svcOf(D.settings), m = V.monthOf(ds), p = V.profileFor(svc, m), keeps = V.tracks(p);
+    sel = ds;
+    const m = V.monthOf(ds), want = m === curMonth() ? '#/calendar' : '#/calendar/' + m;
+    if (location.hash !== want) location.hash = want;
+    else if (RV.app && RV.app.render) RV.app.render();
+    else window.dispatchEvent(new HashChangeEvent('hashchange'));
+    setTimeout(() => { const c = document.querySelector('.daycard'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 60);
+  }
+  function dayCard(D, ds, step) {
+    const svc = V.svcOf(D.settings), m = V.monthOf(ds), p = V.profileFor(svc, m), keeps = V.tracks(p);
     const today = todayStr(), future = ds > today;
     const recs = V.activity(D, {}).get(ds) || [];
     const sess = V.times(ds);
     const live = (V.activity(D, { live: true }).get(ds) || []).length > 0;
     const cleared = !!(svc.cleared || {})[ds];
-    const list = (head, rows) => h('div', { class: 'dlist' }, h('div', { class: 'dlab' }, head), rows);
+    const ring = !future && keeps && V.ringDays(D, m, now()).includes(ds);
+    const lab = (t) => h('div', { class: 'dlab' }, t);
     const rowBtn = (main, sub, right, fn, href) => h(href ? 'a' : 'button', Object.assign({ class: 'drow' }, href ? { href } : { type: 'button', onclick: fn }),
       h('span', { class: 'dm' }, h('span', null, main), sub ? h('span', { class: 'muted small' }, sub) : null), right || null);
-    UI.sheet(dayTitle(ds), (close) => {
-      const go = (fn) => () => { close(); fn(); };
-      const kids = [];
-      if (!future) {
-        kids.push(h('div', { class: 'muted small dsub' }, recs.length ? recs.length + (recs.length === 1 ? ' thing' : ' things') + ' recorded' : 'Nothing recorded'));
-        if (recs.length) kids.push(list('What you recorded', recs.map((r) => h('a', { class: 'drow', href: '#/rv/' + r.rvId, onclick: () => close() },
-          h('span', { class: 'dt' }, U.fmtTime(new Date(r.at)).replace(/ (AM|PM)$/, '')),
-          h('span', { class: 'dpip ' + (r.kind === 'nh' ? 'nh' : '') , 'aria-hidden': 'true' }),
-          h('span', { class: 'dm' }, h('span', null, r.name), h('span', { class: 'muted small' }, KIND_WORD[r.kind] + (r.text ? ' · ' + r.text.slice(0, 48) + (r.text.length > 48 ? '…' : '') : '')))))));
-        if (keeps) {
-          kids.push(list('Time', [
-            sess.map((s) => rowBtn(s.mode === 'range' ? rangeText(s) : 'Total', sessionSub(s), h('b', null, V.fmtDur(V.sessionMins(s))), go(() => timeSheet(ds)))),
-            h('button', { class: 'btn primary block', type: 'button', onclick: go(() => timeSheet(ds)) }, icon(sess.length ? 'edit' : 'plus', 18), sess.length ? 'Edit time' : 'Add session'),
-            !sess.length && live ? h('button', { class: 'link dclear', type: 'button', onclick: () => { V.clearDay(ds, !cleared); close(); UI.toast(cleared ? 'Marked as a service day again' : 'Marked: no service this day', { actions: [{ label: 'Undo', fn: () => V.clearDay(ds, cleared) }] }); } },
-              cleared ? 'Marked no service · Undo' : 'No service this day') : null]));
+    const addRow = (label, fn) => h('button', { class: 'dadd', type: 'button', onclick: fn }, icon('plus', 16), label);
+    const inDays = Math.round((U.parseDateStr(ds) - U.parseDateStr(today)) / 864e5);
+    const sub = ds === today ? 'Today' : ring ? 'Visits recorded, no time added' : inDays === 1 ? 'Tomorrow' : inDays === -1 ? 'Yesterday' : future ? 'In ' + inDays + ' days' : '';
+    const kids = [h('div', { class: 'dchead' },
+      h('div', { class: 'dct' }, h('b', null, dayTitle(ds)), sub ? h('span', { class: 'muted small' }, sub) : null),
+      h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Previous day', onclick: () => step(-1) }, icon('left', 18)),
+      h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Next day', onclick: () => step(1) }, icon('right', 18)))];
+    if (!future) {
+      // Time: the editor right here when nothing is recorded; the sessions as rows once there are
+      if (keeps) {
+        kids.push(lab(sess.length ? 'Time · ' + V.fmtDur(V.dayTotals(sess).total) : 'Time'));
+        if (sess.length) {
+          kids.push(...sess.map((s) => rowBtn(s.mode === 'range' ? rangeText(s) : 'Total', sessionSub(s), h('b', null, V.fmtDur(V.sessionMins(s))), () => timeSheet(ds))),
+            addRow('Add session', () => timeSheet(ds, { add: true })));
+        } else if (cleared) {
+          kids.push(h('button', { class: 'link dclear', type: 'button', onclick: () => { V.clearDay(ds, false); UI.toast('Marked as a service day again'); } }, 'Marked no service · Undo'));
+        } else {
+          const sessions = [blankSession()];
+          let t = null;
+          const ed = sessionEditor(sessions, (x) => { t = x; }, {});
+          kids.push(h('div', { class: 'timesheet dtime' }, ed.el,
+            h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => saveTime(ds, sessions, t, ring) }, 'Save'))),
+            live ? h('button', { class: 'link dclear', type: 'button', onclick: () => { V.clearDay(ds, true); UI.toast('Marked: no service this day', { actions: [{ label: 'Undo', fn: () => V.clearDay(ds, false) }] }); } }, 'No service this day') : null);
         }
-        if (ds === today) kids.push(h('button', { class: 'btn block', type: 'button', onclick: go(() => planVisit(ds)) }, icon('plus', 18), 'Plan a visit'));
-      } else {
-        const plan = keeps ? V.plannedFor(svc, ds) : [];
-        if (keeps) kids.push(list('Planned' + (plan.length ? ' · ' + V.fmtDur(V.dayTotals(plan).total) : ''), plan.length
-          ? [plan.map((s) => rowBtn(s.mode === 'range' ? rangeText(s) : 'Planned', (s.credit ? 'Credit' : 'Ministry') + (svc.overrides && svc.overrides[ds] ? ' · this day only' : s.repeat === 'other' ? ' · every other week' : s.repeat === 'weeks' ? ' · ' + (s.weeks || []).map(V.ordinal).join(' and ') + ' ' + DAYS_LONG[U.parseDateStr(ds).getDay()] : ' · every week'), h('b', null, V.fmtDur(V.sessionMins(s))), go(() => timeSheet(ds, { plan: true })))),
-            h('div', { class: 'muted small dhint' }, 'Tap a session to change it for this day only.')]
-          : [h('div', { class: 'muted small dhint' }, 'Nothing planned.')]));
-        const fus = ST.items().filter((it) => it.att.state !== 'closed' && it.rv.snoozedUntil === ds).sort((a, b) => U.cmp(a.rv.name, b.rv.name));
-        if (fus.length) kids.push(list('Follow-ups', fus.map((it) => rowBtn(it.rv.name, it.rv.nextStart && RV.logic.isStudyStage(S.settings, it.rv.stage) ? 'Next lesson: ' + it.rv.nextStart : it.rv.whatsNext ? 'Bring up: ' + it.rv.whatsNext : '', icon('right', 16), null, '#/rv/' + it.rv.id))));
-        kids.push(h('div', { class: 'dbtns' },
-          keeps ? h('button', { class: 'btn', type: 'button', onclick: go(() => timeSheet(ds, { plan: true })) }, icon('plus', 18), 'Session') : null,
-          h('button', { class: 'btn primary', type: 'button', onclick: go(() => planVisit(ds)) }, icon('plus', 18), 'Plan a visit')));
       }
-      return h('div', { class: 'daysheet' }, kids);
-    }, { noFocus: true });
+      // Visits: what was recorded that day (visits and Not homes); + Record a visit records one for this day
+      kids.push(lab('Visits'), ...recs.map((r) => h('a', { class: 'drow', href: '#/rv/' + r.rvId },
+        h('span', { class: 'dt' }, U.fmtTime(new Date(r.at)).replace(/ (AM|PM)$/, '')),
+        h('span', { class: 'dpip ' + (r.kind === 'nh' ? 'nh' : ''), 'aria-hidden': 'true' }),
+        h('span', { class: 'dm' }, h('span', null, r.name), h('span', { class: 'muted small' }, KIND_WORD[r.kind] + (r.text ? ' · ' + r.text.slice(0, 48) + (r.text.length > 48 ? '…' : '') : ''))))),
+        addRow('Record a visit', () => contactPicker('Record a visit · ' + shortDay(ds), (rv) => {
+          const at = ds === today ? new Date() : new Date(U.parseDateStr(ds).getTime() + 12 * 36e5);
+          setTimeout(() => RV.forms.visitDialog(rv.id, { at: at.toISOString() }), 50);
+        })));
+    } else if (keeps) {
+      const plan = V.plannedFor(svc, ds);
+      kids.push(lab('Planned time' + (plan.length ? ' · ' + V.fmtDur(V.dayTotals(plan).total) : '')));
+      kids.push(...(plan.length ? plan.map((s) => rowBtn(s.mode === 'range' ? rangeText(s) : 'Planned', (s.credit ? 'Credit' : 'Ministry') + (svc.overrides && svc.overrides[ds] ? ' · this day only' : s.repeat === 'other' ? ' · every other week' : s.repeat === 'weeks' ? ' · ' + (s.weeks || []).map(V.ordinal).join(' and ') + ' ' + DAYS_LONG[U.parseDateStr(ds).getDay()] : ' · every week') + ' · tap to change this day', h('b', null, V.fmtDur(V.sessionMins(s))), () => timeSheet(ds, { plan: true })))
+        : [h('div', { class: 'muted small dhint' }, 'Nothing planned.'), addRow('Plan time for this day', () => timeSheet(ds, { plan: true }))]));
+    }
+    // Scheduled: next visits on this day, by time (any time last)
+    const fus = ST.items().filter((it) => it.att.state !== 'closed' && it.rv.snoozedUntil === ds)
+      .sort((a, b) => (a.rv.nextTime || '99') < (b.rv.nextTime || '99') ? -1 : (a.rv.nextTime || '99') > (b.rv.nextTime || '99') ? 1 : U.cmp(a.rv.name, b.rv.name));
+    kids.push(lab('Scheduled'), ...fus.map((it) => h('a', { class: 'drow', href: '#/rv/' + it.rv.id },
+      h('span', { class: 'dt' + (it.rv.nextTime ? '' : ' any') }, it.rv.nextTime && RV.next ? RV.next.fmt12(it.rv.nextTime) : 'Any time'),
+      h('span', { class: 'dm' }, h('span', null, it.rv.name), h('span', { class: 'muted small' }, it.rv.nextStart && RV.logic.isStudyStage(S.settings, it.rv.stage) ? 'Next lesson: ' + it.rv.nextStart : it.rv.whatsNext ? 'Bring up: ' + it.rv.whatsNext : '')),
+      icon('right', 16))),
+      ds >= today ? addRow('Schedule a visit', () => contactPicker('Schedule a visit · ' + shortDay(ds), (rv) => setTimeout(() => RV.next.sheet(rv.id, { date: ds }), 50))) : null);
+    const card = h('section', { class: 'ccard daycard daysheet' }, kids.filter(Boolean));
+    // swipe the card for the next or previous day (the month grid keeps its own swipe for months)
+    if (RV.swipe) RV.swipe.pager(card, { left: () => step(1), right: () => step(-1),
+      drag: (dx, done) => { card.style.transition = done ? 'transform .2s ease' : 'none'; card.style.transform = dx ? 'translateX(' + Math.max(-60, Math.min(60, dx / 2)) + 'px)' : ''; } });
+    return card;
   }
 
   // ---------- report ----------
@@ -279,7 +319,7 @@
     if (RV.swipe) RV.swipe.dismiss(el, () => el.remove()); // v2.55: same as ×
     return el;
   }
-  function monthCard(D, m) {
+  function monthCard(D, m, selDs, onPick) {
     const svc = V.svcOf(D.settings), p = V.profileFor(svc, m), keeps = V.tracks(p);
     const today = todayStr(), [y, mo] = [+m.slice(0, 4), +m.slice(5, 7)];
     const days = V.dayMap(D.times), all = V.activity(D, {}), rings = new Set(V.ringDays(D, m, now()));
@@ -301,7 +341,7 @@
       else if (keeps && ds >= today && !t) { const pl = V.planMins(svc, ds); if (pl) { mark = h('span', { class: 'cplan' }, hrs(pl)); what.push(V.fmtDur(pl) + ' planned'); } }
       const n = fu.get(ds);
       if (n) what.push(n + (n === 1 ? ' follow-up' : ' follow-ups'));
-      cells.push(h('button', { class: 'cday' + (ds === today ? ' today' : ''), type: 'button', 'aria-label': dayTitle(ds) + (what.length ? ': ' + what.join(', ') : ''), onclick: () => daySheet(ds) },
+      cells.push(h('button', { class: 'cday' + (ds === today ? ' today' : '') + (ds === selDs ? ' sel' : ''), type: 'button', 'data-day': ds, 'aria-pressed': String(ds === selDs), 'aria-label': dayTitle(ds) + (what.length ? ': ' + what.join(', ') : ''), onclick: () => (onPick ? onPick(ds) : daySheet(ds)) },
         h('span', { class: 'cn' }, String(d)), mark,
         n ? h('span', { class: 'cfu', 'aria-hidden': 'true' }, icon('user1', 9), n > 1 ? String(n) : null) : null));
     }
@@ -527,8 +567,31 @@
     const m = /^\d{4}-\d{2}$/.test(sub || '') ? sub : curMonth();
     const p = V.profileFor(svc, m), keeps = V.tracks(p);
     const el = h('div', { class: 'cal' });
+    // v2.59: the selected day's card sits under the month; the Calendar opens on today
+    const selDs = sel && V.monthOf(sel) === m ? sel : m === curMonth() ? todayStr() : V.dayStr(m, 1);
+    sel = selDs;
+    const dayBox = h('div', { class: 'daybox' });
+    const paintDay = () => { dayBox.replaceChildren(dayCard(V.data(), sel, stepDay)); };
+    function select(ds) {
+      sel = ds;
+      el.querySelectorAll('.cday.sel').forEach((c) => { c.classList.remove('sel'); c.setAttribute('aria-pressed', 'false'); });
+      const c = el.querySelector('.cday[data-day="' + ds + '"]'); if (c) { c.classList.add('sel'); c.setAttribute('aria-pressed', 'true'); }
+      paintDay();
+    }
+    function pick(ds) { select(ds); reveal(); }
+    // A tap on a day brings the card's top into view, leaving some of the month above it
+    function reveal() {
+      const c = dayBox.firstChild; if (!c || !c.getBoundingClientRect) return;
+      const top = c.getBoundingClientRect().top, vh = window.innerHeight || 800, want = vh * 0.42;
+      if (top > want) window.scrollBy({ top: top - want, behavior: 'smooth' });
+    }
+    function stepDay(n) {
+      const ds = U.toDateStr(U.addDays(U.parseDateStr(sel), n));
+      if (V.monthOf(ds) === m) select(ds); else daySheet(ds);
+    }
+    paintDay();
     if (!svc.setup) {
-      el.append(setupCard(), monthCard(D, m));
+      el.append(setupCard(), monthCard(D, m, selDs, pick), dayBox);
       return { title: 'Calendar', el };
     }
     el.append(...[
@@ -537,7 +600,8 @@
         keeps ? h('a', { class: 'cschedb', href: '#/calendar/schedule' }, icon('calendar', 16), 'My schedule') : null),
       keeps ? paceCard(D, m, p) : null,
       ringCard(D, m),
-      monthCard(D, m),
+      monthCard(D, m, selDs, pick),
+      dayBox,
       studiesCard(D, m),
       m === curMonth() ? reportCard(V.addMonths(m, -1)) : m < curMonth() ? reportCard(m) : null,
       keeps ? yearCard(D, m, p) : null].filter(Boolean)); // append() would write "null" for a missing card
@@ -594,5 +658,5 @@
     return true;
   }
 
-  RV.calendar = { screen, daySheet, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel, pastMonthSheet, openMonth, quietSurprises, leaf };
+  RV.calendar = { screen, daySheet, dayCard, timeSheet, lookBack, maybeLookBack, newsCard, maybeNews, vwheel, pastMonthSheet, openMonth, quietSurprises, leaf };
 })(window);

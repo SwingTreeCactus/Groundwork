@@ -2519,3 +2519,22 @@ button.nxp { border-left: 0; border-right: 0; border-bottom: 0; background: none
 .nxp.study2 .sbtn.study-sub { font-size: .95rem; color: var(--muted); }
 .nxp.study2 .sbtn.empty { color: var(--green-t); }
 .nxw .btn.sm { flex: none; }
+
+/* ---------- v2.59: the Calendar's day card ---------- */
+.cday.sel { box-shadow: inset 0 0 0 2px var(--fg); }
+.cday.today.sel { box-shadow: none; }
+.daycard { touch-action: pan-y; }
+.dchead { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.dct { flex: 1; display: flex; flex-direction: column; }
+.dct b { font-size: 1.2rem; }
+.daycard .dlab { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 4px; }
+.daycard .drow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 6px 0; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: var(--fg); text-align: left; text-decoration: none; }
+.daycard .dlab + .drow { border-top: 0; }
+.daycard .dt { width: 64px; flex: none; font-weight: 700; font-size: .85rem; }
+.daycard .dt.any { color: var(--muted); font-weight: 600; }
+.daycard .dm { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.dadd { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; font-weight: 600; color: var(--green); padding: 0; }
+.dlab + .dadd { border-top: 0; }
+.dtime .actions { position: static; padding: 8px 0 0; background: none; }
+.dtime .actions .btn { flex: 1; }
+.daycard .dclear { display: block; margin: 8px auto 0; background: none; border: 0; color: var(--muted); font: inherit; text-decoration: underline; }
