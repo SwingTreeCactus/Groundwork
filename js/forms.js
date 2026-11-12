@@ -277,19 +277,23 @@
     const fillBox = isNew && !opts.noFill && RV.ai && RV.ai.available() && RV.notesImport ? h('div', { class: 'fillbox' }) : null;
     const fillVisits = h('div');
     const customInputs = (S.settings.customFields || []).map((c) => ({ c, input: h('input', { type: 'text', value: (rv.custom || {})[c.id] || '' }) }));
+    // v2.58: a new contact's next visit, set right here
+    let nextDraft = null;
+    const nextVisitField = isNew ? RV.next.field(null, null, (v) => { nextDraft = v; }, 'Next visit') : null;
 
     return sheet(draft ? 'Edit details' : isNew ? 'New contact' : 'Edit contact', (close) => {
       const more = h('div', { class: 'more-fields' },
         field('Phone', f.phone),
-        h('div', { class: isClosed ? '' : 'two' }, isClosed ? null : field('Stage', f.stage), field('How we met', f.howMet)),
+        // v2.58: New contact has only the Potential / RV switch for the stage (no second Stage menu here)
+        h('div', { class: isClosed || isNew ? '' : 'two' }, isClosed || isNew ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         studyBox,
         field('Household notes', f.notes),
         cleanupRow(f.notes, null),
         draft ? visitsBox(draft.visits, draft.nextVisit, 'From the note, added on import') : null,
-        h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
-        nextField,
+        // v2.58: no best days picker for a new contact (Likely home learns it from visits); no tags anywhere
+        isNew ? null : h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
+        isNew ? null : nextField,
         isNew ? null : (() => { const r = cleanupRow(f.whatsNext, null); if (r) r.classList.add('nexttools'); return r; })(),
-        field('Tags', f.tags),
         customInputs.map((ci) => field(ci.c.name, ci.input)),
         camp ? h('label', { class: 'check' }, campOn, 'Part of the ' + camp.title + ' campaign') : null,
         !existing ? null : h('button', {
@@ -313,13 +317,15 @@
           if (!name) { f.name.focus(); return; }
           const data = {
             name, address: f.address.value.trim(), neighborhood: f.neighborhood.get(), phone: f.phone.value.trim(),
-            howMet: f.howMet.value, bestDays: bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
+            howMet: f.howMet.value, bestDays: isNew ? undefined : bestDays.get(), dayPrimary: null, daySecondary: null, whatsNext: f.whatsNext.value.trim(),
             publication: f.publication.value.trim(), progress: f.progress.value.trim(), nextStart: f.nextStart.value.trim(),
-            notes: f.notes.value.trim(), tags: U.splitList(f.tags.value),
+            notes: f.notes.value.trim(), tags: (rv.tags || []).slice(),
             geo,
             custom: Object.assign({}, rv.custom || {}),
           };
           customInputs.forEach((ci) => { data.custom[ci.c.id] = ci.input.value.trim(); });
+          if (isNew && nextDraft) Object.assign(data, RV.next.fields(nextDraft));
+          if (data.bestDays === undefined) delete data.bestDays;
           if (draft) { data.stage = f.stage.value; close(); if (opts.onDone) opts.onDone(data); return; }
           const changedKey = isNew || data.address !== (rv.address || '') || data.phone !== (rv.phone || '');
           if (changedKey && (data.address || data.phone)) {
@@ -382,10 +388,12 @@
         geoRow,
         field(lbl('neighborhood'), f.neighborhood.el),
         isNew ? field('What did you discuss?', f.visit) : null,
-        isNew ? topicChips(f.visit, f.whatsNext, (t) => { newTopic = t.id; }) : null,
+        // v2.58: no topic picking here (the note says what was talked about)
         fillVisits,
         // v2.49: no Clean up here (Mark); a quick Potential / RV choice instead of opening More details for the stage
         isNew && quickStage ? field('Stage', quickStage.el) : null,
+        isNew ? nextField : null,
+        isNew ? nextVisitField : null,
         moreBtn,
         more,
         h('div', { class: 'actions' },
@@ -586,7 +594,7 @@
           ST.updateRv(rvId, patch);
         }),
         h('button', { class: 'link show-fields', type: 'button', onclick: (e) => { const sh = e.target.closest('.sheet'); if (sh) sh.classList.remove('writing'); } }, 'Show other fields')));
-    const topicBox = topicChips(text, whatsNext, (t) => { pickedTopic = t.id; });
+    // v2.58: no topic chips when recording a visit
     const nextBox = h('div', null, field('Discuss next time', whatsNext)); // v2.51: no game words in the sheet
     const campBox = camp ? h('label', { class: 'check', style: { marginBottom: '8px' } }, campOn, 'Part of the ' + camp.title + ' campaign') : null;
     // no study session for Potential (no real conversation yet)
@@ -601,7 +609,7 @@
       // the publication is asked for only when none is set yet
       show(studyBox, study);
       show(studyBox.firstChild, study && !rv.publication);
-      show(topicBox, !study); show(nextBox, !study); show(campBox, !study);
+      show(nextBox, !study); show(campBox, !study);
       // v2.36.2: a study note gets the same full-screen writing and Clean up as a visit note (Clean up only
       // proofreads it: a study has Start next time, not Discuss next time)
       text.placeholder = study ? 'What did you talk about?' : 'What did you discuss?';
@@ -623,15 +631,14 @@
             text: text.value,
             whatsNext: study || !whatsNext.value.trim() ? undefined : whatsNext.value,
             plan: study ? undefined : !!whatsNext.value.trim(),
-            topic: !study && pickedTopic ? pickedTopic : undefined,
+            topic: undefined,
             campaignId: !study && camp && campOn.checked ? camp.id : null,
             study: study || undefined,
             publication: study ? pub.value : undefined,
             progress: study ? prog.value : undefined,
             nextStart: study ? nextStart.value : undefined,
             next: next,
-            stage: stage.value !== rv.stage ? stage.value : undefined,
-            tags: U.splitList(tags.value),
+            stage: undefined,
             at: d ? d.toISOString() : undefined,
           });
           close();
@@ -642,17 +649,14 @@
         studySw,
         studyBox,
         noteBox,
-        topicBox,
         nextBox,
         askBox,
         nextField,
         campBox,
-        stageNote,
+        // v2.58: no topic, stage menu or tags here; only the time, for a visit recorded later
         h('details', { class: 'more', style: { marginTop: '12px' } },
-          h('summary', null, icon('down', 18), 'More details'),
-          field('When', when),
-          field('Stage', stage),
-          field('Tags', tags)),
+          h('summary', null, icon('down', 18), 'Recorded later? Change the time'),
+          field('When', when)),
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           saveBtn));

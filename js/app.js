@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const RV = (root.RV = root.RV || {});
-  RV.VERSION = '2.57.0';
+  RV.VERSION = '2.58.0';
   const { h, icon } = RV.dom;
   const U = RV.util, L = RV.logic, ST = RV.store, UI = RV.ui;
   const S = ST.S;
@@ -142,6 +142,7 @@
   }
 
   function render() {
+    if (RV.screens && RV.screens.inline) RV.screens.inline.busy = false; // a new screen ends any typing in place
     const hash = location.hash || '#/home';
     const y = lastHash === hash ? root.scrollY : (scrollPos[hash] || 0);
     let screen;
@@ -204,9 +205,12 @@
     applyDisplay();
     renderTabs();
     renderStatus();
+    // v2.58: while something is being typed in place on a contact, redraw once it's done
+    if (RV.screens && RV.screens.inline.busy) { RV.screens.inline.pending = true; return; }
     if (current && current.update) current.update();
     else if (!(current && current.noRerender)) render();
   });
+  if (RV.screens) RV.screens.inline.done = () => { if (RV.screens.inline.pending) { RV.screens.inline.pending = false; if (current && current.update) current.update(); else render(); } };
 
   // ---------- PIN lock ----------
   async function verifyPin(pin) {

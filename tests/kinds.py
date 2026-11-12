@@ -103,7 +103,7 @@ with sync_playwright() as p:
     pg.evaluate("window.__RV_KIND = ''")
     sid = pg.evaluate("() => { const x = RV.store.addRv({ name: 'Lena', stage: 'initial' }); RV.store.logVisit(x.id, { text: 'L1', study: true, progress: 'L1' }); return x.id; }")
     pg.goto(base + '#/rv/' + sid); pg.wait_for_selector('.ghero')
-    check('2 more studies' in pg.locator('.gbar').inner_text(), 'a sprout with one study: 2 more studies')
+    check(pg.locator('.gprog').get_attribute('aria-label').endswith('1 of 3'), 'a sprout with one study: the bar is a third of the way (v2.58: no words)')
     pg.evaluate("RV.forms.visitDialog('%s')" % sid); pg.wait_for_selector('.sheet')
     check(pg.locator('.sheet button:has-text("Save study")').count() == 1, 'the visit sheet opens as a study for someone who has studied')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(300)

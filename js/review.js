@@ -55,7 +55,8 @@
       out.push({ key: 'studies', bg: '#B4583A', fg: '#FFFDF9', soft: '#FBE3D6', bar: '#C97A5F', kicker: 'You studied with', big: R.studies, unit: R.studies === 1 ? 'person' : 'people',
         line: !f ? 'Week after week, page after page.' : R.studies === 1 ? 'It was their very first study.' : f === R.studies ? 'Every one of them had their very first study this year.' : Cap(word(f)) + ' of them had their very first study this year.', deco: LEAVES('#C8694A', '#D27C5C') });
     }
-    const tt = R.topic && topicTitle(R.topic.key);
+    // v2.58: no go-to conversation card (topics aren't recorded on visits any more)
+    const tt = null;
     if (tt) out.push({ key: 'topic', bg: '#CBDDB8', fg: '#1F1D1A', soft: '#3F5538', bar: '#AFC59A', kicker: 'Your go-to conversation', title: tt, line: 'You brought it up ' + R.topic.n + ' times.', deco: LEAVES('#B9CFA3', '#A9C292') });
     if (R.area) out.push({ key: 'area', bg: '#4F6E57', fg: '#F2EEE5', soft: '#D3E2CF', bar: '#6C8A72', kicker: 'Your area', title: R.area.key + ' saw you most', line: R.area.n + ' visits there this year.', deco: DOORS('#5E7E66') });
     if (S.settings.garden !== false && R.grew > 0) out.push({ key: 'garden', bg: '#9CCB95', fg: '#1F1D1A', soft: '#2F4A2C', bar: '#83B27C', kicker: 'In your garden', big: R.grew, unit: R.grew === 1 ? 'plant grew' : 'plants grew', line: 'One conversation at a time.', deco: SPROUTS('#7FB277', '#6E9A5E') });

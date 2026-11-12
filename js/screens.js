@@ -968,37 +968,28 @@
     return 'Grows into ' + nm;
   }
   // Record screen: big plant and stage name, the bar toward the next form, the growth path of five forms.
-  function gardenHero(it, st) {
+  // v2.58: the plant beside the name, the stage and the address (all made by detail())
+  function gardenHero(it, st, nameEl, stageEl, addrEl) {
     const rv = it.rv;
     const big = plantOf(st, 'xl');
     P.leanOnTouch(big);
     if (P.pendingWater === rv.id) { P.pendingWater = null; setTimeout(() => P.water(big), 60); }
-    const stName = L.shownName(S.settings, rv.stage);
-    const bar = st.need && st.next
-      ? h('div', { class: 'gbar' },
-        h('div', { class: 'gt' }, h('b', null, nextLabel(st, rv)),
-          h('span', null, st.held ? icon('calendar', 14) : null, moreText(st))),
-        h('span', { class: 'mbar' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': st.have + ' of ' + st.need },
-          Array.from({ length: st.need }, (_, i) => h('i', { class: i < st.have ? 'on' : '' }))))
-      : null;
-    // v2.46: forms still ahead are solid silhouettes; a growth
-    // fills the next one in (playFill)
+    return h('div', { class: 'ghero' }, big, h('div', { class: 'gwho' }, nameEl, stageEl, addrEl));
+  }
+  // v2.46: the growth path (forms still ahead are silhouettes; a growth fills the next one in, playFill). v2.58: under it a
+  // plain bar toward the next stage, none once fully grown (no "x more … to y")
+  function growthPath(it, st) {
+    const rv = it.rv;
     const path = h('div', { class: 'gpath', 'data-rv': rv.id },
-      h('div', { class: 'gl' }, 'Growth path'),
       h('div', { class: 'gs' }, [1, 2, 3, 4, 5].map((f) => {
-        // v2.46.1: each stage is drawn the same for everyone (healthy, no kind, no per-person variant); the plant above shows this person's
         const pl = P.make(f, 4, { size: 'sm', still: true, seed: f });
         if (f > st.form) pl.classList.add('sil');
         return h('span', { class: f === st.form ? 'cur' : '' }, pl);
-      })));
+      })),
+      st.need && st.next ? h('div', { class: 'gprog' + (st.fading ? ' fade' : ''), role: 'img', 'aria-label': 'Growth toward the next stage: ' + st.have + ' of ' + st.need },
+        h('i', { style: { width: Math.round(100 * Math.min(1, st.have / st.need)) + '%' } })) : null);
     path.querySelectorAll('.pl').forEach((el, i) => { if (i + 1 < st.form) el.classList.add('nf'); });
-    return h('div', null,
-      // v2.24.1: the person's name leads, beside their plant; the stage sits under it (tap to change)
-      h('div', { class: 'ghero' }, big,
-        h('div', { class: 'gwho' },
-          h('h2', { class: 'gperson' }, rv.name),
-          h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName, icon('down', 16)))),
-      bar, path);
+    return path;
   }
 
   // v2.46: after a growth moment, on the record: a quiet burst on the next pot, the highlight moves to it and its
@@ -1038,8 +1029,9 @@
     if (dnc) {
       els.push(h('div', { class: 'banner danger', role: 'alert' }, icon('alert'), h('div', { class: 'body' }, h('strong', null, 'Do not call. '), 'Do not visit or contact this person. Visits cannot be logged on this record.')));
     } else if (closed) {
-      els.push(h('div', { class: 'banner info' }, icon('archive'), h('div', { class: 'body' }, 'Archived' + (reason ? ': ' + reason.name : '') + '.',
-        reason && reason.restorable ? h('div', null, h('button', { class: 'link', type: 'button', onclick: () => F.restoreFlow(rv.id) }, 'Restore')) : null)));
+      // v2.58: said once, here
+      els.push(h('div', { class: 'banner info archbar' }, icon('archive'), h('div', { class: 'body' }, 'Archived' + (reason ? ' · ' + reason.name : '')),
+        reason && reason.restorable ? h('button', { class: 'btn sm', type: 'button', onclick: () => F.restoreFlow(rv.id) }, 'Restore') : null));
     }
 
     // header card: who they are and what to bring up, then the actions
@@ -1104,140 +1096,205 @@
     const firstStudy = visitsLive.filter((e) => e.study || e.progress || e.nextStart).reduce((m, e) => (!m || e.at < m.at ? e : m), null);
     const lastPlan = visitsLive.filter((e) => e.plan === true && !(e.study || e.progress || e.nextStart)).reduce((m, e) => (!m || e.at > m.at ? e : m), null);
     const stalePlan = study && rv.whatsNext && firstStudy && lastPlan && lastPlan.at < firstStudy.at;
-    const snapshot = !closed || rv.whatsNext || lastVisit
-      ? h('div', { class: 'snap' },
-        showStudy
-          ? h('div', { class: 'snap-row study2' },
-            h('div', { class: 'snap-k' }, 'Studying'),
-            h('button', { class: 'snap-v sbtn' + (rv.publication ? ' pub' : ' empty'), type: 'button', 'aria-label': 'Publication: ' + (rv.publication || 'not set'), onclick: () => F.studyEdit(rv.id, 'pub') }, rv.publication || 'Choose a publication'),
-            h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set') + (rv.progress ? ' · last covered ' + rv.progress + (lastStudy ? ', ' + U.fmtDate(lastStudy.at) : '') : '')))
-          : null,
-        ((!closed && !study) || rv.whatsNext) && !stalePlan
-          ? (rv.whatsNext || closed
-            ? h(closed ? 'div' : 'button', { class: 'snap-row next', type: closed ? null : 'button', onclick: closed ? null : editNext },
-              h('div', { class: 'snap-k' }, 'Discuss next time'), h('div', { class: 'snap-v' }, rv.whatsNext))
-            // v2.46: empty: + Add, and Ideas (topic suggestions, only when asked for)
-            : h('div', { class: 'snap-row next add1', onclick: (e) => { if (!e.target.closest('.ideasbtn, .add1v')) editNext(); } },
-              h('div', { class: 'snap-k' }, 'Discuss next time'),
-              h('div', { class: 'add1b' }, ideasBtn, h('button', { class: 'add1v', type: 'button', onclick: editNext }, '+ Add'))))
-          : null,
-        ideasBox,
-        lastTopic ? h('div', { class: 'snap-row ltopic' },
-          h('div', { class: 'snap-k' }, 'Topic last used'),
-          h('div', { class: 'ltv' },
-            h('button', { class: 'link-quiet', type: 'button', onclick: () => topicView(lastTopic) }, lastTopic.title),
-            nextTopic ? h('button', { class: 'link-quiet ltnext', type: 'button', onclick: () => topicView(nextTopic) }, 'Next: ' + nextTopic.title) : null)) : null,
-        lastVisit
-          ? h('button', { class: 'snap-row lastv', type: 'button', 'aria-label': 'Edit the last visit', onclick: () => UI.editEntrySheet(lastVisit.id) },
-            h('div', { class: 'snap-k' }, (lastVisit.study || lastVisit.progress ? 'Last study · ' : 'Last visit · ') + U.fmtDateTime(lastVisit.at)),
-            h('div', { class: 'snap-v' }, lastVisit.text))
-          : null)
-      : null;
-    const hero = gst && gst.form ? gardenHero(it, gst) : null;
-    const head = h('section', { class: 'card' },
-      hero,
-      hero
-        ? (it.att.state === 'snoozed' ? h('div', { style: { marginBottom: '8px' } }, attBadge(it.att)) : null)
-        : h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } }, stageBadge(rv.stage), it.att.state === 'snoozed' ? attBadge(it.att) : null),
-      // v2.28: the address edits; the arrow gives directions
-      h('div', { class: 'addrline' },
-        h('button', { class: 'linkline', type: 'button', 'aria-label': rv.address ? 'Edit address: ' + rv.address : 'Add address', onclick: () => F.addressSheet(rv.id) },
-          h('span', { class: 'lt' + (rv.address ? '' : ' add') }, rv.address ? rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '') : (rv.neighborhood ? rv.neighborhood + ' · ' : '') + 'Add address')),
-        rv.address || rv.geo ? h('button', { class: 'iconbtn sm navbtn', type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 18)) : null),
-      rv.phone
-        ? h('div', { class: 'phoneline' },
-          h('button', { class: 'linkline', type: 'button', 'aria-label': 'Call ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, h('span', { class: 'lt' }, rv.phone), icon('phone', 18)),
-          h('button', { class: 'iconbtn sm', type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 18)))
-        : null,
-      rv.notes ? h('div', { class: 'household' }, rv.notes) : null,
-      snapshot,
-      !closed
-        ? h('div', { class: 'stack', style: { marginTop: '12px' } },
-          h('div', { class: 'btn-row' },
-            // v2.39: two buttons; a study is a visit with Study session on (it opens on for anyone who has studied)
-            h('button', { class: 'btn big', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 22), lbl('notHome')),
-            h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 22), lbl('recordVisit'))),
-          // v2.29: Getting started tips
-          (() => { const first = String(rv.name || '').split(' ')[0];
-            // v2.50.1: taught here, on the contact, not as checklist steps; one tip at a time, each until Got it
-            const t = S.settings.tips || {};
-            if (!t.visit) return coach('visit', 'This is ' + first + '\u2019s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
-            if (!t.nh) return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
-            return null; })())
-        : null);
-    els.push(head);
+    const first = String(rv.name || '').split(' ')[0];
+    // v2.58: a dotted underline under the name and notes for the first few contacts opened, until something is edited in place
+    const cue = !closed && !(S.settings.tips || {}).inline && cueCount() < 6;
 
-    // details card
-    const custom = (S.settings.customFields || []).map((c) => ((rv.custom || {})[c.id] ? [c.name, rv.custom[c.id]] : null));
-    const rows = [
-      rv.howMet ? ['How we met', rv.howMet] : null,
-      UI.campaignName(rv.campaignId) ? ['Met during', UI.campaignName(rv.campaignId)] : null,
-      
-      L.dayTagsOf(rv).length || rv.bestNote ? ['Best days', [L.tagsLabel(rv), rv.bestNote].filter(Boolean).join('\n')] : null,
-      // v2.39: the estimate from visits and Not homes
-      (() => { const b = !closed && L.bestHomeSlot(it, new Date(), ST.items()); return b ? ['Likely home', b.label] : null; })(),
-    ].concat(custom).concat([
-      ['Activity', it.visits + ' visits · ' + it.nh + ' ' + lbl('notHome').toLowerCase()],
-      ['Added', U.fmtDate(new Date(rv.createdAt))],
-    ]);
-    const tagsEl = (rv.tags || []).length ? h('div', { style: { marginTop: '10px' } }, rv.tags.map((t) => h('span', { class: 'tag' }, t))) : null;
-    els.push(h('details', { class: 'card fold' },
-      h('summary', null, h('h2', null, 'Details'), icon('down', 18)),
-      h('div', { style: { margin: '10px 0' } }, h('button', { class: 'btn sm', type: 'button', onclick: () => F.rvForm(rv) }, icon('edit', 16), 'Edit')),
-      kvList(rows), tagsEl));
+    // ---- 1 Who: plant, name, stage, address; Phone · Text · Directions; household notes; the growth path ----
+    const nameEl = h(closed ? 'h2' : 'button', { class: 'gperson' + (cue ? ' cue' : ''), type: closed ? null : 'button', 'aria-label': closed ? null : 'Rename ' + rv.name,
+      onclick: closed ? null : (e) => inlineEdit(e.currentTarget, { value: rv.name, label: 'Name', required: true, onSave: (v) => ST.updateRv(rv.id, { name: v }) }) }, rv.name);
+    const stName = L.shownName(S.settings, rv.stage);
+    const stageEl = closed ? null : h('button', { class: 'gname', type: 'button', 'aria-label': 'Change stage: ' + stName, onclick: () => F.stageFlow(rv.id) }, stName, icon('down', 16));
+    const addrText = rv.address ? rv.address + (rv.neighborhood ? ' · ' + rv.neighborhood : '') : (rv.neighborhood ? rv.neighborhood + ' · ' : '') + 'Add address';
+    const addrEl = h('button', { class: 'gaddr' + (rv.address ? '' : ' add'), type: 'button', 'aria-label': rv.address ? 'Edit address: ' + rv.address : 'Add address',
+      onclick: (e) => addressInline(e.currentTarget, rv) }, icon('pin', 15), h('span', null, addrText));
+    const hero = gst && gst.form ? gardenHero(it, gst, nameEl, stageEl, addrEl) : h('div', { class: 'gwho plain' }, nameEl, stageEl, addrEl);
+    const navTo = rv.address || rv.geo;
+    const actRow = !closed ? h('div', { class: 'actrow' },
+      rv.phone ? h('button', { type: 'button', 'aria-label': 'Phone ' + rv.phone, onclick: () => UI.openTel(rv.phone) }, icon('phone', 20), 'Phone') : null,
+      rv.phone ? h('button', { type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 20), 'Text') : null,
+      !rv.phone ? h('button', { type: 'button', class: 'addphone', onclick: (e) => phoneInline(rv) }, icon('plus', 20), 'Add phone') : null,
+      h('button', { type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), disabled: !navTo, onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 20), 'Directions')) : null;
+    const notesEl = rv.notes
+      ? h(closed ? 'div' : 'button', { class: 'household' + (cue ? ' cue' : ''), type: closed ? null : 'button', 'aria-label': closed ? null : 'Edit household notes',
+        onclick: closed ? null : (e) => inlineEdit(e.currentTarget, { value: rv.notes, label: 'Household notes', multiline: true, onSave: (v) => ST.updateRv(rv.id, { notes: v }) }) }, rv.notes)
+      : !closed ? h('button', { class: 'addline', type: 'button', onclick: (e) => inlineEdit(e.currentTarget, { value: '', label: 'Household notes', multiline: true, placeholder: 'Family, work, pets', onSave: (v) => ST.updateRv(rv.id, { notes: v }) }) }, '+ Household notes') : null;
+    const tip = !closed ? (() => {
+      // v2.50.1: taught here, on the contact, one tip at a time, each until Got it
+      const t = S.settings.tips || {};
+      if (!t.visit) return coach('visit', 'This is ' + first + '’s plant. After a conversation, tap ' + lbl('recordVisit') + '. Add a plan under Discuss next time and it thrives.');
+      if (!t.nh) return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
+      return null; })() : null;
+    if (cue) bumpCue();
+    els.push(h('section', { class: 'card who' }, hero, actRow, notesEl, gst && gst.form ? growthPath(it, gst) : null, tip));
 
-    // timeline
+    // ---- 2 Next time: when (or Was …), then the plan (for a study: the publication and the lesson) ----
+    if (!closed) {
+      const nx = RV.next.of(rv, it.entries, new Date());
+      const openSheet = () => RV.next.sheet(rv.id, { date: nx.state === 'passed' ? U.toDateStr(U.addDays(new Date(), 1)) : undefined });
+      const sub = [nx.state !== 'none' && nx.state !== 'passed' ? RV.next.remindLabel(rv) : null, rv.nextRepeat ? RV.next.repeatWord(rv) : null].filter(Boolean);
+      const whenEl = nx.state === 'passed'
+        ? h('div', { class: 'nxw' }, h('span', { class: 'nxd was' }, 'Was ' + U.fmtDate(nx.date)), h('button', { class: 'btn sm', type: 'button', onclick: openSheet }, 'Reschedule'))
+        : nx.state === 'none'
+          ? h('div', { class: 'nxw' }, h('span', { class: 'nxd none' }, 'Not scheduled'), h('button', { class: 'add1v', type: 'button', onclick: openSheet }, '+ Schedule'))
+          : h('button', { class: 'nxw', type: 'button', 'aria-label': 'Next visit: ' + RV.next.whenText(nx.date, nx.time), onclick: openSheet },
+            h('span', { class: 'nxd' }, RV.next.whenText(nx.date, nx.time), sub.length ? h('small', null, icon('bell', 12), sub.join(' · ')) : null), icon('right', 16));
+      // a study: the publication and the lesson; someone who has studied but isn't in the study stage keeps Discuss too
+      const studyEl = study || showStudy
+        ? h('div', { class: 'nxp study2' },
+          h('button', { class: 'snap-v sbtn' + (rv.publication ? ' pub' : ' empty'), type: 'button', 'aria-label': 'Publication: ' + (rv.publication || 'not set'), onclick: () => F.studyEdit(rv.id, 'pub') }, rv.publication || 'Choose a publication'),
+          h('button', { class: 'study-sub sbtn', type: 'button', 'aria-label': 'Start next time: ' + (rv.nextStart || 'not set'), onclick: () => F.studyEdit(rv.id, 'next') }, 'Next: ' + (rv.nextStart || 'tap to set')))
+        : null;
+      const planEl = study ? null : rv.whatsNext && !stalePlan
+          ? h('button', { class: 'nxp snap-row next', type: 'button', onclick: editNext }, h('div', { class: 'snap-k' }, 'Discuss'), h('div', { class: 'snap-v' }, rv.whatsNext))
+          : h('div', { class: 'nxp snap-row next add1', onclick: (e) => { if (!e.target.closest('.ideasbtn, .add1v')) editNext(); } },
+            h('div', { class: 'snap-k' }, 'Discuss'), h('div', { class: 'add1b' }, ideasBtn, h('button', { class: 'add1v', type: 'button', onclick: editNext }, '+ Add')));
+      els.push(h('section', { class: 'card nextcard' }, h('div', { class: 'seck' }, study || showStudy ? 'Next study' : 'Next time'), whenEl, studyEl, planEl, ideasBox));
+    }
+
+    // ---- 3 History: everything, newest first (the newest is the last visit) ----
     let tlShown = 30;
     const tlBox = h('div');
     const renderTl = () => {
       tlBox.replaceChildren();
-      if (!it.entries.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'No activity yet.')); return; }
+      if (!it.entries.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'Nothing yet.')); return; }
       const ul = h('ul', { class: 'tl' });
-      // v2.51: the newest visit is left out (Last visit above shows it); a row opens its edit sheet (Delete is inside)
-      const shown = it.entries.filter((e) => !(lastVisit && e.id === lastVisit.id));
-      if (!shown.length) { tlBox.appendChild(h('div', { class: 'muted small' }, 'Nothing earlier.')); return; }
-      shown.slice(0, tlShown).forEach((e) => {
+      it.entries.slice(0, tlShown).forEach((e) => {
         const body = [h('div', { class: 'what' }, entryLabel(e)),
           h('div', { class: 'when' }, U.fmtDateTime(e.at)),
-          e.progress || e.nextStart ? h('div', { class: 'txt', style: { fontWeight: 500 } }, [e.publication, e.progress ? 'Covered ' + e.progress : null, e.nextStart ? 'next: ' + e.nextStart : null].filter(Boolean).join(' · ')) :
+          e.progress || e.nextStart ? h('div', { class: 'txt', style: { fontWeight: 500 } }, [e.publication, e.progress ? 'Covered ' + e.progress : null, e.nextStart ? 'next: ' + e.nextStart : null].filter(Boolean).join(' · ')) : null,
           e.text ? h('div', { class: 'txt' }, e.text) : null,
-          (e.scriptures || []).length ? h('div', { class: 'small muted' }, lbl('scriptures') + ': ' + e.scriptures.join(', ')) : null,
-          UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null];
+          UI.campaignName(e.campaignId) ? h('div', { class: 'small muted' }, lbl('campaign') + ': ' + UI.campaignName(e.campaignId)) : null].filter(Boolean);
         ul.appendChild(h('li', { class: e.type + (e.type !== 'stage' ? ' tap' : '') },
           e.type !== 'stage' ? entrySwipe(e, h('button', { class: 'tlopen', type: 'button', 'aria-label': 'Edit this entry', onclick: () => UI.editEntrySheet(e.id) }, ...body, h('span', { class: 'tlchev', 'aria-hidden': 'true' }, icon('right', 16)))) : body));
       });
       tlBox.appendChild(ul);
-      if (shown.length > tlShown) tlBox.appendChild(h('button', { class: 'btn sm', type: 'button', style: { marginTop: '10px' }, onclick: () => { tlShown += 30; renderTl(); } }, 'Show more'));
+      if (it.entries.length > tlShown) tlBox.appendChild(h('button', { class: 'btn sm', type: 'button', style: { marginTop: '10px' }, onclick: () => { tlShown += 30; renderTl(); } }, 'Show more'));
     };
     renderTl();
-    els.push(h('section', { class: 'card' },
-      h('div', { class: 'card-head' }, h('h2', null, 'Timeline')),
-      tlBox));
+    els.push(h('section', { class: 'card' }, h('div', { class: 'seck' }, 'History'), tlBox));
+
+    // ---- About (was Details): tap a row to change it; the last three are read only ----
+    const aboutRow = (k, v, onTap) => onTap
+      ? h('button', { class: 'abrow', type: 'button', onclick: onTap }, h('span', { class: 'abk' }, k), h('span', { class: 'abv' + (v ? '' : ' add') }, v || '+ Add'), icon('right', 16))
+      : h('div', { class: 'abrow ro' }, h('span', { class: 'abk' }, k), h('span', { class: 'abv' }, v));
+    const howMetPick = async () => {
+      const list = S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []);
+      const v = await UI.pick('How we met', [{ value: '', label: '(not set)' }].concat(list.map((x) => ({ value: x, label: x }))), rv.howMet || '');
+      if (v !== undefined && v !== null && v !== (rv.howMet || '')) { const before = rv.howMet || ''; ST.updateRv(rv.id, { howMet: v }); toast('Saved', { seconds: 4, actions: [{ label: 'Undo', fn: () => ST.updateRv(rv.id, { howMet: before }) }] }); }
+    };
+    const aboutRows = [
+      aboutRow('Phone', rv.phone, closed ? null : () => phoneInline(rv)),
+      aboutRow('How we met', rv.howMet, closed ? null : howMetPick),
+    ].concat((S.settings.customFields || []).map((c) => aboutRow(c.name, (rv.custom || {})[c.id] || '', closed ? null : (e) => {
+      const host = e.currentTarget.querySelector('.abv');
+      inlineEdit(host, { value: (rv.custom || {})[c.id] || '', label: c.name, onSave: (v) => ST.updateRv(rv.id, { custom: Object.assign({}, rv.custom, { [c.id]: v }) }) });
+    }))).concat([
+      UI.campaignName(rv.campaignId) ? aboutRow('Met during', UI.campaignName(rv.campaignId)) : null,
+      (() => { const b2 = !closed && L.bestHomeSlot(it, new Date(), ST.items()); return b2 ? aboutRow('Likely home', b2.label) : null; })(),
+      aboutRow('Activity', it.visits + ' visits · ' + it.nh + ' ' + lbl('notHome').toLowerCase()),
+      aboutRow('Added', U.fmtDate(new Date(rv.createdAt))),
+    ]).filter(Boolean);
+    els.push(h('details', { class: 'card fold about' }, h('summary', null, h('h2', null, 'About'), icon('down', 18)), h('div', { class: 'ablist' }, aboutRows)));
+
+    // Not Home (small) and Record a visit (wide) stay put above the tabs
+    if (!closed) els.push(h('div', { class: 'rvdock' },
+      h('button', { class: 'btn nhsm', type: 'button', onclick: () => UI.doNotHome(rv.id) }, icon('door', 18), h('span', null, lbl('notHome'))),
+      h('button', { class: 'btn big primary', type: 'button', onclick: () => F.visitDialog(rv.id) }, icon('note', 20), study || showStudy ? lbl('logStudy') : lbl('recordVisit'))));
 
     const more = h('button', {
       class: 'iconbtn', type: 'button', 'aria-label': 'More actions',
       onclick: () => sheet('Actions', (close) => {
         const act = (label, fn, sub) => h('button', { class: 'opt', type: 'button', onclick: () => { close(); fn(); } }, h('div', null, h('div', null, label), sub ? h('div', { class: 'sub' }, sub) : null));
         return h('div', null,
-          !closed ? act('Move to stage', () => F.stageFlow(rv.id)) : null,
           !closed ? act(lbl('archive') + '…', () => F.archiveFlow(rv.id), 'Choose a reason') : (reason && reason.restorable ? act('Restore', () => F.restoreFlow(rv.id)) : null),
-          !closed ? act('Next visit…', () => planSheet(rv.id), rv.snoozedUntil ? RV.next.whenText(rv.snoozedUntil, rv.nextTime) : 'Pick a day') : null,
           !closed ? act('Hand over…', () => F.handoverFlow(rv.id), 'Send to another publisher') : null,
-          act('Delete this contact permanently', async () => {
+          act('Delete contact…', async () => {
             const ok = await confirmDialog({ title: 'Delete ' + rv.name + '?', message: 'This removes the record and its timeline. To keep a record of someone who should not be contacted, archive them instead.', confirmText: 'Delete', danger: true });
             if (ok) { ST.deleteRv(rv.id); location.hash = '#/rvs'; }
           }));
       }),
     }, icon('more'));
     return {
-      title: rv.name, back: '#/rvs', titleWatch: hero ? '.gperson' : null, // the bar shows the name once the big one scrolls away
-      // v2.51: the calendar plans a visit (today's list, or a follow-up date); it fills in while they're on today's list
-      actions: [!closed ? (() => { const on = RV.todayList.has(ST.items(), S.settings, rv.id, new Date());
-          return h('button', { class: 'iconbtn plancal' + (on ? ' on' : ''), type: 'button', 'aria-label': on ? "On today's list. Plan a visit" : 'Plan a visit', onclick: () => planSheet(rv.id) }, icon(on ? 'calcheck' : 'calplus')); })() : null,
-        h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Edit', onclick: () => F.rvForm(rv) }, icon('edit')), more].filter(Boolean),
-      el: h('div', null, els),
+      title: rv.name, back: '#/rvs', titleWatch: '.gperson', // the bar shows the name once the big one scrolls away
+      actions: [more],
+      el: h('div', { class: closed ? null : 'hasdock' }, els),
     };
   }
 
-  RV.screens = { playFill, coach, starterCard, introCard, planSheet, todayAddSheet, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
+  // ---------- v2.58: editing in place ----------
+  const inline = { busy: false, pending: false, done: null };
+  const cueCount = () => { try { return +(localStorage.getItem('rvapp.cue') || 0); } catch (e) { return 99; } };
+  const bumpCue = () => { try { localStorage.setItem('rvapp.cue', String(cueCount() + 1)); } catch (e) { /* ignore */ } };
+  // Type where the value shows. Done, Enter (one line) or tapping away saves, with Undo; Escape cancels.
+  function inlineEdit(host, o) {
+    if (!host || !host.isConnected) return;
+    const input = o.multiline ? h('textarea', { 'aria-label': o.label, placeholder: o.placeholder || '', rows: 3 }) : h('input', { type: o.type || 'text', 'aria-label': o.label, placeholder: o.placeholder || '', autocomplete: 'off' });
+    input.value = o.value || '';
+    let done = false;
+    inline.busy = true;
+    const wrap = h('div', { class: 'inl' + (o.multiline ? ' multi' : '') + (host.classList.contains('gperson') ? ' big' : '') },
+      input, o.extra ? o.extra() : null,
+      h('div', { class: 'inlbar' }, h('button', { class: 'link', type: 'button', onmousedown: (e) => e.preventDefault(), onclick: () => finish(true) }, 'Done')));
+    const fit = () => { if (o.multiline) { input.style.height = 'auto'; input.style.height = Math.max(64, input.scrollHeight) + 'px'; } };
+    function finish(save) {
+      if (done) return;
+      done = true;
+      const v = input.value.trim(), before = String(o.value || '').trim();
+      const keep = save && v !== before && (v || !o.required);
+      if (!S.settings.tips || !S.settings.tips.inline) ST.saveSettings((st) => { st.tips = Object.assign({}, st.tips, { inline: true }); });
+      if (keep) {
+        o.onSave(v);
+        toast('Saved', { seconds: 4, actions: [{ label: 'Undo', fn: () => o.onSave(before) }] });
+      }
+      if (wrap.isConnected) wrap.replaceWith(host);
+      inline.busy = false;
+      if (inline.done) inline.done();
+    }
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      else if (e.key === 'Enter' && !o.multiline) { e.preventDefault(); finish(true); }
+    });
+    input.addEventListener('input', fit);
+    wrap.addEventListener('focusout', () => setTimeout(() => { if (!done && wrap.isConnected && !wrap.contains(document.activeElement)) finish(true); }, 200));
+    host.replaceWith(wrap);
+    fit();
+    try { input.focus(); const n = input.value.length; input.setSelectionRange(n, n); } catch (e) { /* ignore */ }
+    return wrap;
+  }
+  // The address in place, with the area under it (filled from the map's areas when the spot is in one) and Pin here
+  function addressInline(host, rv) {
+    let geo = rv.geo || null;
+    const area = F.areaPicker(rv.neighborhood);
+    area.el.addEventListener('change', () => setTimeout(() => { const v = area.get(); if (v && v !== (rv.neighborhood || '')) ST.updateRv(rv.id, { neighborhood: v }); }, 50));
+    const pin = h('button', { class: 'btn sm', type: 'button', onclick: async () => {
+      pin.disabled = true; pin.lastChild.textContent = 'Locating…';
+      try {
+        geo = await RV.geo.here();
+        const patch = { geo };
+        if (RV.areas) { const a = RV.areas.areaAt(S.settings, geo); if (a && !rv.neighborhood) patch.neighborhood = a; }
+        ST.updateRv(rv.id, patch);
+        pin.lastChild.textContent = 'Pinned';
+      } catch (e) { toast(e.message); pin.lastChild.textContent = 'Pin here'; }
+      pin.disabled = false;
+    } }, icon('navigation', 15), h('span', null, geo ? 'Pin again' : 'Pin here'));
+    inlineEdit(host, { value: rv.address || '', label: 'Address', placeholder: 'Street address',
+      extra: () => h('div', { class: 'inlx' }, h('label', { class: 'inlarea' }, h('span', null, lbl('neighborhood')), area.el), pin),
+      onSave: (v) => {
+        const patch = { address: v };
+        if (area.get() !== (rv.neighborhood || '')) patch.neighborhood = area.get();
+        // v2.58: the area fills in from the map's areas when the address's spot is known and no area is set
+        if (!rv.neighborhood && geo && RV.areas) { const a = RV.areas.areaAt(S.settings, geo); if (a) patch.neighborhood = a; }
+        ST.updateRv(rv.id, patch);
+      } });
+  }
+  // Add or change the phone number, in place in About (opened if folded)
+  function phoneInline(rv) {
+    const ab = document.querySelector('details.about');
+    if (ab && !ab.open) ab.open = true;
+    const host = ab && ab.querySelector('.abrow .abv');
+    if (host) { host.scrollIntoView({ block: 'center' }); inlineEdit(host, { value: rv.phone || '', type: 'tel', label: 'Phone', placeholder: 'Phone number', onSave: (v) => ST.updateRv(rv.id, { phone: v }) }); }
+  }
+
+  RV.screens = { inline, playFill, coach, starterCard, introCard, planSheet, todayAddSheet, home, today, list, detail, libSheet, topicView, refChips, themeName, linkify, todayTopics, nextInSeries, seriesOfItem, goToTopic, campaignSheet, rvRow, gardenOn, gstate, plantOf };
 })(window);

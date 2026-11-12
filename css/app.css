@@ -2454,3 +2454,68 @@ body.aedit-open { overflow: hidden; }
 .vwi > span { display: inline-block; }
 .vwi.r1 > span { transform: perspective(260px) rotateX(30deg); }
 .vwi.r2 > span { transform: perspective(260px) rotateX(50deg); }
+
+/* ---------- v2.58: the contact page in three parts (who, next time, history), editing in place ---------- */
+.card.who { padding-bottom: 14px; }
+.gwho.plain { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 10px; }
+.gwho.plain .gperson { margin: 0; font-size: 1.75rem; line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
+button.gperson { border: 0; background: none; padding: 0; color: var(--fg); font-family: inherit; text-align: left; cursor: text; }
+.gwho.plain .gname { border: 0; background: none; padding: 2px 0 0; color: var(--muted); font: inherit; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; }
+.cue { text-decoration: underline dotted var(--line-strong); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.gaddr { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 4px 0 0; color: var(--fg); font: inherit; font-size: 1rem; font-weight: 600; text-align: left; min-height: 32px; }
+.gaddr .icon { color: var(--accent); flex: none; }
+.gaddr.add { color: var(--green); }
+.actrow { display: flex; gap: 10px; margin-top: 12px; }
+.actrow button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 62px; border: 0; border-radius: 16px; background: var(--surface2); color: var(--fg); font: inherit; font-size: .82rem; font-weight: 600; }
+.actrow button .icon { color: var(--accent); }
+.actrow button:disabled { opacity: .45; }
+.actrow .addphone { flex: 2; color: var(--green); }
+.actrow .addphone .icon { color: var(--green); }
+button.household { display: block; width: 100%; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--fg); margin-top: 12px; cursor: text; }
+.addline { display: block; border: 0; background: none; padding: 0; margin-top: 12px; font: inherit; font-weight: 600; color: var(--green); }
+.card.who .gpath { margin-top: 12px; }
+.gprog { height: 6px; border-radius: 3px; background: var(--line); margin: 10px 4px 2px; overflow: hidden; }
+.gprog i { display: block; height: 100%; background: var(--green); border-radius: 3px; }
+.gprog.fade i { opacity: .55; }
+.seck { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.nextcard { border: 1.5px solid var(--green-t); }
+.nxw { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--fg); min-height: 44px; }
+.nxd { flex: 1; font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
+.nxd small { display: flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 500; color: var(--muted); margin-top: 3px; }
+.nxd.none, .nxd.was { font-size: 1.05rem; font-weight: 600; color: var(--muted); }
+.nxw .icon { color: var(--muted); }
+.nxp { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; display: block; width: 100%; }
+button.nxp { border-left: 0; border-right: 0; border-bottom: 0; background: none; text-align: left; font: inherit; color: var(--fg); }
+.nxp.study2 { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ablist { margin: 6px 0 2px; }
+.abrow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0 2px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: var(--fg); text-align: left; }
+.ablist > :first-child { border-top: 0; }
+.abk { flex: 0 0 112px; color: var(--muted); font-size: .9rem; }
+.abv { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.abv.add { color: var(--green); font-weight: 600; }
+.abrow .icon { color: var(--muted); }
+.hasdock { padding-bottom: 84px; }
+.rvdock { position: fixed; left: 0; right: 0; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 25; display: flex; gap: 10px; padding: 10px 12px 12px; max-width: 640px; margin: 0 auto;
+  background: linear-gradient(180deg, transparent, var(--bg) 30%); }
+.rvdock .btn { min-height: 54px; border-radius: 20px; }
+.rvdock .btn.big { flex: 1; }
+.rvdock .nhsm { flex: 0 0 92px; flex-direction: column; gap: 2px; font-size: .75rem; padding: 4px; background: var(--surface); box-shadow: 0 1px 3px rgba(31, 29, 26, .12); }
+.inl { margin: 2px 0; }
+.inl input, .inl textarea { width: 100%; box-sizing: border-box; border: 0; border-radius: 10px; background: var(--surface2); box-shadow: inset 0 -2px 0 var(--green); padding: 8px 10px; font: inherit; color: var(--fg); }
+.inl.big input { font-size: 1.6rem; font-weight: 700; padding: 4px 8px; }
+.inl textarea { resize: none; line-height: 1.4; }
+.inlbar { display: flex; justify-content: flex-end; }
+.inlbar .link { font-weight: 700; color: var(--green); min-height: 36px; }
+.inlx { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.inlarea { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); }
+.inlarea select { font: inherit; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); padding: 6px 10px; color: var(--fg); }
+.archbar { align-items: center; }
+.archbar .body { flex: 1; }
+.inlbar .link { background: none; border: 0; font: inherit; font-weight: 700; color: var(--green); padding: 6px 4px; cursor: pointer; }
+.inl input:focus, .inl textarea:focus { outline: none; }
+.nextcard .add1v { border: 0; background: none; font: inherit; color: var(--green-t); font-weight: 700; font-size: .95rem; padding: 6px 4px; cursor: pointer; }
+.nxp.study2 .sbtn { display: block; width: 100%; border: 0; background: none; padding: 4px 0; font: inherit; color: inherit; text-align: left; cursor: pointer; min-height: 32px; }
+.nxp.study2 .sbtn.pub { font-weight: 600; font-size: 1.05rem; }
+.nxp.study2 .sbtn.study-sub { font-size: .95rem; color: var(--muted); }
+.nxp.study2 .sbtn.empty { color: var(--green-t); }
+.nxw .btn.sm { flex: none; }

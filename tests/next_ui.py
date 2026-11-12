@@ -39,7 +39,7 @@ with sync_playwright() as p:
 
     # the sheet from the top bar
     pg.goto(URL + '#/rv/' + ids['m']); pg.wait_for_timeout(700)
-    pg.click('button[aria-label="Plan a visit"]'); pg.wait_for_selector('.nvsheet')
+    pg.click('.nextcard .add1v:has-text("Schedule")'); pg.wait_for_selector('.nvsheet')
     check(pg.locator('.nvrow').count() >= 3 and 'Tomorrow' in pg.locator('.nvlist').inner_text(), 'the sheet opens on tomorrow with Date, Time, Repeat, Reminder')
     pg.click('.nvrow:has-text("Date")'); pg.wait_for_selector('.nvcal')
     later = pg.evaluate("RV.util.toDateStr(RV.util.addDays(new Date(), 3))")
@@ -56,12 +56,12 @@ with sync_playwright() as p:
     rv = pg.evaluate("(id) => RV.store.rvById(id)", ids['m'])
     check(rv['snoozedUntil'] == later and rv['nextTime'] == '10:00' and rv['nextRemind'] == '30' and rv['nextRepeat'] == 'w1', 'Save stores the date, time, reminder and repeat (%s %s %s %s)' % (rv['snoozedUntil'], rv['nextTime'], rv['nextRemind'], rv['nextRepeat']))
     check(pg.evaluate("RV.reminders.atsToSend(RV.store.items(), new Date())") == [later + 'T09:30'], 'the timed reminder is half an hour before')
-    pg.click('button[aria-label="Plan a visit"]'); pg.wait_for_selector('.nvclear')
+    pg.click('.nextcard button.nxw'); pg.wait_for_selector('.nvclear')
     pg.click('.nvclear'); pg.wait_for_timeout(300)
     check(pg.evaluate("(id) => RV.store.rvById(id).snoozedUntil", ids['m']) is None, 'Clear next visit clears it')
 
     # Record a visit: the Next visit row, scheduled from inside the form
-    pg.click('button:has-text("Record a visit")'); pg.wait_for_selector('.nvfield')
+    pg.click('.rvdock .btn.primary'); pg.wait_for_selector('.nvfield')
     check('Not scheduled' in pg.locator('.nvfield').inner_text() and pg.locator('text=Follow up on').count() == 0, 'Record a visit has a Next visit row (no Follow up on)')
     pg.click('.nvfield'); pg.wait_for_selector('.nvsheet')
     pg.click('.nvsheet .btn.primary'); pg.wait_for_timeout(300)
@@ -74,7 +74,7 @@ with sync_playwright() as p:
 
     # a repeating study asks first
     pg.goto(URL + '#/rv/' + ids['a']); pg.wait_for_timeout(700)
-    pg.click('button:has-text("Record a visit"), button:has-text("Log study")'); pg.wait_for_selector('.nvask')
+    pg.click('.rvdock .btn.primary'); pg.wait_for_selector('.nvask')
     week = pg.evaluate("RV.util.toDateStr(RV.util.addDays(RV.util.parseDateStr(RV.util.toDateStr(RV.util.addDays(new Date(), -1))), 7))")
     check('Same time next week?' in pg.locator('.nvask').inner_text() and 'Not scheduled' in pg.locator('.nvfield').inner_text(), 'a weekly study asks "Same time next week?" and sets nothing yet')
     shot(pg, 'next-ask')
