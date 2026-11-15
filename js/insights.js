@@ -553,7 +553,7 @@
       h('h3', null, 'It shows how it is doing'),
       h('div', { class: 'gdrow four' }, pl(3, 5, 'Lush'), pl(3, 4, 'Healthy'), pl(3, 2, 'Thirsty'), pl(3, 1, 'Wilting')),
       line('sparkle', 'Leave a plan (Discuss next time) on each visit and it grows lush.'),
-      line('clock', 'It goes thirsty when it is time for a visit. A conversation revives it; a knock keeps it from wilting.'),
+      line('clock', 'It goes thirsty when it is time for a visit. A visit or a Not Home revives it; only conversations make it grow.'),
       line('check', 'Nothing ever dies, and nothing you have grown is lost.'),
       h('h3', null, 'Your week and your garden'),
       line('calendar', 'The watering can fills as you water thirsty plants each week, with a visit or a knock.'),

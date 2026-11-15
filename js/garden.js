@@ -170,26 +170,25 @@
     return !!isNewest && !!String(rv.whatsNext || '').trim();
   }
 
+  // v2.61.3 (Mark): a Not Home revives the plant like a visit, so nobody is punished when people aren't home;
+  // thirst counts from the newest visit or Not Home. Growth, flowers and Lush still come only from conversations.
+  // NH_HOLD stays exported for older callers; the 14-day hold it set is gone.
   const NH_HOLD = 14;
-  function nhHolds(entries, ref, window, now) {
-    const t0 = U.addDays(U.startOfDay(now), -NH_HOLD);
-    return live(entries).some((e) => e.type === 'nh' && ms(e.at) > ms(ref) && new Date(e.at) >= t0 &&
-      U.daysBetween(new Date(e.at), new Date(ref)) < 2 * window);
-  }
   // Care level 1..5 (0 = no plant). Recency sets the ceiling, quality fills up to it.
   function care(rv, entries, settings, now) {
     now = now || new Date();
     if (!formOf(settings, rv.stage)) return 0;
     const all = conversations(entries); // imported visits count toward care
     const lastConv = all[all.length - 1] || null;
-    const ref = lastConv ? lastConv.at : rv.createdAt;
+    const nhs = live(entries).filter((e) => e.type === 'nh' && ms(e.at) <= ms(now));
+    const lastNh = nhs.reduce((m, e) => (!m || ms(e.at) > ms(m.at) ? e : m), null);
+    let ref = lastConv ? lastConv.at : rv.createdAt;
+    if (lastNh && ms(lastNh.at) > ms(ref)) ref = lastNh.at;
     const window = gapFor(settings, rv);
     const fu = followUp(rv, settings, now);
     if (window != null && !(fu && fu.active)) {
       const days = U.daysBetween(now, new Date(ref));
-      // A Not Home within the last NH_HOLD days, made while the plant was still only Thirsty, keeps it from
-      // wilting: going counts, though only a conversation revives it.
-      if (days >= 2 * window && !nhHolds(entries, ref, window, now)) return CARE.WILTED;
+      if (days >= 2 * window) return CARE.WILTED;
       if (days >= window) return CARE.DRY;
     }
     if (!lastConv) return CARE.HEALTHY;

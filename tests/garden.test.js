@@ -173,14 +173,14 @@ test('week ring: a Not Home this week counts as seen (v2.21)', () => {
   const r = G.weekRing(items, S, ws, NOW);
   assert.deepEqual([r.due, r.seen, r.left], [2, 1, 1]);
 });
-test('a recent Not Home keeps a thirsty plant from wilting; only a conversation revives it (v2.21)', () => {
+test('a Not Home revives the plant like a visit; growth still needs a conversation (v2.61.3)', () => {
   const r = rv({ stage: 'return' });
-  assert.equal(G.care(r, [v(r, 65)], S, NOW), G.CARE.WILTED);
-  assert.equal(G.care(r, [v(r, 65), nh(r, 10)], S, NOW), G.CARE.DRY);    // tried at 55 days, still thirsty then
-  assert.equal(G.care(r, [v(r, 65), nh(r, 20)], S, NOW), G.CARE.WILTED); // hold over after 14 days
-  assert.equal(G.care(r, [v(r, 65), nh(r, 3)], S, NOW), G.CARE.WILTED);  // already wilting when tried
-  assert.equal(G.care(r, [v(r, 40), nh(r, 1)], S, NOW), G.CARE.DRY);     // a Not Home never revives
+  assert.equal(G.care(r, [v(r, 65), nh(r, 3)], S, NOW), G.CARE.HEALTHY);   // wilted, then tried: revived
+  assert.equal(G.care(r, [v(r, 40), nh(r, 1)], S, NOW), G.CARE.HEALTHY);   // thirsty, then tried: revived
+  assert.equal(G.care(r, [v(r, 65), nh(r, 40)], S, NOW), G.CARE.DRY);      // thirst counts from the Not Home
+  assert.equal(G.care(r, [v(r, 90), nh(r, 70)], S, NOW), G.CARE.WILTED);
   assert.equal(G.care(r, [v(r, 40), nh(r, 1), v(r, 0)], S, NOW), G.CARE.HEALTHY);
+  assert.equal(G.chain(r, [v(r, 40), nh(r, 1)], S, NOW).count, G.chain(r, [v(r, 40)], S, NOW).count); // no growth from it
 });
 test('round: the latest run of logs within 90 minutes, shown once, after a 30-minute rest (v2.22)', () => {
   const at = (h, m) => new Date(2026, 9, 21, h, m).toISOString();

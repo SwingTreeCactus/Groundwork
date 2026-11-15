@@ -1,15 +1,15 @@
-# Groundwork handover (2026-11-14, after v2.61.2)
+# Groundwork handover (2026-11-15, after v2.61.3)
 
 Read this first in a new chat, then claude/design-doc.md (the design log's current part, sections 68 on) for detail; earlier sections are in claude/design-doc-1.md (1–27, the original spec), claude/design-doc-2.md (28–50) and claude/design-doc-3.md (51–67). Repo: docs/DESIGN.md, DESIGN-1.md, DESIGN-2.md, DESIGN-3.md. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.61.2 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v129` (sw.js).
+- Current release: v2.61.3 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v130` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js), `groundwork-ai` (shared Claude key, worker/ai-proxy.js) and `groundwork-stats` (usage counts, worker/stats.js, D1 database `groundwork-stats`). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.61.3 or 2.62.0 / rvapp-v130), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 60 KB, since a file over about 25,000 tokens can't be read whole for the upload) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.61.4 or 2.62.0 / rvapp-v131), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 60 KB, since a file over about 25,000 tokens can't be read whole for the upload) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
@@ -24,7 +24,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 ## Architecture
 - Vanilla JS on a global `RV` namespace: util, logic, service (v2.53), store, garden, geo, plant, forms, screens, calendar (v2.53), review (v2.54, the year in review), ui (ui-core.js), insights, gmap, drive, settings, app. Data in IndexedDB. index.html loads the scripts; sw.js lists ASSETS.
 - Stages: internally Potential, Initial Call, Cultivating, Return Visit, Bible Study. Users see only Potential, RV (the three middle stages) and Bible Study (`L.shownStages / shownStage / shownName`). Growth moves people through the hidden stages.
-- Garden (js/garden.js): care levels shown are Lush 5, Healthy 4, Thirsty 2, Wilting 1 (3 is never returned). `G.forItem` is memoised. Exhibits, streaks, weekly recap.
+- Garden (js/garden.js): a Not Home revives a plant to Healthy like a visit; growth, flowers, reveals and Lush come only from conversations (Mark, 2026-11-15, v2.61.3). Care levels shown are Lush 5, Healthy 4, Thirsty 2, Wilting 1 (3 is never returned). `G.forItem` is memoised. Exhibits, streaks, weekly recap.
 - Plants (js/plant.js, js/kinds.js): drawn procedurally by `plantSvg`; `P.make(form, care, opts)`. Seed and sprout (and plants not yet revealed) use today's drawings in green with a per-person variant from the record ID. From leafy up, a revealed plant draws as its kind (`rv.kind`, `opts.kind`, `st.pkind`): ten kinds in `RV.kinds`, natural palette. The kind is drawn at the first live conversation at leafy or above (`G.needsReveal`, `G.drawPlantKind`: shuffle bag of 8 in `settings.kindBag`, 2 rares at 4%); the reveal moment is `P.reveal` ("It’s an olive tree!" with the name).
 - Colour: warm neutral UI, natural garden, clay accent on UI marks only (v2.35). Pots are terracotta. Tokens: css/app.css v2.35 block; plant tokens `--pl-*` in js/plant.js.
 - Tabs: Today, Contacts (Map / Areas / List, remembered in localStorage `rvapp.rvsView`), My garden (Insights when the garden is off), Calendar (v2.53: service time, the report, scheduled visits; design in docs/SERVICE-TIME.md).
@@ -51,8 +51,8 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - App: `RV.config.aiProxy` = https://groundwork-ai.swingtreecactus.workers.dev. `RV.ai.available()` = own key or proxy; own key wins (`RV.ai.shared()` false). Settings › Note cleanup shows "Included with Groundwork", model choice, and the own key under a "Use your own API key" details row.
 - Console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
 
-## Tests (all passing at v2.61.2)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (381; needs /tmp/out to exist)
+## Tests (all passing at v2.61.3)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (382; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
 - `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (61)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23), `python3 -I tests/areas_ui.py . /tmp/out/ar` (42)
@@ -79,6 +79,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
   - v2.55: in Playwright, `pg.evaluate("RV.ui.toast(...)")` calls the returned dismiss function (a function result is invoked): use `void RV.ui.toast(...)`. Drags must stay inside the viewport and start off the tab bar (scroll the element to the centre first).
 
 ## Recent history
+- v2.61.3: a Not Home revives the plant (design-doc 82): thirst counts from the newest visit or Not Home; growth still needs conversations. The v2.21 14-day hold is gone.
 - v2.61.2: visit notes are the first visit (design-doc 81): New contact's top note is Visit notes and always goes to History, for Potential too (a Potential grows on it, via `logVisit`); household notes at the foot of the form, always shown; Clean up on Visit notes, Discuss next time and Household notes, and on household notes edited in place; HOUSEHOLD label on the contact page. To watch on Mark's phone: the growth moment after adding a Potential with visit notes.
 - v2.61.1: usage counts switched on (design-doc 80): `RV.config.stats` = https://groundwork-stats.swingtreecactus.workers.dev; browser tests keep it empty.
 - v2.61.0: compact contact page and the day page (design-doc 79): back and ⋯ beside the name (a slim bar slides in once it scrolls away), smaller plant, street only (area in About), 40 px action buttons, 48 px one-line Not Home / Record a visit, tabs hide while scrolling down on every screen, a tapped day opens its own page (#/calendar/day/…) instead of a card under the month.

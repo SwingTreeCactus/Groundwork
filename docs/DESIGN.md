@@ -162,3 +162,11 @@ Mark (2026-11-14) found that a new contact's first conversation wasn't recorded 
 - **Contact page**: household notes carry a small HOUSEHOLD label with a house icon (`.hhlbl`, text in `.hhtxt`, which takes the dotted cue); History already labels each entry Visit.
 - Existing contacts' notes are left where they are.
 - Tests: smoke 381 (form fields, three Clean up buttons, a Potential with visit notes and household notes), ai_cleanup 61, contact_ui 33, next_ui 16 (field label), others unchanged. VERSION 2.61.2, cache rvapp-v129.
+
+## 82. v2.61.3 A Not Home revives the plant (built 2026-11-15)
+
+Mark (2026-11-15) recorded a Not Home on a thirsty RV and it stayed thirsty. Decision: nobody should feel punished when people aren't home, so a Not Home revives the plant; but plants grow only through conversations.
+- **Care** (`G.care`, js/garden.js): thirst now counts from the newest visit or Not Home (imported ones too, never one in the future). A Not Home brings a Thirsty or Wilting plant back to Healthy (a Not Home was already Healthy at most, so Lush still needs a run of planned conversations). The 14-day hold from v2.21 (`nhHolds`) is gone; `NH_HOLD` stays exported for older callers.
+- **Unchanged**: stage growth, the growth path's steps, flowers, kind reveals, Lush and the Revived milestones and recap count conversations only. A Not Home has no revive moment.
+- Field guide line: "It goes thirsty when it is time for a visit. A visit or a Not Home revives it; only conversations make it grow."
+- Tests: garden 45 (the Not Home test rewritten: wilted and thirsty plants revive, thirst counts from the Not Home, no growth), smoke 382 (a Not Home revives a wilted plant to healthy with no growth), others unchanged. VERSION 2.61.3, cache rvapp-v130.

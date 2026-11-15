@@ -880,9 +880,15 @@ with sync_playwright() as p:
     # v2.21: a visit to a thirsty plant revives it, with its own moment and a flag for the recap
     tid = ev('''() => { const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
       const r = ST.addRv({name: 'Thirsty Thyme', stage: 'cultivating', neighborhood: 'Thymeville', createdAt: d(90), stageChangedAt: d(90)});
-      ST.logVisit(r.id, {text: 'old talk', whatsNext: 'x', at: d(40)}); ST.logNH(r.id); return r.id; }''')
+      ST.logVisit(r.id, {text: 'old talk', whatsNext: 'x', at: d(40)}); return r.id; }''')
     tc = ev('''(id) => RV.garden.forItem(RV.store.itemFor(id), RV.store.S.settings, new Date()).care''', tid)
-    check(tc == 2, 'a Not Home leaves a thirsty plant thirsty (%s)' % tc)
+    check(tc == 2, 'thirsty after 40 days (%s)' % tc)
+    # v2.61.3: a Not Home revives a plant too (no punishment when nobody is home); it doesn't grow it
+    nhc = ev('''() => { const ST = RV.store; const d = n => new Date(Date.now() - n*864e5).toISOString();
+      const r = ST.addRv({name: 'Knock Knock', stage: 'cultivating', createdAt: d(90), stageChangedAt: d(90)});
+      ST.logVisit(r.id, {text: 'old talk', whatsNext: 'x', at: d(70)}); const S = RV.store.S.settings, f = () => RV.garden.forItem(RV.store.itemFor(r.id), S, new Date());
+      const before = f().care, have = f().have; ST.logNH(r.id); const after = f(); const out = [before, after.care, after.have === have, ST.rvById(r.id).stage]; ST.deleteRv(r.id); return out; }''')
+    check(nhc == [1, 4, True, 'cultivating'], 'a Not Home revives a wilted plant to healthy, with no growth (%s)' % nhc)
     page.goto(URL + '#/rv/' + tid); page.wait_for_selector('.ghero')
     page.click('.rvdock .btn.primary'); page.wait_for_selector('.sheet')
     page.fill('.sheet textarea >> nth=0', 'Back again'); page.click('.sheet button:has-text("Save visit")')
