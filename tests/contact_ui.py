@@ -81,7 +81,10 @@ with sync_playwright() as p:
     pg.click('.gperson'); pg.wait_for_selector('.inl input'); pg.fill('.inl input', 'Nope'); pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     check(pg.evaluate("(id) => RV.store.rvById(id).name", ids['m']) == 'Maria Lopez', 'Escape cancels')
     # household notes, in place
+    check(pg.locator('button.household .hhlbl').inner_text().strip().upper() == 'HOUSEHOLD' and pg.locator('button.household .hhtxt').inner_text().startswith('Lives with her mother'), 'v2.61.2: household notes carry a Household label')
     pg.click('button.household'); pg.wait_for_selector('.inl.multi textarea')
+    cl = pg.locator('.inl .btn.cleanup').count()
+    check(cl == (1 if pg.evaluate('RV.ai.available()') else 0), 'v2.61.2: Clean up while editing household notes in place (%d)' % cl)
     pg.fill('.inl textarea', 'Lives with her mother.\nTwo cats.'); pg.click('.inlbar .link'); pg.wait_for_timeout(300)
     check(pg.evaluate("(id) => RV.store.rvById(id).notes", ids['m']) == 'Lives with her mother.\nTwo cats.', 'household notes edit in place; Done saves')
     # the address, with the area under it

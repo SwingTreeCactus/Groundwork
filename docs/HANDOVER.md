@@ -1,18 +1,19 @@
-# Groundwork handover (2026-11-12, after v2.61.1)
+# Groundwork handover (2026-11-14, after v2.61.2)
 
 Read this first in a new chat, then claude/design-doc.md (the design log's current part, sections 68 on) for detail; earlier sections are in claude/design-doc-1.md (1–27, the original spec), claude/design-doc-2.md (28–50) and claude/design-doc-3.md (51–67). Repo: docs/DESIGN.md, DESIGN-1.md, DESIGN-2.md, DESIGN-3.md. This file is the current state; it is rewritten whenever anything changes.
 
 ## The project
 - Groundwork: Mark's private, mobile-first PWA for door-to-door return visits (field service follow-up). Live at https://mygroundwork.app.
 - Repo: SwingTreeCactus/groundwork (redirects to SwingTreeCactus/Groundwork). Push to main deploys. Clone it in the new session (add_repo, then clone to /home/claude/groundwork).
-- Current release: v2.61.1 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v128` (sw.js).
+- Current release: v2.61.2 (`RV.VERSION` in js/app.js), service-worker cache `rvapp-v129` (sw.js).
 - Servers (Cloudflare Workers, Mark's account, edited in the dashboard, not connected to GitHub): `groundwork-auth` (Drive sign-in, worker/token-helper.js), `groundwork-ai` (shared Claude key, worker/ai-proxy.js) and `groundwork-stats` (usage counts, worker/stats.js, D1 database `groundwork-stats`). Never ask Mark to paste a secret or API key into chat; secrets go into Cloudflare as the Secret type.
 
 ## Working rules (Mark's standing preferences)
-- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.61.2 or 2.62.0 / rvapp-v129), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 60 KB, since a file over about 25,000 tokens can't be read whole for the upload) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
+- Every release: bump `RV.VERSION` and the sw.js `CACHE` (next: 2.61.3 or 2.62.0 / rvapp-v130), run all tests, commit and push, add a design-doc entry to docs/DESIGN.md (the current part; start a new part past about 60 KB, since a file over about 25,000 tokens can't be read whole for the upload) and project_write the whole file to claude/design-doc.md, and send the zip `Groundwork-v<VERSION>.zip` (made with `git archive`).
 - Keep the project docs current: after any release, setup step or decision, project_write docs/HANDOVER.md to claude/handover.md (and DESIGN.md to claude/design-doc.md after a release). Durable decisions and plans also go in project docs, not only in chat.
 - Planning or diagnosis requests: no code until Mark says to build. Mockups are not builds: don't touch the app or repo while mocking up.
 - Wording: groups of topics are "categories" (never "theme", which means light/dark); creating things on the Topics page is "New", since "Add" there reads as putting something on Today.
+- Clean up (Mark, 2026-11-14): every multi-line, quick-capture text field gets the Clean up button (field notes: visit notes, household notes, Discuss next time, study notes, the New contact form's notes). Not on one-line fields (name, address, phone).
 - Motivation (Mark, 2026-11-03): show what was accomplished, never what is left; no guilt. Habit apps that last (Apple Fitness, Finch, Headspace) count what you did, keep it, and welcome you back.
 - No "need to water" pressure (Mark, 2026-11-03): no lists of who to water, no to-water counts or lines on Today or in Areas, no reminders about thirsty plants. Seeing who's thirsty in the garden is the goal; you can't always reach everyone in a week.
 - Gamification stays calm: no confetti, sounds, countdowns, red badges or loss; slow quiet motion.
@@ -50,12 +51,12 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - App: `RV.config.aiProxy` = https://groundwork-ai.swingtreecactus.workers.dev. `RV.ai.available()` = own key or proxy; own key wins (`RV.ai.shared()` false). Settings › Note cleanup shows "Included with Groundwork", model choice, and the own key under a "Use your own API key" details row.
 - Console check from mygroundwork.app: `fetch('https://groundwork-ai.swingtreecactus.workers.dev/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-groundwork-install':'test0000test0000'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:20,messages:[{role:'user',content:'Reply with OK.'}]})}).then(r=>r.json()).then(console.log)`.
 
-## Tests (all passing at v2.61.1)
-- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (378; needs /tmp/out to exist)
+## Tests (all passing at v2.61.2)
+- `timeout 900 python3 -I tests/smoke.py /tmp/out/shots` (381; needs /tmp/out to exist)
 - `python3 -I tests/screens.py . /tmp/out/scr` (60)
-- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (60)
+- `python3 -I tests/drive_folder.py` (37; occasionally flaky, rerun), `python3 -I tests/ai_cleanup.py` (61)
 - `python3 -I tests/kinds.py . /tmp/out/k` (23), `python3 -I tests/areas_ui.py . /tmp/out/ar` (42)
-- `node tests/next.test.js` (6), `python3 -I tests/next_ui.py [shots dir]` (16), `python3 -I tests/contact_ui.py [shots dir]` (31), `python3 -I tests/directions_ui.py [shots dir]` (21)
+- `node tests/next.test.js` (6), `python3 -I tests/next_ui.py [shots dir]` (16), `python3 -I tests/contact_ui.py [shots dir]` (33), `python3 -I tests/directions_ui.py [shots dir]` (21)
 - `node tests/reminders.test.mjs` (7), `node tests/reminders-app.test.js` (4), `python3 -I tests/reminders_ui.py` (16)
 - `node tests/service.test.js` (20), `python3 -I tests/calendar_ui.py [shots dir]` (46), `python3 -I tests/year_ui.py [shots dir]` (48), `python3 -I tests/swipe_ui.py [shots dir]` (29), `python3 -I tests/away_ui.py [shots dir]` (21), `node tests/stats.test.mjs` (7; uses Node's built-in SQLite), `python3 -I tests/stats_ui.py` (14)
 - `node tests/garden.test.js` (45), `node tests/logic.test.js` (50), `node tests/worker.test.mjs` (6), `node tests/ai-proxy.test.mjs` (8), `node tests/notes.test.js` (7), `node tests/topics.test.js` (7), `node tests/handoff.test.js` (8), `node tests/ww.test.js` (7), `node tests/areas.test.js` (7), `python3 -I tests/notes_import.py` (39)
@@ -78,6 +79,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
   - v2.55: in Playwright, `pg.evaluate("RV.ui.toast(...)")` calls the returned dismiss function (a function result is invoked): use `void RV.ui.toast(...)`. Drags must stay inside the viewport and start off the tab bar (scroll the element to the centre first).
 
 ## Recent history
+- v2.61.2: visit notes are the first visit (design-doc 81): New contact's top note is Visit notes and always goes to History, for Potential too (a Potential grows on it, via `logVisit`); household notes at the foot of the form, always shown; Clean up on Visit notes, Discuss next time and Household notes, and on household notes edited in place; HOUSEHOLD label on the contact page. To watch on Mark's phone: the growth moment after adding a Potential with visit notes.
 - v2.61.1: usage counts switched on (design-doc 80): `RV.config.stats` = https://groundwork-stats.swingtreecactus.workers.dev; browser tests keep it empty.
 - v2.61.0: compact contact page and the day page (design-doc 79): back and ⋯ beside the name (a slim bar slides in once it scrolls away), smaller plant, street only (area in About), 40 px action buttons, 48 px one-line Not Home / Record a visit, tabs hide while scrolling down on every screen, a tapped day opens its own page (#/calendar/day/…) instead of a card under the month.
 - v2.60.0: Directions in the maps app you choose (design-doc 78): the first Directions tap asks (Google Maps, Apple Maps on Apple devices, Waze) and saves it; Settings › Directions changes it or sets Ask each time; reminder notifications use the same choice. Redesign release D of four: the redesign is done.
@@ -136,6 +138,7 @@ Read this first in a new chat, then claude/design-doc.md (the design log's curre
 - v2.38.0: layout release 1: Contacts (Map default, Areas, pin icon, thirsty plants), the game as objects in the garden (bunting, can, slate, signpost, field guide, next-milestone sketch), the evolution-style reveal.
 
 ## Pending
+- New contact's first visit and notes: built in v2.61.2 (design-doc 81).
 - **Redesign agreed 2026-11-11, built 2026-11-12 in four releases: A the next visit (v2.57.0, built), B the contact page (v2.58.0, built), C the Calendar day card (v2.59.0, built), D Directions (v2.60.0, built). All four built.** To watch on Mark's phone: v2.61's tabs hiding on scroll and the slim bar on a contact; the day page's swipe; the Google Maps link opening the app from the iPhone home-screen app; inline editing on the contact page. **When Mark deploys the reminders helper, he pastes the current worker/reminders.js (it takes timed reminders since v2.57.0).** The agreed design is on the canvas "Groundwork final screens" (https://claude.ai/artifact/P5e1o39hq5rMXCbN8Uj7Pg); the two earlier canvases are marked replaced. Audit and reasoning: claude/contact-redesign-audit.md. Started from user feedback (one-tap service time; Google vs Apple Maps; call-back appointments with a reminder lead time).
   - **Calendar day card (built in v2.59.0, design-doc 77).** Tapping a day opens a card under the month (no bottom sheet); the Calendar opens on today's card; swipe the card (or ‹ ›) for other days (the grid keeps its month swipe; test on a phone, fall back to arrows if swipes clash). Card: Time (session editor inline: Total / Start–finish, Ministry / Credit, Save; saved sessions as rows with + Add session; No service this day on ring days), Visits (visits and Not homes, ending + Record a visit for that day), Scheduled (sorted by time, Any time last, ending + Schedule a visit). Future days: Planned time and Scheduled. Wheels get a drum look everywhere.
   - **Next time.** One next-visit date per contact (merge `rv.snoozedUntil` and the import's `rv.nextVisit`), with an optional time, Reminder (None, At the time, 15 min, 30 min, 1 hour, 2 hours before, Morning of 8:00, Day before 6:00 PM; without a time only None and the last two) and Repeat (Never, Every week, Every 2 weeks, Every month; logging a study asks "Same time next week? Thu, Nov 19 · 6:00 PM" with Yes / Pick another / Not now, and nothing is set until Yes (Mark: ask, never automatic)). Sheet like a calendar app's event sheet (Cancel / Save, rows, inline month, wheel for time, menus). No snoozing (badge and Details row gone). A date that passes without a visit shows "Was Sat, Nov 14" with Reschedule, never overdue or red. Built in v2.57.0: worker/reminders.js takes `at` (local moments, still no names); Mark pastes this version when he deploys the helper; 15 min is the shortest lead (cron). Reminder notifications get Tomorrow and Directions actions (Android; iPhone home-screen apps may only show the message).

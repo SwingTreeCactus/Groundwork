@@ -1133,10 +1133,13 @@
       rv.phone ? h('button', { type: 'button', 'aria-label': 'Text ' + rv.phone, onclick: () => UI.openSms(rv.phone) }, icon('message', 18), 'Text') : null,
       !rv.phone ? h('button', { type: 'button', class: 'addphone', onclick: (e) => phoneInline(rv) }, icon('plus', 18), 'Add phone') : null,
       h('button', { type: 'button', 'aria-label': 'Directions to ' + (rv.address || rv.name), disabled: !navTo, onclick: () => UI.openNav(UI.navTarget(rv)) }, icon('navigation', 18), 'Directions')) : null;
+    // v2.61.2: household notes carry a Household label so they never read as a visit note; Clean up while editing
+    const hhEdit = (host, value) => inlineEdit(host, { value, label: 'Household notes', multiline: true, cleanup: true, placeholder: 'Family, work, pets. Not about a visit.', onSave: (v) => ST.updateRv(rv.id, { notes: v }) });
     const notesEl = rv.notes
-      ? h(closed ? 'div' : 'button', { class: 'household' + (cue ? ' cue' : ''), type: closed ? null : 'button', 'aria-label': closed ? null : 'Edit household notes',
-        onclick: closed ? null : (e) => inlineEdit(e.currentTarget, { value: rv.notes, label: 'Household notes', multiline: true, onSave: (v) => ST.updateRv(rv.id, { notes: v }) }) }, rv.notes)
-      : !closed ? h('button', { class: 'addline', type: 'button', onclick: (e) => inlineEdit(e.currentTarget, { value: '', label: 'Household notes', multiline: true, placeholder: 'Family, work, pets', onSave: (v) => ST.updateRv(rv.id, { notes: v }) }) }, '+ Household notes') : null;
+      ? h(closed ? 'div' : 'button', { class: 'household', type: closed ? null : 'button', 'aria-label': closed ? null : 'Edit household notes',
+        onclick: closed ? null : (e) => hhEdit(e.currentTarget, rv.notes) },
+        h('span', { class: 'hhlbl' }, icon('home', 13), 'Household'), h('span', { class: 'hhtxt' + (cue ? ' cue' : '') }, rv.notes))
+      : !closed ? h('button', { class: 'addline', type: 'button', onclick: (e) => hhEdit(e.currentTarget, '') }, '+ Household notes') : null;
     const tip = !closed ? (() => {
       // v2.50.1: taught here, on the contact, one tip at a time, each until Got it
       const t = S.settings.tips || {};
@@ -1250,6 +1253,7 @@
     inline.busy = true;
     const wrap = h('div', { class: 'inl' + (o.multiline ? ' multi' : '') + (host.classList.contains('gperson') ? ' big' : '') },
       input, o.extra ? o.extra() : null,
+      o.cleanup && o.multiline ? (() => { const r = F.cleanupRow(input, null); if (r) r.addEventListener('mousedown', (e) => e.preventDefault()); return r; })() : null,
       h('div', { class: 'inlbar' }, h('button', { class: 'link', type: 'button', onmousedown: (e) => e.preventDefault(), onclick: () => finish(true) }, 'Done')));
     const fit = () => { if (o.multiline) { input.style.height = 'auto'; input.style.height = Math.max(64, input.scrollHeight) + 'px'; } };
     function finish(save) {

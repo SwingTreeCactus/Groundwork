@@ -150,7 +150,7 @@
   }
 
   // ---------- add / edit RV ----------
-  // One form. New: Name, Address, Area and "What did you discuss?", with More details expanding the rest in place.
+  // One form. New: Name, Address, Area, Visit notes (the first visit), with More details expanding the rest in place and household notes at the foot.
   // Filled in for a new contact: Initial Call, House to house, today as a best day, the running campaign.
   // Edit: everything shown.
   const HOUSE = 'House to house';
@@ -180,7 +180,7 @@
       name: h('input', { type: 'text', value: rv.name || opts.name || '', autocomplete: 'off', 'data-autofocus': true, required: true, placeholder: isNew ? 'Name or household' : '' }),
       address: h('input', { type: 'text', value: rv.address || '', autocomplete: 'off' }),
       neighborhood: areaPicker(rv.neighborhood),
-      visit: h('textarea', { placeholder: 'Optional', 'aria-label': 'What did you discuss?', style: { minHeight: '96px' } }),
+      visit: h('textarea', { placeholder: 'What you talked about today', 'aria-label': 'Visit notes', style: { minHeight: '96px' } }),
       phone: h('input', { type: 'tel', value: rv.phone || '', autocomplete: 'off' }),
       howMet: select([{ value: '', label: '(not set)' }].concat(
         S.settings.lists.howMet.concat(rv.howMet && !S.settings.lists.howMet.includes(rv.howMet) ? [rv.howMet] : []).map((x) => ({ value: x, label: x }))), howMetDefault),
@@ -193,7 +193,7 @@
       publication: h('input', { type: 'text', value: rv.publication || '', list: 'pub-list', autocomplete: 'off', placeholder: 'Publication' }),
       progress: h('input', { type: 'text', value: rv.progress || '', autocomplete: 'off', placeholder: 'e.g. Lesson 3' }),
       nextStart: h('input', { type: 'text', value: rv.nextStart || '', autocomplete: 'off', placeholder: 'e.g. Lesson 4' }),
-      notes: h('textarea', { value: rv.notes || '', placeholder: 'Family, work, pets' }),
+      notes: h('textarea', { value: rv.notes || '', placeholder: isNew ? 'Family, work, pets. Not about this visit.' : 'Family, work, pets' }),
       whatsNext: h('textarea', { value: rv.whatsNext || '', placeholder: 'Bring next time', style: { minHeight: '64px' } }),
       tags: h('input', { type: 'text', value: (rv.tags || []).join(', '), list: 'tag-list', placeholder: 'Separate with commas' }),
     };
@@ -287,8 +287,9 @@
         // v2.58: New contact has only the Potential / RV switch for the stage (no second Stage menu here)
         h('div', { class: isClosed || isNew ? '' : 'two' }, isClosed || isNew ? null : field('Stage', f.stage), field('How we met', f.howMet)),
         studyBox,
-        field('Household notes', f.notes),
-        cleanupRow(f.notes, null),
+        // v2.61.2: a new contact's household notes sit at the bottom of the form, always shown
+        isNew ? null : field('Household notes', f.notes),
+        isNew ? null : cleanupRow(f.notes, null),
         draft ? visitsBox(draft.visits, draft.nextVisit, 'From the note, added on import') : null,
         // v2.58: no best days picker for a new contact (Likely home learns it from visits); no tags anywhere
         isNew ? null : h('div', { class: 'field' }, h('div', { class: 'lbl' }, 'Best days to find them home'), bestDays.el),
@@ -352,14 +353,15 @@
             toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
           } else if (isNew) {
             const tagged = camp && campOn.checked ? camp : null;
-            let text = f.visit.value.trim();
+            const typed = f.visit.value.trim();
+            let text = typed;
             if (!text) text = L.quickAddFallback(tagged, []); // v2.41: campaign only (topics are picked with the chips)
             if (newTopic) data.lastTopic = newTopic;
             const isFirstStage = S.settings.stages[0].id === f.stage.value;
             data.stage = f.stage.value;
             data.campaignId = tagged ? tagged.id : null;
-            // the note from meeting them is the first visit; for someone not yet contacted it goes to household notes
-            if (text && isFirstStage) data.notes = [data.notes, text].filter(Boolean).join('\n');
+            // v2.61.2: the visit notes are the first visit for every stage (they used to go to household notes for a
+            // Potential); household notes come only from their own field
             // garden: created as Initial Call, this first conversation is link 1 of the chain; created at a
             // later stage, that stage's chain starts empty (no credit for the stage it was created in)
             const plantedAt = new Date(Date.now() - 1).toISOString();
@@ -371,7 +373,16 @@
               if (data.stage !== initialId) ST.updateRv(saved.id, { garden: { since: first.at } });
             }
             fromNote.forEach((v) => ST.addEntry(saved.id, v.type, { text: v.text, imported: true }, v.at));
-            toast('Added ' + saved.name, { actions: [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }] });
+            const open = [{ label: 'Open', fn: () => { location.hash = '#/rv/' + saved.id; } }];
+            if (isFirstStage && typed) {
+              // a Potential with visit notes: recorded as Record a visit would, so the first conversation grows it
+              close();
+              const res = ST.logVisit(saved.id, { text: typed, campaignId: tagged ? tagged.id : null, plan: !!data.whatsNext, next: nextDraft || undefined });
+              if (opts.onSaved) opts.onSaved(ST.rvById(saved.id));
+              afterVisit(saved.id, res, 'Added ' + saved.name, open);
+              return;
+            }
+            toast('Added ' + saved.name, { actions: open });
           } else {
             saved = ST.updateRv(rv.id, data);
             if (!isClosed && f.stage.value !== rv.stage && f.stage.value !== '__archive') ST.setStage(rv.id, f.stage.value);
@@ -387,15 +398,19 @@
         field('Address', f.address),
         geoRow,
         field(lbl('neighborhood'), f.neighborhood.el),
-        isNew ? field('What did you discuss?', f.visit) : null,
+        // v2.61.2: the visit notes are always the first visit in History (Potential or RV), with Clean up
+        isNew ? field('Visit notes', f.visit) : null,
+        isNew ? cleanupRow(f.visit, f.whatsNext) : null,
         // v2.58: no topic picking here (the note says what was talked about)
         fillVisits,
         // v2.49: no Clean up here (Mark); a quick Potential / RV choice instead of opening More details for the stage
         isNew && quickStage ? field('Stage', quickStage.el) : null,
         isNew ? nextField : null,
+        isNew ? (() => { const r = cleanupRow(f.whatsNext, null); if (r) r.classList.add('nexttools'); return r; })() : null,
         isNew ? nextVisitField : null,
         moreBtn,
         more,
+        isNew ? h('div', { class: 'hhfield' }, field('Household notes', f.notes), cleanupRow(f.notes, null)) : null,
         h('div', { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'),
           h('button', { class: 'btn primary', type: 'submit' }, draft ? 'Done' : isNew ? 'Add' : 'Save')));
@@ -495,7 +510,7 @@
   }
 
   // After a save: the growth moment when the plant grew, else a little water bounce on the record screen.
-  async function afterVisit(rvId, res, msg) {
+  async function afterVisit(rvId, res, msg, actions) {
     const G = RV.garden, P = RV.plant;
     const on = S.settings.garden !== false && G && P;
     if (on && res.revealed) {
@@ -521,7 +536,7 @@
       const care = it ? G.forItem(it, S.settings, new Date()).care : 4;
       await P.revive(res.revived.form, res.revived.from, care || 4, rvId);
     } else if (on) P.pendingWater = rvId;
-    toast(msg, { seconds: 4, actions: [{ label: 'Undo', fn: res.undo }] });
+    toast(msg, { seconds: 4, actions: actions || [{ label: 'Undo', fn: res.undo }] });
   }
 
   function visitDialog(rvId, opts) {

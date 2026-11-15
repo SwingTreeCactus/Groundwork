@@ -66,7 +66,7 @@ with sync_playwright() as p:
     pg.click('.nvfield'); pg.wait_for_selector('.nvsheet')
     pg.click('.nvsheet .btn.primary'); pg.wait_for_timeout(300)
     check('Tomorrow' in pg.locator('.nvfield').inner_text(), 'the row shows what was picked')
-    pg.fill('textarea[aria-label="What did you discuss?"], .note-field textarea', 'Left the tract.')
+    pg.fill('textarea[aria-label="Visit notes"], .note-field textarea', 'Left the tract.')
     pg.click('button[type=submit]:has-text("Save visit")'); pg.wait_for_timeout(600)
     pg.evaluate("document.querySelectorAll('.grow-ov, .evo-ov').forEach((x) => x.click())"); pg.wait_for_timeout(300)
     tom = pg.evaluate("RV.util.toDateStr(RV.util.addDays(new Date(), 1))")

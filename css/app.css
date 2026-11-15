@@ -2589,3 +2589,10 @@ body.tabs-away .fab { bottom: calc(16px + env(safe-area-inset-bottom)); }
 .daypage .dring { margin-bottom: 4px; }
 .dtime .actions { display: flex; } .dtime .actions .btn { flex: 1; min-height: 48px; }
 .rvdock .btn { min-width: 0; overflow: hidden; } .rvdock .nhsm { flex-shrink: 0; }
+
+/* v2.61.2: household notes labeled on the contact page; on New contact they sit at the foot of the form */
+button.household .hhlbl, div.household .hhlbl { display: flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.household .hhlbl .icon { color: var(--muted); }
+.household .hhtxt { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sheet .hhfield { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.inl .note-tools { margin-top: 6px; }

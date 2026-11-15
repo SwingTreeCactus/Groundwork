@@ -139,12 +139,13 @@ with sync_playwright() as p:
     page.wait_for_selector('.toast:has-text("Visit saved")')
     check(ev(f'RV.store.S.entries.filter(e=>e.rvId=="{rid}" && e.type=="visit").length') == 1, 'visit still saves normally')
 
-    print('new contact form (v2.49): no Clean up under What did you discuss?; Household notes keeps one in More details')
+    print('new contact form (v2.61.2): Clean up on every multi-line field: Visit notes, Discuss next time, Household notes')
     page.goto(URL + '#/home'); page.wait_for_selector('.tabbar .tab')
     ev('RV.forms.quickAdd()'); page.wait_for_selector('.sheet .qstage')
-    check(page.locator('.sheet .btn.cleanup:visible').count() == 0, 'no Clean up on the short New contact form')
+    check(page.locator('.sheet .btn.cleanup:visible').count() == 3, 'three Clean up buttons on the New contact form (%d)' % page.locator('.sheet .btn.cleanup:visible').count())
+    check(page.locator('.sheet .field:has(textarea[aria-label="Visit notes"]) + .note-tools .btn.cleanup').count() == 1 and page.locator('.sheet .hhfield .btn.cleanup').count() == 1, 'under Visit notes and Household notes')
     page.click('.sheet .more-btn')
-    check(page.locator('.sheet .btn.cleanup:visible').count() == 1, 'Household notes has Clean up under More details')
+    check(page.locator('.sheet .btn.cleanup:visible').count() == 3, 'More details adds none (household notes stay at the bottom)')
     shot('05-new-rv')
 
     print('study log has Clean up too (v2.36.2), proofreading only')

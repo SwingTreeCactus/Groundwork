@@ -152,3 +152,13 @@ Mark (2026-11-12) set up the stats helper from section 71 in Cloudflare: the `gr
 - `RV.config.stats` now points to that Worker, so every install checks in once a day from this release on (switch in Menu › About still turns it off). No history before this release.
 - To read the counts: open the Worker URL, or press and hold the version line in Menu › About, and enter the admin key once per browser.
 - Tests: every browser suite sets `window.__RV_STATS = ''` so test runs never reach the real helper (stats_ui still sets its own test address); counts unchanged. VERSION 2.61.1, cache rvapp-v128.
+
+## 81. v2.61.2 Visit notes are the first visit; household notes labeled; Clean up on quick-capture fields (built 2026-11-14)
+
+Mark (2026-11-14) found that a new contact's first conversation wasn't recorded as a visit: with Potential picked, New contact's "What did you discuss?" went into household notes (an old rule from when Potential meant not yet talked with), so History was empty and the note read as household. Household notes on the contact page were a bare line, easy to take for a visit note. Rule (Mark): every multi-line, quick-capture text field gets Clean up; one-line fields don't.
+- **New contact**: the top note is **Visit notes** ("What you talked about today") and always becomes the first visit in History, for Potential or RV. A Potential with visit notes is recorded the way Record a visit would (`ST.logVisit`), so that first conversation grows it into an RV with the growth moment; the toast is "Added …" with Open (`afterVisit` takes optional toast actions). With no visit notes a Potential gets no visit. Household notes come only from their own field.
+- **Household notes** sit at the very bottom of the New contact form, always shown (`.hhfield`, not in More details), hint "Family, work, pets. Not about this visit." Edit contact and the import's Edit details keep them in the full form.
+- **Clean up** under Visit notes (moves next-time items to Discuss next time), Discuss next time and Household notes on New contact (it was left off in v2.49), and while editing household notes in place on the contact page (`inlineEdit` takes `cleanup`).
+- **Contact page**: household notes carry a small HOUSEHOLD label with a house icon (`.hhlbl`, text in `.hhtxt`, which takes the dotted cue); History already labels each entry Visit.
+- Existing contacts' notes are left where they are.
+- Tests: smoke 381 (form fields, three Clean up buttons, a Potential with visit notes and household notes), ai_cleanup 61, contact_ui 33, next_ui 16 (field label), others unchanged. VERSION 2.61.2, cache rvapp-v129.
