@@ -40,7 +40,15 @@ with sync_playwright() as p:
     # the sheet from the top bar
     pg.goto(URL + '#/rv/' + ids['m']); pg.wait_for_timeout(700)
     pg.click('.nextcard .add1v:has-text("Schedule")'); pg.wait_for_selector('.nvsheet')
-    check(pg.locator('.nvrow').count() >= 3 and 'Tomorrow' in pg.locator('.nvlist').inner_text(), 'the sheet opens on tomorrow with Date, Time, Repeat, Reminder')
+    check(pg.locator('.nvrow').count() >= 3 and 'Today' in pg.locator('.nvlist').inner_text(), 'from the contact the sheet opens on today with Date, Time, Repeat, Reminder')
+    # v2.61.4: saving today says "Added to today" and puts them on Today's list
+    pg.click('.nvsheet .btn.primary'); pg.wait_for_timeout(400)
+    check(pg.locator('.toast:has-text("Added to today")').count() >= 1, 'saving today shows "Added to today"')
+    check(pg.evaluate("(id) => RV.store.rvById(id).snoozedUntil === RV.util.toDateStr(new Date())", ids['m']), 'the next visit is today')
+    pg.goto(URL + '#/home'); pg.wait_for_timeout(700)
+    check(pg.locator('.tlrow:has-text("Maria Lopez")').count() >= 1, 'and Maria is on Today\'s list')
+    pg.goto(URL + '#/rv/' + ids['m']); pg.wait_for_timeout(700)
+    pg.click('.nextcard button.nxw'); pg.wait_for_selector('.nvsheet')
     pg.click('.nvrow:has-text("Date")'); pg.wait_for_selector('.nvcal')
     later = pg.evaluate("RV.util.toDateStr(RV.util.addDays(new Date(), 3))")
     pg.evaluate("(ds) => { const b = [...document.querySelectorAll('.nvd')].find((x) => x.getAttribute('aria-label') === RV.util.fmtDate(ds)); if (b) b.click(); else { document.querySelector('.nvcalh button[aria-label=\"Next month\"]').click(); [...document.querySelectorAll('.nvd')].find((x) => x.getAttribute('aria-label') === RV.util.fmtDate(ds)).click(); } }", later)

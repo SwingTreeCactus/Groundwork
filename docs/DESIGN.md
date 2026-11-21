@@ -170,3 +170,12 @@ Mark (2026-11-15) recorded a Not Home on a thirsty RV and it stayed thirsty. Dec
 - **Unchanged**: stage growth, the growth path's steps, flowers, kind reveals, Lush and the Revived milestones and recap count conversations only. A Not Home has no revive moment.
 - Field guide line: "It goes thirsty when it is time for a visit. A visit or a Not Home revives it; only conversations make it grow."
 - Tests: garden 45 (the Not Home test rewritten: wilted and thirsty plants revive, thirst counts from the Not Home, no growth), smoke 382 (a Not Home revives a wilted plant to healthy with no growth), others unchanged. VERSION 2.61.3, cache rvapp-v130.
+
+## 83. v2.61.4 Scheduling from a contact starts on today (built 2026-11-21)
+
+Mark (2026-11-21): there was no way to put someone on Today's list from their contact page (the v2.51 top-bar calendar that did it went in v2.58). Rather than a separate "Add to today" control, scheduling a visit from the contact defaults to today.
+- **The Next visit sheet** (`RV.next.sheet`) opens on **today** when it saves straight to the contact: the Next time card's + Schedule, tapping the date, Reschedule on a passed date, and Actions' Next visit…. A form's draft (the Next visit row in Record a visit / Log study, New contact, "Pick another") still opens on tomorrow, since you've just seen them. The Calendar's Schedule a visit keeps the tapped day.
+- A date already gone by opens on the default instead of the old date (past days can't be picked anyway); Reschedule no longer passes its own date.
+- **Saving with today's date** shows "Added to today" (with Undo); they join Today's list as a follow-up for today, as before. A future date keeps "Next visit Sat, Nov 28"; clearing keeps "Next visit cleared".
+- Accepted: if they aren't visited today, from tomorrow the contact reads "Was Sat, Nov 21" with Reschedule (never red or overdue).
+- Tests: next_ui 19 (opens on today, "Added to today", on Today's list), smoke 382 (the Schedule check now expects today), others unchanged. VERSION 2.61.4, cache rvapp-v131.

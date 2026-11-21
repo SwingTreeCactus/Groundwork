@@ -142,8 +142,12 @@
       opts = opts || {};
       const rv = ST().rvById(rvId) || {};
       const src = opts.draft || { date: rv.snoozedUntil || null, time: rv.nextTime || null, remind: rv.nextRemind || 'morning', repeat: rv.nextRepeat || null };
-      const v = { date: src.date || opts.date || null, time: src.time || null, remind: src.remind || 'morning', repeat: src.repeat || null };
-      if (!v.date) v.date = opts.date || U.toDateStr(U.addDays(new Date(), 1));
+      // v2.61.4 (Mark): scheduling from the contact opens on today; a form's draft (Record a visit, Log study,
+      // New contact) opens on tomorrow, since you've just seen them. A date already gone by opens on the default.
+      const todayStr = U.toDateStr(new Date());
+      const kept = src.date && src.date >= todayStr ? src.date : null;
+      const v = { date: kept || opts.date || null, time: src.time || null, remind: src.remind || 'morning', repeat: src.repeat || null };
+      if (!v.date) v.date = opts.draft ? U.toDateStr(U.addDays(new Date(), 1)) : todayStr;
       const had = !!(opts.draft ? opts.draft.date : rv.snoozedUntil);
       let open = opts.open || null; // which row is unfolded: date, time, repeat, remind
       const list = h('div', { class: 'nvlist' });
@@ -195,7 +199,8 @@
       if (!rv) return;
       const snap = JSON.parse(JSON.stringify(rv));
       ST().updateRv(rvId, fields(val || {}));
-      UI().toast(val && val.date ? 'Next visit ' + whenText(val.date, val.time) : 'Next visit cleared',
+      const isToday = val && val.date === U.toDateStr(new Date());
+      UI().toast(isToday ? 'Added to today' : val && val.date ? 'Next visit ' + whenText(val.date, val.time) : 'Next visit cleared',
         { seconds: 4, actions: [{ label: 'Undo', fn: () => ST().updateRv(rvId, { snoozedUntil: snap.snoozedUntil || null, nextTime: snap.nextTime || null, nextRemind: snap.nextRemind || null, nextRepeat: snap.nextRepeat || null }) }] });
     }
     // The Next visit row in a form (Record a visit, New contact): shows the draft, opens the sheet on it.

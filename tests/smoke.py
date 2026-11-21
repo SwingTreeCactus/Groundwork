@@ -959,7 +959,7 @@ with sync_playwright() as p:
     page.click('.nextcard button.nxw'); page.click('.sheet .nvclear'); time.sleep(0.3)
     check(ev('RV.store.rvById("%s").snoozedUntil' % gid) is None, "Clear next visit clears it (the list keeps people put there by hand)")
     page.click('.nextcard .add1v:has-text("Schedule")'); page.click('.sheet .nvsheet .btn.primary'); time.sleep(0.3)
-    check(ev('RV.store.rvById("%s").snoozedUntil' % gid) is not None and 'Tomorrow' in page.locator('.nextcard .nxd').inner_text(), 'the sheet starts on tomorrow; Save sets it and Next time shows it')
+    check(ev('RV.store.rvById("%s").snoozedUntil' % gid) is not None and 'Today' in page.locator('.nextcard .nxd').inner_text() and page.locator('.toast:has-text("Added to today")').count() >= 1, 'the sheet starts on today; Save sets it, says Added to today, and Next time shows it')
     ev('''(id) => RV.store.updateRv(id, { snoozedUntil: null })''', ben)
     # rows, Today, Insights
     page.goto(URL + '#/rvs'); page.fill('input[type=search]', 'Gardenia'); time.sleep(0.4)

@@ -1152,7 +1152,7 @@
     // ---- 2 Next time: when (or Was …), then the plan (for a study: the publication and the lesson) ----
     if (!closed) {
       const nx = RV.next.of(rv, it.entries, new Date());
-      const openSheet = () => RV.next.sheet(rv.id, { date: nx.state === 'passed' ? U.toDateStr(U.addDays(new Date(), 1)) : undefined });
+      const openSheet = () => RV.next.sheet(rv.id);
       const sub = [nx.state !== 'none' && nx.state !== 'passed' ? RV.next.remindLabel(rv) : null, rv.nextRepeat ? RV.next.repeatWord(rv) : null].filter(Boolean);
       const whenEl = nx.state === 'passed'
         ? h('div', { class: 'nxw' }, h('span', { class: 'nxd was' }, 'Was ' + U.fmtDate(nx.date)), h('button', { class: 'btn sm', type: 'button', onclick: openSheet }, 'Reschedule'))
