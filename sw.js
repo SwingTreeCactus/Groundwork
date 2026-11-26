@@ -1,7 +1,7 @@
 /* Service worker: caches the app so it opens with no signal.
    IMPORTANT: change CACHE (for example rvapp-v2) every time you publish a new version of any file,
    so phones pick up the update as one consistent set. */
-const CACHE = 'rvapp-v131';
+const CACHE = 'rvapp-v132';
 const ASSETS = [
   './',
   './index.html',
@@ -46,6 +46,7 @@ const ASSETS = [
   './js/gmap.js',
   './js/areas.js',
   './js/areaedit.js',
+  './js/recheck.js',
   './vendor/polygon-clipping/polygon-clipping.umd.min.js',
   './vendor/maplibre/maplibre-gl.js',
   './vendor/maplibre/maplibre-gl.css',

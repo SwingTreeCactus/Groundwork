@@ -218,6 +218,8 @@
       // an address is already filled in: take the coordinates, and add a missing city or ZIP from the
       // lookup (street part untouched). No popup. Offline: coordinates only.
       if (f.address.value.trim()) {
+        // v2.62: far from the typed address, ask before pinning
+        if (RV.recheck) { btn.lastChild.textContent = 'Checking…'; if (!(await RV.recheck.pinOk(f.address.value, pt, rv))) { paintGeo(); return; } }
         geo = pt;
         btn.lastChild.textContent = 'Finding address…';
         const parts = await RV.geo.lookup(pt);

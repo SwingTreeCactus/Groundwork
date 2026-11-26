@@ -2596,3 +2596,19 @@ button.household .hhlbl, div.household .hhlbl { display: flex; align-items: cent
 .household .hhtxt { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sheet .hhfield { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .inl .note-tools { margin-top: 6px; }
+
+/* v2.62: address edits re-check the area and the pin (js/recheck.js) */
+.rcmap { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--surface2); }
+.rcroad { fill: none; stroke: var(--surface); stroke-width: 9; }
+.rcroad2 { fill: none; stroke: var(--line); stroke-width: 1; }
+.rcgap { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 5; fill: none; }
+.rcpill { fill: var(--fg); }
+.rcpilltx { fill: var(--bg); font: 700 12px var(--font-ui, system-ui), sans-serif; }
+.rclbl { fill: var(--fg); font: 11px var(--font-ui, system-ui), sans-serif; }
+.rcpin { fill: var(--red); stroke: var(--surface); stroke-width: 2.5; }
+.rcaddr { fill: var(--surface); stroke: var(--fg); stroke-width: 3; }
+.rcask .actions { margin-top: 16px; }
+.rccard { background: var(--accent-soft); border-radius: 14px; padding: 12px 14px; margin: 10px 0 2px; }
+.rccardt { font-weight: 600; line-height: 1.35; }
+.rccardb { display: flex; gap: 8px; margin-top: 10px; }
+.rccardb .btn { flex: 1; min-height: 44px; }

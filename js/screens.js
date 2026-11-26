@@ -1147,7 +1147,10 @@
       if (!t.nh) return coach('nh', 'Nobody home? Tap ' + lbl('notHome') + '. Knocking counts toward your week.');
       return null; })() : null;
     if (cue) bumpCue();
-    els.push(h('section', { class: 'card who' }, hero, actRow, notesEl, gst && gst.form ? growthPath(it, gst) : null, tip));
+    // v2.62: an address edited offline is checked once there's signal; a far pin found then asks here
+    if (!closed && rv.addrCheck && RV.recheck && navigator.onLine !== false) setTimeout(() => RV.recheck.addressChanged(rv.id, {}), 0);
+    const pinCard = !closed && RV.recheck ? RV.recheck.card(rv) : null;
+    els.push(h('section', { class: 'card who' }, hero, pinCard, actRow, notesEl, gst && gst.form ? growthPath(it, gst) : null, tip));
 
     // ---- 2 Next time: when (or Was …), then the plan (for a study: the publication and the lesson) ----
     if (!closed) {
@@ -1275,36 +1278,56 @@
       else if (e.key === 'Enter' && !o.multiline) { e.preventDefault(); finish(true); }
     });
     input.addEventListener('input', fit);
-    wrap.addEventListener('focusout', () => setTimeout(() => { if (!done && wrap.isConnected && !wrap.contains(document.activeElement)) finish(true); }, 200));
+    // v2.62: a sheet opened from the edit (Pin here far from the address) doesn't end it
+    wrap.addEventListener('focusout', () => setTimeout(() => { if (!done && wrap.isConnected && !wrap.contains(document.activeElement) && !document.querySelector('.overlay')) finish(true); }, 200));
     host.replaceWith(wrap);
     fit();
     try { input.focus(); const n = input.value.length; input.setSelectionRange(n, n); } catch (e) { /* ignore */ }
     return wrap;
   }
-  // The address in place, with the area under it (filled from the map's areas when the spot is in one) and Pin here
+  // The address in place, with the area under it (filled from the map's areas when the spot is in one), Pin here and,
+  // once pinned, Remove pin. v2.62: a changed address is looked up on Done and can move the contact's area, and a far
+  // pin asks (RV.recheck); Pin here asks when you're far from the typed address.
   function addressInline(host, rv) {
     let geo = rv.geo || null;
+    const before = { address: rv.address || '', neighborhood: rv.neighborhood || '', geo: rv.geo || null, approx: rv.approx || null, pinFar: rv.pinFar || null, pinKeep: rv.pinKeep || null, addrCheck: rv.addrCheck || null };
     const area = F.areaPicker(rv.neighborhood);
-    area.el.addEventListener('change', () => setTimeout(() => { const v = area.get(); if (v && v !== (rv.neighborhood || '')) ST.updateRv(rv.id, { neighborhood: v }); }, 50));
+    let handPicked = false;
+    area.el.addEventListener('change', () => { handPicked = true; }); area.el.addEventListener('change', () => setTimeout(() => { const v = area.get(); if (v && v !== (rv.neighborhood || '')) ST.updateRv(rv.id, { neighborhood: v }); }, 50));
+    const typed = (el) => { const w = el.closest('.inl'); const i = w && w.querySelector('input'); return i ? i.value.trim() : (rv.address || ''); };
+    const unpin = h('button', { class: 'btn sm', type: 'button', hidden: !geo, onclick: () => {
+      geo = null; try { pin.focus({ preventScroll: true }); } catch (e) { /* ignore */ } // hiding the focused button would end the edit
+      unpin.hidden = true; pin.lastChild.textContent = 'Pin here';
+      const a = RV.recheck ? RV.recheck.useAddress(rv.id, {}) : (ST.updateRv(rv.id, { geo: null }), '');
+      if (a) area.set(a);
+    } }, 'Remove pin');
     const pin = h('button', { class: 'btn sm', type: 'button', onclick: async () => {
-      pin.disabled = true; pin.lastChild.textContent = 'Locating…';
+      // busy, not disabled: disabling the focused button would end the edit
+      if (pin.getAttribute('aria-busy') === 'true') return;
+      pin.setAttribute('aria-busy', 'true'); pin.lastChild.textContent = 'Locating…';
       try {
-        geo = await RV.geo.here();
-        const patch = { geo };
-        if (RV.areas) { const a = RV.areas.areaAt(S.settings, geo); if (a && !rv.neighborhood) patch.neighborhood = a; }
+        const here = await RV.geo.here();
+        if (RV.recheck && !(await RV.recheck.pinOk(typed(pin), here, ST.rvById(rv.id)))) { pin.lastChild.textContent = geo ? 'Pin again' : 'Pin here'; pin.removeAttribute('aria-busy'); return; }
+        geo = here;
+        const patch = { geo, pinFar: null, pinKeep: null };
+        if (RV.areas) { const a = RV.areas.areaAt(S.settings, geo); if (a && !rv.neighborhood) { patch.neighborhood = a; area.set(a); } }
         ST.updateRv(rv.id, patch);
-        pin.lastChild.textContent = 'Pinned';
-      } catch (e) { toast(e.message); pin.lastChild.textContent = 'Pin here'; }
-      pin.disabled = false;
+        pin.lastChild.textContent = 'Pinned'; unpin.hidden = false;
+      } catch (e) { toast(e.message); pin.lastChild.textContent = geo ? 'Pin again' : 'Pin here'; }
+      pin.removeAttribute('aria-busy');
     } }, icon('navigation', 15), h('span', null, geo ? 'Pin again' : 'Pin here'));
     inlineEdit(host, { value: rv.address || '', label: 'Address', placeholder: 'Street address',
-      extra: () => h('div', { class: 'inlx' }, h('label', { class: 'inlarea' }, h('span', null, lbl('neighborhood')), area.el), pin),
+      extra: () => h('div', { class: 'inlx' }, h('label', { class: 'inlarea' }, h('span', null, lbl('neighborhood')), area.el), pin, unpin),
       onSave: (v) => {
+        // Undo puts back everything this edit changed (the area it moved, a pin it removed)
+        if (v === before.address.trim()) { ST.updateRv(rv.id, Object.assign({}, before)); return; }
         const patch = { address: v };
+        const hand = handPicked;
         if (area.get() !== (rv.neighborhood || '')) patch.neighborhood = area.get();
         // v2.58: the area fills in from the map's areas when the address's spot is known and no area is set
         if (!rv.neighborhood && geo && RV.areas) { const a = RV.areas.areaAt(S.settings, geo); if (a) patch.neighborhood = a; }
         ST.updateRv(rv.id, patch);
+        if (RV.recheck && v) RV.recheck.addressChanged(rv.id, { hand, ask: true });
       } });
   }
   // Add or change the phone number, in place in About (opened if folded)

@@ -99,9 +99,21 @@
     if (!pts.length) return null;
     return { lat: pts.reduce((s, r) => s + r.geo.lat, 0) / pts.length, lng: pts.reduce((s, r) => s + r.geo.lng, 0) / pts.length };
   }
+  // v2.62: metres between two {lat, lng} points (haversine), and how it reads: "500 ft" under a tenth of a mile, else "0.4 mi"
+  function dist(a, b) {
+    if (!a || !b) return 0;
+    const R = 6371000, r = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+  }
+  const distText = (m) => { const mi = m / 1609.344; return mi < 0.1 ? Math.max(50, Math.round(m * 3.28084 / 50) * 50) + ' ft' : (mi < 10 ? mi.toFixed(1) : String(Math.round(mi))) + ' mi'; };
+  // Farther apart than this, a pin and its address are worth asking about. Loose on purpose: OpenStreetMap often places an
+  // address somewhere along its block, and a phone's position can be 30–50 m off.
+  const FAR_M = 150;
   const label = (g) => (g ? g.lat.toFixed(5) + ', ' + g.lng.toFixed(5) + (g.acc ? ' (±' + g.acc + ' m)' : '') : '');
 
-  const api = { here, lookup, suggest, streetOf, fullOf, completeAddress, label, addrKey, pointOf, needsLookup, forward, centerOf };
+  const api = { here, lookup, suggest, streetOf, fullOf, completeAddress, label, addrKey, pointOf, needsLookup, forward, centerOf, dist, distText, FAR_M };
   RV.geo = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -89,7 +89,7 @@ with sync_playwright() as p:
     check(pg.evaluate("(id) => RV.store.rvById(id).notes", ids['m']) == 'Lives with her mother.\nTwo cats.', 'household notes edit in place; Done saves')
     # the address, with the area under it
     pg.click('.gaddr'); pg.wait_for_selector('.inl input')
-    check(pg.locator('.inlx select').count() == 1 and pg.locator('.inlx button:has-text("Pin")').count() == 1, 'the address brings the area and Pin here')
+    check(pg.locator('.inlx select').count() == 1 and pg.locator('.inlx button:has-text("Pin here")').count() == 1, 'the address brings the area and Pin here')
     shot(pg, 'c3-address', False)
     pg.keyboard.press('Escape')
     # About

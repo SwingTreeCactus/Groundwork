@@ -97,7 +97,15 @@
         cur.approx = pt ? { q: GEO.addrKey(rv), lat: pt.lat, lng: pt.lng } : { q: GEO.addrKey(rv), fail: true };
         // v2.50: a contact with no area joins the area whose shape its point falls in
         if (pt && !cur.neighborhood && RV.areas) { const a = RV.areas.areaAt(ST.S.settings, pt); if (a) cur.neighborhood = a; }
+        // v2.62: an address edited offline moves to the area its new spot is in (unless the area was picked by hand)
+        let moved = null;
+        if (cur.addrCheck) {
+          const hand = cur.addrCheck === 'hand';
+          delete cur.addrCheck;
+          if (pt && !hand && RV.areas) { const a = RV.areas.areaAt(ST.S.settings, pt); if (a && a !== cur.neighborhood) { moved = { old: cur.neighborhood || '', a }; cur.neighborhood = a; } }
+        }
         ST.persistRv(cur);
+        if (moved) { const id = cur.id; RV.ui.toast('Moved ' + cur.name + ' to ' + moved.a, { seconds: 6, actions: [{ label: 'Undo', fn: () => ST.updateRv(id, { neighborhood: moved.old }) }] }); }
         if (pt) onPlaced(cur);
         await new Promise((r) => setTimeout(r, 1100));
       }

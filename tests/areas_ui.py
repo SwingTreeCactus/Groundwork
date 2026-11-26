@@ -164,7 +164,7 @@ with sync_playwright() as p:
     pg.wait_for_function(f"RV.store.rvById('{cid}').approx", timeout=20000)
     check(ev(f"RV.store.rvById('{cid}').neighborhood") == 'Oak Park North', 'a contact placed from its address joins the area whose shape holds it')
     # ---- New contact: a geotag inside a shape fills Area ----
-    c.grant_permissions(['geolocation'], origin=base.rstrip('/')); c.set_geolocation({'latitude': 37.966, 'longitude': -121.308})
+    c.grant_permissions(['geolocation'], origin=base.rstrip('/')); c.set_geolocation({'latitude': 37.9675, 'longitude': -121.3072})  # v2.62: near the typed address, so Pin here doesn't ask
     pg.click('.fab'); pg.wait_for_selector('.sheet')
     pg.locator('.sheet input[type=text]').nth(1).fill('9 Elm St')
     pg.click('.sheet .georow button'); pg.wait_for_function("document.querySelector('.sheet .georow button') && document.querySelector('.sheet .georow button').textContent.includes('Geotagged')", timeout=10000)

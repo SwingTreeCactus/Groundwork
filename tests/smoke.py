@@ -1174,7 +1174,8 @@ with sync_playwright() as p:
     n = len(lookups)
     ev('(id) => RV.forms.rvForm(RV.store.rvById(id))', geo['id']); page.wait_for_selector('.sheet .georow')
     page.click('.georow button:has-text("Geotag")'); page.wait_for_selector('.georow button[aria-label="Delete coordinates"]'); time.sleep(0.2)
-    check(len(lookups) == n + 1 and page.locator('.sheet h2:has-text("Geotag")').count() == 0, 'address already saved: no popup')
+    # v2.62: the pin-distance check also looks the address up (a search); count the reverse lookups
+    check(len([u for u in lookups[n:] if '/reverse' in u]) == 1 and page.locator('.sheet h2:has-text("Geotag")').count() == 0, 'address already saved: no popup')
     check(page.locator('.sheet input[autocomplete=off] >> nth=1').input_value() == '1417 N Wilson Way, Stockton, CA 95205', 'missing city and ZIP filled in, street kept')
     n = len(lookups)
     page.click('.sheet button[type=submit]:has-text("Save")'); time.sleep(0.3)
